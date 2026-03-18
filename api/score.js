@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 /**
  * AI-powered applicant scoring using Claude.
- * Evaluates screening answers + applicant info.
+ * Evaluates structured screening data + applicant info.
  * Returns: qualified | needs_review | not_a_fit
  */
 export default async function handler(req, res) {
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { applicant, answers } = req.body
+  const { applicant, screening } = req.body
 
   // If no API key, fall back to needs_review
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -29,22 +29,19 @@ APPLICANT INFO:
 - Name: ${applicant.first_name} ${applicant.last_name}
 - Location: ${applicant.city}, ${applicant.zip}
 - Roles interested in: ${(applicant.roles || []).join(', ') || 'none selected'}
-- Availability: ${(applicant.availability || []).join(', ') || 'none selected'}
+- General availability: ${(applicant.availability || []).join(', ') || 'none selected'}
 
-SCREENING ANSWERS:
-1. What work have you done before like this?
-${answers.answer_experience}
-
-2. What days/times are you available?
-${answers.answer_availability}
-
-3. Why would you be reliable for shift-based work?
-${answers.answer_reliability}
+STRUCTURED SCREENING:
+- Past experience types: ${(screening.experience_types || []).join(', ') || 'none'}
+- Shift windows available: ${(screening.availability_windows || []).join(', ') || 'none'}
+- Reliable transportation: ${screening.has_transportation || 'not answered'}
+- Available on short notice: ${screening.short_notice || 'not answered'}
+- Additional notes: ${screening.notes || 'none'}
 
 DECISION CRITERIA:
-- "qualified": Answers show relevant experience or willingness, availability aligns with shift work, and reliability answer is specific/credible.
-- "needs_review": Answers are vague but not disqualifying, or there's a mix of positive and unclear signals.
-- "not_a_fit": Answers show no relevant experience AND no willingness to learn, availability doesn't fit shift work, or answers are clearly low-effort/spam.
+- "qualified": Has relevant experience (event staffing, warehouse, cleaning, food service, labor, etc.) OR selected "No Experience Yet" but shows broad availability, has transportation, and is available on short notice. Good alignment between roles, availability, and shift windows.
+- "needs_review": Limited availability or transportation gap, but not disqualifying. Mixed signals overall.
+- "not_a_fit": No experience AND very limited availability, no transportation, and not available on short notice. Or only selected a single narrow window with no flexibility.
 
 Respond with ONLY valid JSON (no markdown, no code fences):
 {"decision": "qualified|needs_review|not_a_fit", "reasoning": "1-2 sentence explanation"}`

@@ -8,15 +8,16 @@ export default async function handler(req, res) {
   const {
     first_name, last_name, email, phone, city, zip,
     roles, availability,
-    answer_experience, answer_availability, answer_reliability,
+    experience_types, availability_windows,
+    has_transportation, short_notice, notes,
   } = req.body
 
   // Basic validation
   if (!first_name || !last_name || !email || !phone || !city || !zip) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
-  if (!answer_experience || !answer_availability || !answer_reliability) {
-    return res.status(400).json({ error: 'Please answer all screening questions' })
+  if (!experience_types?.length || !availability_windows?.length || !has_transportation || !short_notice) {
+    return res.status(400).json({ error: 'Please complete all screening fields' })
   }
 
   const supabase = createClient(
@@ -38,9 +39,11 @@ export default async function handler(req, res) {
         zip,
         roles: roles || [],
         availability: availability || [],
-        answer_experience,
-        answer_availability,
-        answer_reliability,
+        experience_types: experience_types || [],
+        availability_windows: availability_windows || [],
+        has_transportation: has_transportation || '',
+        short_notice: short_notice || '',
+        notes: notes || '',
         status: 'pending',
       })
       .select('id')
@@ -63,7 +66,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         applicant: { first_name, last_name, city, zip, roles, availability },
-        answers: { answer_experience, answer_availability, answer_reliability },
+        screening: { experience_types, availability_windows, has_transportation, short_notice, notes },
       }),
     })
 

@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('applicants')
-      .select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, answer_experience, answer_availability, answer_reliability, score_breakdown, status, email_sent_at')
+      .select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, score_breakdown, status, email_sent_at')
       .order('created_at', { ascending: false })
 
     if (error) throw error

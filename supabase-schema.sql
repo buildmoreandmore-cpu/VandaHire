@@ -11,9 +11,11 @@ create table if not exists public.applicants (
   zip text not null,
   roles text[] not null default '{}',
   availability text[] not null default '{}',
-  answer_experience text not null default '',
-  answer_availability text not null default '',
-  answer_reliability text not null default '',
+  experience_types text[] not null default '{}',
+  availability_windows text[] not null default '{}',
+  has_transportation text not null default '',
+  short_notice text not null default '',
+  notes text not null default '',
   score_breakdown jsonb,
   status text not null default 'pending',
   email_sent_at timestamptz
@@ -27,15 +29,11 @@ alter table public.applicants enable row level security;
 -- Migration from previous schema (run if upgrading existing table):
 --
 -- ALTER TABLE public.applicants
---   ADD COLUMN IF NOT EXISTS answer_experience text not null default '',
---   ADD COLUMN IF NOT EXISTS answer_availability text not null default '',
---   ADD COLUMN IF NOT EXISTS answer_reliability text not null default '',
---   DROP COLUMN IF EXISTS instagram_connected,
---   DROP COLUMN IF EXISTS facebook_connected,
---   DROP COLUMN IF EXISTS tiktok_connected,
---   DROP COLUMN IF EXISTS linkedin_connected,
---   DROP COLUMN IF EXISTS instagram_data,
---   DROP COLUMN IF EXISTS facebook_data,
---   DROP COLUMN IF EXISTS tiktok_data,
---   DROP COLUMN IF EXISTS linkedin_data,
---   DROP COLUMN IF EXISTS ai_score;
+--   ADD COLUMN IF NOT EXISTS experience_types text[] not null default '{}',
+--   ADD COLUMN IF NOT EXISTS availability_windows text[] not null default '{}',
+--   ADD COLUMN IF NOT EXISTS has_transportation text not null default '',
+--   ADD COLUMN IF NOT EXISTS short_notice text not null default '',
+--   ADD COLUMN IF NOT EXISTS notes text not null default '',
+--   DROP COLUMN IF EXISTS answer_experience,
+--   DROP COLUMN IF EXISTS answer_availability,
+--   DROP COLUMN IF EXISTS answer_reliability;

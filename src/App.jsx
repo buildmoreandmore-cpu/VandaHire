@@ -18,9 +18,11 @@ const initialFormData = {
   zip: '',
   roles: [],
   availability: [],
-  answer_experience: '',
-  answer_availability: '',
-  answer_reliability: '',
+  experience_types: [],
+  availability_windows: [],
+  has_transportation: '',
+  short_notice: '',
+  notes: '',
 }
 
 export default function App() {
