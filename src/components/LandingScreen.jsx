@@ -3,7 +3,7 @@ export default function LandingScreen({ onStart }) {
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col px-6">
       {/* Wordmark */}
       <div className="pt-8 pb-0 flex items-center justify-between">
-        <span className="text-white font-extrabold text-2xl tracking-tight">Porter</span>
+        <span className="text-white font-extrabold text-2xl tracking-tight">Vanda</span>
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">
           Coordinator Login
         </a>

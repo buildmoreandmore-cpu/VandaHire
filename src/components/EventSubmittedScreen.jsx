@@ -23,7 +23,7 @@ export default function EventSubmittedScreen({ title }) {
         href="/"
         className="text-p-green text-sm font-medium hover:opacity-80 transition-opacity fade-up-delay-2"
       >
-        ← Back to Porter
+        ← Back to Vanda
       </a>
     </div>
   )

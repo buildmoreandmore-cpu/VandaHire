@@ -1,6 +1,6 @@
 // Admin API helper — uses PORTER_ADMIN_TOKEN stored in localStorage
 
-const TOKEN_KEY = 'porter_admin_token'
+const TOKEN_KEY = 'vanda_admin_token'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || ''

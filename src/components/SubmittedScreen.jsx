@@ -46,10 +46,10 @@ export default function SubmittedScreen({ firstName }) {
         <p className="text-[#555] text-sm fade-up-delay-2">
           Questions? Email us at{' '}
           <a
-            href="mailto:crew@joinporter.co"
+            href="mailto:crew@joinvanda.co"
             className="text-[#888] hover:text-[#c8ff00] transition-colors duration-200"
           >
-            crew@joinporter.co
+            crew@joinvanda.co
           </a>
         </p>
       </div>

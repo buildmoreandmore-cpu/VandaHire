@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         .order('event_date', { ascending: true })
       if (result.error) throw result.error
       data = result.data || []
-      filename = 'porter-events.csv'
+      filename = 'vanda-events.csv'
 
     } else if (exportType === 'assignments') {
       const result = await supabase
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
         worker_email: row.applicants?.email,
         worker_phone: row.applicants?.phone,
       }))
-      filename = 'porter-assignments.csv'
+      filename = 'vanda-assignments.csv'
 
     } else {
       // Default: applicants
@@ -74,7 +74,7 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false })
       if (result.error) throw result.error
       data = result.data || []
-      filename = 'porter-applicants.csv'
+      filename = 'vanda-applicants.csv'
     }
 
     const csv = toCsv(data)

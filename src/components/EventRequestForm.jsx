@@ -64,7 +64,7 @@ export default function EventRequestForm({ onSuccess }) {
   return (
     <div className="max-w-[600px] mx-auto px-6 py-8">
       <div className="mb-8">
-        <a href="/" className="text-white font-extrabold text-2xl tracking-tight">Porter</a>
+        <a href="/" className="text-white font-extrabold text-2xl tracking-tight">Vanda</a>
         <p className="text-p-muted text-xs mt-1">Event Staffing Platform</p>
       </div>
 

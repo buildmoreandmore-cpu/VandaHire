@@ -272,7 +272,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
 
       <div className="flex-1 flex flex-col max-w-[480px] mx-auto w-full px-6 py-10">
         <div className="mb-8">
-          <span className="text-white font-extrabold text-xl tracking-tight">Porter</span>
+          <span className="text-white font-extrabold text-xl tracking-tight">Vanda</span>
           <p className="text-[#555] text-xs mt-1">Step 1 of 2</p>
         </div>
 

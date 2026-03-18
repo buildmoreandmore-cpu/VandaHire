@@ -39,7 +39,7 @@ export default function AdminPage() {
       {/* Header */}
       <div className="border-b border-p-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a href="/" className="text-white font-extrabold text-lg tracking-tight">Porter</a>
+          <a href="/" className="text-white font-extrabold text-lg tracking-tight">Vanda</a>
           <span className="text-p-muted text-xs">Coordinator</span>
         </div>
         <button onClick={handleLogout} className="text-p-muted text-xs hover:text-white transition-colors">
