@@ -16,14 +16,9 @@ export default function SocialVerify({ socialData, onConnect, onSubmit, submitti
 
       <div className="flex-1 flex flex-col max-w-[480px] mx-auto w-full px-6 py-10">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8">
           <span className="text-white font-extrabold text-xl tracking-tight">Porter</span>
-          <span
-            className="text-[10px] font-bold uppercase tracking-widest px-2 py-[3px] rounded-full"
-            style={{ background: 'rgba(255,92,0,0.12)', color: '#FF5C00', border: '1px solid rgba(255,92,0,0.25)' }}
-          >
-            Step 2 of 3
-          </span>
+          <p className="text-[#555] text-xs mt-1">Step 2 of 3</p>
         </div>
 
         <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">
@@ -35,23 +30,18 @@ export default function SocialVerify({ socialData, onConnect, onSubmit, submitti
 
         {/* Required indicator */}
         <div className="flex items-center gap-2 mb-4">
-          <div
-            className="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-300"
-            style={
-              requiredConnected >= 2
-                ? { background: 'rgba(200,255,0,0.1)', border: '1px solid rgba(200,255,0,0.25)', color: '#c8ff00' }
-                : { background: 'rgba(255,92,0,0.08)', border: '1px solid rgba(255,92,0,0.2)', color: '#FF5C00' }
-            }
+          <span
+            className={`text-xs font-semibold tabular-nums ${
+              requiredConnected >= 2 ? 'text-[#c8ff00]' : 'text-[#888]'
+            }`}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{
-                background: requiredConnected >= 2 ? '#c8ff00' : '#FF5C00',
-                boxShadow: requiredConnected >= 2 ? '0 0 6px #c8ff00' : '0 0 6px #FF5C00',
-              }}
-            />
             {requiredConnected}/2 required connected
-          </div>
+          </span>
+          {requiredConnected >= 2 && (
+            <svg className="w-4 h-4 text-[#c8ff00]" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 mb-6">
