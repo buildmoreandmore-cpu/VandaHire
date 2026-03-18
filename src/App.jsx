@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import LandingScreen from './components/LandingScreen.jsx'
 import BasicInfoForm from './components/BasicInfoForm.jsx'
-import SocialVerify from './components/SocialVerify.jsx'
 import SubmittedScreen from './components/SubmittedScreen.jsx'
 
 const SCREENS = {
   LANDING: 'landing',
-  BASIC_INFO: 'basic_info',
-  SOCIAL_VERIFY: 'social_verify',
+  APPLICATION: 'application',
   SUBMITTED: 'submitted',
 }
 
@@ -20,43 +18,25 @@ const initialFormData = {
   zip: '',
   roles: [],
   availability: [],
-}
-
-const initialSocialData = {
-  instagram_connected: false,
-  facebook_connected: false,
-  tiktok_connected: false,
-  linkedin_connected: false,
-  instagram_data: null,
-  facebook_data: null,
-  tiktok_data: null,
-  linkedin_data: null,
+  answer_experience: '',
+  answer_availability: '',
+  answer_reliability: '',
 }
 
 export default function App() {
   const [screen, setScreen] = useState(SCREENS.LANDING)
   const [formData, setFormData] = useState(initialFormData)
-  const [socialData, setSocialData] = useState(initialSocialData)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
-
-  const handleSocialConnect = (platform, data) => {
-    setSocialData(prev => ({
-      ...prev,
-      [`${platform}_connected`]: true,
-      [`${platform}_data`]: data,
-    }))
-  }
 
   const handleSubmit = async () => {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const payload = { ...formData, ...socialData }
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -73,20 +53,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] font-inter">
       {screen === SCREENS.LANDING && (
-        <LandingScreen onStart={() => setScreen(SCREENS.BASIC_INFO)} />
+        <LandingScreen onStart={() => setScreen(SCREENS.APPLICATION)} />
       )}
-      {screen === SCREENS.BASIC_INFO && (
+      {screen === SCREENS.APPLICATION && (
         <BasicInfoForm
           formData={formData}
           onChange={setFormData}
-          onNext={() => setScreen(SCREENS.SOCIAL_VERIFY)}
-        />
-      )}
-      {screen === SCREENS.SOCIAL_VERIFY && (
-        <SocialVerify
-          formData={formData}
-          socialData={socialData}
-          onConnect={handleSocialConnect}
           onSubmit={handleSubmit}
           submitting={submitting}
           submitError={submitError}

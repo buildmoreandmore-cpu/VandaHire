@@ -8,13 +8,15 @@ export default async function handler(req, res) {
   const {
     first_name, last_name, email, phone, city, zip,
     roles, availability,
-    instagram_connected, facebook_connected, tiktok_connected, linkedin_connected,
-    instagram_data, facebook_data, tiktok_data, linkedin_data,
+    answer_experience, answer_availability, answer_reliability,
   } = req.body
 
   // Basic validation
   if (!first_name || !last_name || !email || !phone || !city || !zip) {
     return res.status(400).json({ error: 'Missing required fields' })
+  }
+  if (!answer_experience || !answer_availability || !answer_reliability) {
+    return res.status(400).json({ error: 'Please answer all screening questions' })
   }
 
   const supabase = createClient(
@@ -36,14 +38,9 @@ export default async function handler(req, res) {
         zip,
         roles: roles || [],
         availability: availability || [],
-        instagram_connected: !!instagram_connected,
-        facebook_connected: !!facebook_connected,
-        tiktok_connected: !!tiktok_connected,
-        linkedin_connected: !!linkedin_connected,
-        instagram_data: instagram_data || null,
-        facebook_data: facebook_data || null,
-        tiktok_data: tiktok_data || null,
-        linkedin_data: linkedin_data || null,
+        answer_experience,
+        answer_availability,
+        answer_reliability,
         status: 'pending',
       })
       .select('id')
@@ -56,42 +53,38 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save application' })
   }
 
-  // 2. Score the applicant (server-side, non-blocking from client perspective)
-  let score = 60
+  // 2. Score the applicant via AI
+  let decision = 'needs_review'
   let scoreBreakdown = {}
-  let status = 'declined'
 
   try {
     const scoreRes = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        applicant: { first_name, last_name, city, zip },
-        social: { instagram_data, facebook_data, tiktok_data, linkedin_data },
+        applicant: { first_name, last_name, city, zip, roles, availability },
+        answers: { answer_experience, answer_availability, answer_reliability },
       }),
     })
 
     if (scoreRes.ok) {
       const result = await scoreRes.json()
-      score = result.final_score ?? 60
+      decision = result.decision ?? 'needs_review'
       scoreBreakdown = result
-      status = result.status ?? 'declined'
     } else {
-      console.error('[submit] Scoring failed, defaulting to declined')
+      console.error('[submit] Scoring failed, defaulting to needs_review')
     }
   } catch (err) {
     console.error('[submit] Scoring error:', err)
-    // Default: score 60, status declined, still send email
   }
 
-  // 3. Update Supabase with score + status
+  // 3. Update Supabase with score + decision
   try {
     await supabase
       .from('applicants')
       .update({
-        ai_score: score,
         score_breakdown: scoreBreakdown,
-        status,
+        status: decision,
       })
       .eq('id', applicantId)
   } catch (err) {
@@ -103,7 +96,7 @@ export default async function handler(req, res) {
     const emailRes = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name, email, status }),
+      body: JSON.stringify({ first_name, email, status: decision }),
     })
 
     if (emailRes.ok) {

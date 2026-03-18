@@ -1,4 +1,4 @@
-export default function ProgressBar({ step, total = 3 }) {
+export default function ProgressBar({ step, total = 2 }) {
   const pct = Math.round((step / total) * 100)
   return (
     <div className="w-full h-[3px] bg-[#222]">

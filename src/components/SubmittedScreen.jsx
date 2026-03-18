@@ -3,7 +3,7 @@ import ProgressBar from './ProgressBar.jsx'
 export default function SubmittedScreen({ firstName }) {
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
-      <ProgressBar step={3} />
+      <ProgressBar step={2} total={2} />
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-[480px] mx-auto w-full px-6 text-center">
         {/* Animated checkmark */}

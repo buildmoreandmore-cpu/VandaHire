@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('applicants')
-      .select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, instagram_connected, facebook_connected, tiktok_connected, linkedin_connected, ai_score, status, email_sent_at')
+      .select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, answer_experience, answer_availability, answer_reliability, score_breakdown, status, email_sent_at')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -62,6 +62,7 @@ function toCsv(rows) {
 // Escape a CSV cell value — handles commas, quotes, newlines, and arrays
 function escapeCell(value) {
   if (value === null || value === undefined) return ''
+  if (typeof value === 'object' && !Array.isArray(value)) value = JSON.stringify(value)
   if (Array.isArray(value)) value = value.join('; ')
   const str = String(value)
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {

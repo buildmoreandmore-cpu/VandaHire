@@ -15,6 +15,12 @@ const AVAILABILITY = [
   { value: 'on_call', label: 'On-Call' },
 ]
 
+const SCREENING_QUESTIONS = [
+  { field: 'answer_experience', label: 'What work have you done before like this?' },
+  { field: 'answer_availability', label: 'What days/times are you available?' },
+  { field: 'answer_reliability', label: 'Why would you be reliable for shift-based work?' },
+]
+
 function formatPhone(value) {
   const digits = value.replace(/\D/g, '').slice(0, 10)
   if (digits.length <= 3) return digits
@@ -65,9 +71,8 @@ function Field({ label, error, children }) {
   )
 }
 
-export default function BasicInfoForm({ formData, onChange, onNext }) {
+export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError }) {
   const [errors, setErrors] = useState({})
-  const [touched, setTouched] = useState({})
 
   const set = (field, value) => {
     onChange(prev => ({ ...prev, [field]: value }))
@@ -87,16 +92,19 @@ export default function BasicInfoForm({ formData, onChange, onNext }) {
     if (!formData.zip.trim() || !/^\d{5}$/.test(formData.zip)) e.zip = 'Enter a valid 5-digit zip'
     if (formData.roles.length === 0) e.roles = 'Select at least one role'
     if (formData.availability.length === 0) e.availability = 'Select at least one option'
+    for (const q of SCREENING_QUESTIONS) {
+      if (!formData[q.field].trim()) e[q.field] = 'Required'
+    }
     return e
   }
 
-  const handleContinue = () => {
+  const handleSubmit = () => {
     const e = validate()
     if (Object.keys(e).length > 0) {
       setErrors(e)
       return
     }
-    onNext()
+    onSubmit()
   }
 
   const inputClass = (field) =>
@@ -106,20 +114,18 @@ export default function BasicInfoForm({ formData, onChange, onNext }) {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
-      <ProgressBar step={1} />
+      <ProgressBar step={1} total={2} />
 
       <div className="flex-1 flex flex-col max-w-[480px] mx-auto w-full px-6 py-10">
-        {/* Header */}
         <div className="mb-8">
           <span className="text-white font-extrabold text-xl tracking-tight">Porter</span>
-          <p className="text-[#555] text-xs mt-1">Step 1 of 3</p>
+          <p className="text-[#555] text-xs mt-1">Step 1 of 2</p>
         </div>
 
-        <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Basic info</h2>
-        <p className="text-[#888] text-sm mb-8">No resume needed. Just the basics.</p>
+        <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Apply now</h2>
+        <p className="text-[#888] text-sm mb-8">No resume needed. Just the basics and a few quick questions.</p>
 
         <div className="flex flex-col gap-5">
-          {/* Name row */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="First Name" error={errors.first_name}>
               <input
@@ -197,13 +203,53 @@ export default function BasicInfoForm({ formData, onChange, onNext }) {
               onChange={val => set('availability', val)}
             />
           </Field>
+
+          {/* Screening questions */}
+          <div className="border-t border-[#222] pt-5 mt-2">
+            <p className="text-[#888] text-sm mb-5">A few quick questions — answer in a sentence or two.</p>
+            {SCREENING_QUESTIONS.map(q => (
+              <div key={q.field} className="mb-4">
+                <Field label={q.label} error={errors[q.field]}>
+                  <textarea
+                    placeholder="Write a short answer..."
+                    value={formData[q.field]}
+                    onChange={e => set(q.field, e.target.value)}
+                    rows={2}
+                    maxLength={500}
+                    className={inputClass(q.field) + ' resize-none'}
+                  />
+                </Field>
+              </div>
+            ))}
+          </div>
         </div>
 
+        {submitError && (
+          <div className="mt-4 bg-[#ff4444]/10 border border-[#ff4444]/30 rounded-xl px-4 py-3">
+            <p className="text-[#ff4444] text-sm">{submitError}</p>
+          </div>
+        )}
+
         <button
-          onClick={handleContinue}
-          className="mt-8 w-full bg-[#c8ff00] text-black rounded-full py-4 font-semibold text-base hover:opacity-90 transition-all duration-200"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className={`mt-8 w-full rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
+            ${submitting
+              ? 'bg-[#333] text-[#666] cursor-not-allowed'
+              : 'bg-[#c8ff00] text-black hover:opacity-90 cursor-pointer'
+            }`}
         >
-          Continue →
+          {submitting ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Submitting...
+            </>
+          ) : (
+            'Submit Application'
+          )}
         </button>
       </div>
     </div>
