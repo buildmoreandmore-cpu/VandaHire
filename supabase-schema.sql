@@ -1,8 +1,13 @@
--- Run this in your Supabase SQL editor to create the applicants table
+-- Porter staffing platform schema
+-- Run in Supabase SQL editor
 
+-- ============================================================
+-- APPLICANTS (workers)
+-- ============================================================
 create table if not exists public.applicants (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   first_name text not null,
   last_name text not null,
   email text not null,
@@ -18,29 +23,76 @@ create table if not exists public.applicants (
   notes text not null default '',
   photo_url text,
   score_breakdown jsonb,
+  -- Status lifecycle: pending → qualified/needs_review/not_a_fit → approved/rejected
   status text not null default 'pending',
   email_sent_at timestamptz
 );
 
--- Row-level security: only service role can read/write (no client-side access)
 alter table public.applicants enable row level security;
 
--- No public policies — all access is via service role key in API routes only
+-- ============================================================
+-- EVENTS (staffing requests from event holders)
+-- ============================================================
+create table if not exists public.events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
 
--- Migration: add photo_url column (run if upgrading existing table):
--- ALTER TABLE public.applicants ADD COLUMN IF NOT EXISTS photo_url text;
+  -- Event details
+  title text not null,
+  organizer text not null,
+  contact_name text not null,
+  contact_email text not null,
+  contact_phone text not null,
+  event_date date not null,
+  start_time time not null,
+  end_time time not null,
+  location text not null,
+  city text not null,
 
--- Migration from previous schema (run if upgrading existing table):
+  -- Staffing requirements
+  workers_needed integer not null default 1,
+  role_types text[] not null default '{}',
+  pay_rate text not null default '',
+  dress_code text not null default '',
+  notes text not null default '',
+
+  -- Status lifecycle: pending → approved → staffing → confirmed → completed | cancelled
+  status text not null default 'pending'
+);
+
+alter table public.events enable row level security;
+
+-- ============================================================
+-- ASSIGNMENTS (worker ↔ event link)
+-- ============================================================
+create table if not exists public.assignments (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  event_id uuid not null references public.events(id) on delete cascade,
+  worker_id uuid not null references public.applicants(id) on delete cascade,
+  -- Status: invited → confirmed/declined | checked_in → completed | cancelled
+  status text not null default 'invited',
+  notes text not null default '',
+  unique(event_id, worker_id)
+);
+
+alter table public.assignments enable row level security;
+
+-- No public policies — all access via service role key in API routes
+
+-- ============================================================
+-- Storage buckets (create in Supabase Dashboard → Storage)
+-- ============================================================
+-- 'applicant-photos' — public bucket for worker selfie photos
+
+-- ============================================================
+-- MIGRATION from previous version
+-- ============================================================
+-- If upgrading an existing applicants table, run:
 --
 -- ALTER TABLE public.applicants
---   ADD COLUMN IF NOT EXISTS experience_types text[] not null default '{}',
---   ADD COLUMN IF NOT EXISTS availability_windows text[] not null default '{}',
---   ADD COLUMN IF NOT EXISTS has_transportation text not null default '',
---   ADD COLUMN IF NOT EXISTS short_notice text not null default '',
---   ADD COLUMN IF NOT EXISTS notes text not null default '',
---   DROP COLUMN IF EXISTS answer_experience,
---   DROP COLUMN IF EXISTS answer_availability,
---   DROP COLUMN IF EXISTS answer_reliability;
-
--- Storage: create 'applicant-photos' bucket in Supabase Dashboard → Storage
--- Make it a public bucket so photo URLs are accessible without auth.
+--   ADD COLUMN IF NOT EXISTS updated_at timestamptz not null default now();
+--
+-- Then create the events and assignments tables above.
