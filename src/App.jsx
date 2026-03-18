@@ -23,6 +23,7 @@ const initialFormData = {
   has_transportation: '',
   short_notice: '',
   notes: '',
+  photo: null,
 }
 
 export default function App() {
@@ -35,10 +36,13 @@ export default function App() {
     setSubmitting(true)
     setSubmitError(null)
     try {
+      const { photo, ...fields } = formData
+      const payload = { ...fields }
+      if (photo) payload.photo_base64 = photo
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

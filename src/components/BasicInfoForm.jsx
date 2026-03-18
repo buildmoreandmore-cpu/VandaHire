@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ProgressBar from './ProgressBar.jsx'
 
 const ROLES = [
@@ -39,6 +39,115 @@ const SHORT_NOTICE_OPTIONS = [
   { value: 'sometimes', label: 'Sometimes' },
   { value: 'no', label: 'No' },
 ]
+
+function compressImage(file, maxDim = 800, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/jpeg', quality)
+        resolve(dataUrl)
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function PhotoUpload({ value, onChange, error }) {
+  const inputRef = useRef(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLoading(true)
+    try {
+      const compressed = await compressImage(file)
+      onChange(compressed)
+    } catch {
+      onChange(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const remove = () => {
+    onChange(null)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold uppercase tracking-widest text-[#888] mb-2">
+        Quick Selfie
+      </label>
+      <p className="text-[#555] text-xs mb-3">So we know who to look for. Snap a photo or upload one.</p>
+
+      {value ? (
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#c8ff00] flex-shrink-0">
+            <img src={value} alt="Selfie preview" className="w-full h-full object-cover" />
+          </div>
+          <button
+            type="button"
+            onClick={remove}
+            className="text-[#888] text-sm underline hover:text-white transition-colors cursor-pointer"
+          >
+            Retake
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={loading}
+          className="w-20 h-20 rounded-full border-2 border-dashed border-[#333] hover:border-[#c8ff00] flex items-center justify-center transition-all duration-200 cursor-pointer"
+        >
+          {loading ? (
+            <svg className="w-6 h-6 animate-spin text-[#888]" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="w-8 h-8 text-[#555]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleFile}
+        className="hidden"
+      />
+      {error && <p className="text-[#ff4444] text-xs mt-1">{error}</p>}
+    </div>
+  )
+}
 
 function formatPhone(value) {
   const digits = value.replace(/\D/g, '').slice(0, 10)
@@ -139,6 +248,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
     if (formData.availability_windows.length === 0) e.availability_windows = 'Select at least one'
     if (!formData.has_transportation) e.has_transportation = 'Required'
     if (!formData.short_notice) e.short_notice = 'Required'
+    if (!formData.photo) e.photo = 'Please add a photo'
     return e
   }
 
@@ -190,6 +300,12 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               />
             </Field>
           </div>
+
+          <PhotoUpload
+            value={formData.photo}
+            onChange={val => set('photo', val)}
+            error={errors.photo}
+          />
 
           <Field label="Email" error={errors.email}>
             <input

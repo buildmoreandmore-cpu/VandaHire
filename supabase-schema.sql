@@ -16,6 +16,7 @@ create table if not exists public.applicants (
   has_transportation text not null default '',
   short_notice text not null default '',
   notes text not null default '',
+  photo_url text,
   score_breakdown jsonb,
   status text not null default 'pending',
   email_sent_at timestamptz
@@ -25,6 +26,9 @@ create table if not exists public.applicants (
 alter table public.applicants enable row level security;
 
 -- No public policies — all access is via service role key in API routes only
+
+-- Migration: add photo_url column (run if upgrading existing table):
+-- ALTER TABLE public.applicants ADD COLUMN IF NOT EXISTS photo_url text;
 
 -- Migration from previous schema (run if upgrading existing table):
 --
@@ -37,3 +41,6 @@ alter table public.applicants enable row level security;
 --   DROP COLUMN IF EXISTS answer_experience,
 --   DROP COLUMN IF EXISTS answer_availability,
 --   DROP COLUMN IF EXISTS answer_reliability;
+
+-- Storage: create 'applicant-photos' bucket in Supabase Dashboard → Storage
+-- Make it a public bucket so photo URLs are accessible without auth.

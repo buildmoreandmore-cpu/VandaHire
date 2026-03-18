@@ -10,6 +10,7 @@ export default async function handler(req, res) {
     roles, availability,
     experience_types, availability_windows,
     has_transportation, short_notice, notes,
+    photo_base64,
   } = req.body
 
   // Basic validation
@@ -56,7 +57,40 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save application' })
   }
 
-  // 2. Score the applicant via AI
+  // 2. Upload photo to Supabase Storage if provided
+  let photoUrl = null
+  if (photo_base64) {
+    try {
+      const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const filePath = `${applicantId}.jpg`
+
+      const { error: uploadError } = await supabase.storage
+        .from('applicant-photos')
+        .upload(filePath, buffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('applicant-photos')
+        .getPublicUrl(filePath)
+
+      photoUrl = urlData.publicUrl
+
+      await supabase
+        .from('applicants')
+        .update({ photo_url: photoUrl })
+        .eq('id', applicantId)
+    } catch (err) {
+      console.error('[submit] Photo upload error:', err)
+      // Non-blocking — application still saved
+    }
+  }
+
+  // 3. Score the applicant via AI
   let decision = 'needs_review'
   let scoreBreakdown = {}
 
@@ -81,7 +115,7 @@ export default async function handler(req, res) {
     console.error('[submit] Scoring error:', err)
   }
 
-  // 3. Update Supabase with score + decision
+  // 4. Update Supabase with score + decision
   try {
     await supabase
       .from('applicants')
