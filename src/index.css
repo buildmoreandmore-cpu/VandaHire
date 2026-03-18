@@ -15,22 +15,68 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Gradient headline ─── */
+.gradient-text {
+  background: linear-gradient(90deg, #c8ff00 0%, #FF5C00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Background glow orbs ─── */
+.glow-green {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(200, 255, 0, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.glow-orange {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 92, 0, 0.14) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(50px);
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, -30px) scale(1.05); }
+  66% { transform: translate(-15px, 20px) scale(0.97); }
+}
+
+.orb-float {
+  animation: floatOrb 12s ease-in-out infinite;
+}
+
+.orb-float-reverse {
+  animation: floatOrb 16s ease-in-out infinite reverse;
+}
+
+/* ─── Progress bar glow dot ─── */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(255, 92, 0, 0.8); }
+  50% { box-shadow: 0 0 12px 4px rgba(255, 92, 0, 0.5); }
+}
+
+.progress-dot {
+  animation: glowPulse 1.8s ease-in-out infinite;
+}
+
+/* ─── Check animation ─── */
 @keyframes checkDraw {
-  from {
-    stroke-dashoffset: 100;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
 }
 
 @keyframes circleDraw {
-  from {
-    stroke-dashoffset: 300;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 300; }
+  to { stroke-dashoffset: 0; }
 }
 
 .check-circle {
@@ -45,15 +91,10 @@ body {
   animation: checkDraw 0.4s ease-out 0.7s forwards;
 }
 
+/* ─── Fade up ─── */
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .fade-up {
