@@ -8,9 +8,13 @@ export default function LandingScreen({ onStart }) {
 
       {/* Center content */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[480px] mx-auto w-full py-16">
-        <h1 className="text-5xl font-extrabold text-white leading-none tracking-tighter mb-5 fade-up">
+        <h1 className="text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
           Show up.<br />Get paid.
         </h1>
+
+        <p className="text-[#c8ff00] text-sm font-semibold tracking-wide mb-8 fade-up">
+          The People Behind What Works.
+        </p>
 
         <p className="text-[#888] text-base leading-relaxed mb-10 fade-up-delay-1">
           Event staffing for janitorial, setup, brand activation, festivals, and facilities.
