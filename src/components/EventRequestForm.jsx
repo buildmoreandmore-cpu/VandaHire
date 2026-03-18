@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '../Router.jsx'
 
 const ROLE_OPTIONS = [
   'Janitorial', 'Cleanup', 'Setup & Breakdown', 'Brand Activation',
@@ -6,6 +7,7 @@ const ROLE_OPTIONS = [
 ]
 
 export default function EventRequestForm({ onSuccess }) {
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     title: '', organizer: '', contact_name: '', contact_email: '',
     contact_phone: '', event_date: '', start_time: '', end_time: '',
@@ -64,7 +66,7 @@ export default function EventRequestForm({ onSuccess }) {
   return (
     <div className="max-w-[600px] mx-auto px-6 py-8">
       <div className="mb-8">
-        <a href="/" className="text-white font-extrabold text-2xl tracking-tight">Vanda</a>
+        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight cursor-pointer">Vanda</button>
         <p className="text-p-muted text-xs mt-1">Event Staffing Platform</p>
       </div>
 

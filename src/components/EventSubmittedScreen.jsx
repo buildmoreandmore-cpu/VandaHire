@@ -1,4 +1,7 @@
+import { useNavigate } from '../Router.jsx'
+
 export default function EventSubmittedScreen({ title }) {
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-6 text-center">
       <div className="mb-8">
@@ -19,12 +22,12 @@ export default function EventSubmittedScreen({ title }) {
         Our team will review it and get back to you within 24 hours.
       </p>
 
-      <a
-        href="/"
-        className="text-p-green text-sm font-medium hover:opacity-80 transition-opacity fade-up-delay-2"
+      <button
+        onClick={() => navigate('/')}
+        className="text-p-green text-sm font-medium hover:opacity-80 transition-opacity fade-up-delay-2 cursor-pointer"
       >
         ← Back to Vanda
-      </a>
+      </button>
     </div>
   )
 }

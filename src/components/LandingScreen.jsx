@@ -1,4 +1,7 @@
+import { useNavigate } from '../Router.jsx'
+
 export default function LandingScreen({ onStart }) {
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col px-6">
       {/* Wordmark */}
@@ -32,12 +35,12 @@ export default function LandingScreen({ onStart }) {
             I’m Looking for Work →
           </button>
 
-          <a
-            href="/events"
-            className="block w-full rounded-full py-4 px-10 font-semibold text-base border border-[#2a2a2a] text-white hover:border-[#444] hover:bg-[#111] transition-all duration-200"
+          <button
+            onClick={() => navigate('/events')}
+            className="block w-full rounded-full py-4 px-10 font-semibold text-base border border-[#2a2a2a] text-white hover:border-[#444] hover:bg-[#111] transition-all duration-200 cursor-pointer"
           >
             I Need Staff for an Event →
-          </a>
+          </button>
         </div>
 
         <p className="fade-up-delay-3 text-[#555] text-sm mt-6">
