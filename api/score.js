@@ -1,7 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk'
-
 /**
- * AI-powered applicant scoring using Claude.
+ * AI-powered applicant scoring using MiniMax.
  * Evaluates structured screening data + applicant info.
  * Returns: qualified | needs_review | not_a_fit
  */
@@ -13,8 +11,8 @@ export default async function handler(req, res) {
   const { applicant, screening } = req.body
 
   // If no API key, fall back to needs_review
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.warn('[score] No ANTHROPIC_API_KEY set, defaulting to needs_review')
+  if (!process.env.MINIMAX_API_KEY) {
+    console.warn('[score] No MINIMAX_API_KEY set, defaulting to needs_review')
     return res.status(200).json({
       decision: 'needs_review',
       reasoning: 'AI scoring unavailable — manual review required.',
@@ -47,14 +45,31 @@ Respond with ONLY valid JSON (no markdown, no code fences):
 {"decision": "qualified|needs_review|not_a_fit", "reasoning": "1-2 sentence explanation"}`
 
   try {
-    const client = new Anthropic()
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'MiniMax-Text-01',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 200,
+        temperature: 0.1,
+      }),
     })
 
-    const text = message.content[0].text.trim()
+    if (!response.ok) {
+      const errBody = await response.text()
+      console.error('[score] MiniMax API error:', response.status, errBody)
+      return res.status(200).json({
+        decision: 'needs_review',
+        reasoning: 'Scoring error — flagged for manual review.',
+      })
+    }
+
+    const data = await response.json()
+    const text = (data.choices?.[0]?.message?.content || '').trim()
     const result = JSON.parse(text)
 
     // Validate decision value

@@ -94,25 +94,5 @@ export default async function handler(req, res) {
     console.error('[submit] Supabase score update error:', err)
   }
 
-  // 4. Send email
-  try {
-    const emailRes = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name, email, status: decision }),
-    })
-
-    if (emailRes.ok) {
-      await supabase
-        .from('applicants')
-        .update({ email_sent_at: new Date().toISOString() })
-        .eq('id', applicantId)
-    } else {
-      console.error('[submit] Email send failed')
-    }
-  } catch (err) {
-    console.error('[submit] Email error:', err)
-  }
-
-  return res.status(200).json({ success: true, applicantId })
+  return res.status(200).json({ success: true, applicantId, decision })
 }
