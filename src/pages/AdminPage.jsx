@@ -4,11 +4,13 @@ import AdminLogin from '../components/admin/AdminLogin.jsx'
 import ApplicantsPanel from '../components/admin/ApplicantsPanel.jsx'
 import EventsPanel from '../components/admin/EventsPanel.jsx'
 import AssignmentsPanel from '../components/admin/AssignmentsPanel.jsx'
+import OperationsPanel from '../components/admin/OperationsPanel.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
   { key: 'events', label: 'Events' },
   { key: 'assignments', label: 'Assignments' },
+  { key: 'operations', label: 'Operations' },
 ]
 
 export default function AdminPage() {
@@ -19,7 +21,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return
     fetchStats().then(setStats).catch(() => {
-      // Token might be stale
       clearToken()
       setAuthed(false)
     })
@@ -33,6 +34,8 @@ export default function AdminPage() {
     clearToken()
     setAuthed(false)
   }
+
+  const fin = stats?.financials
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] font-inter">
@@ -51,8 +54,14 @@ export default function AdminPage() {
       {stats && (
         <div className="px-4 py-3 border-b border-p-border flex gap-6 overflow-x-auto">
           <Stat label="Workers" value={stats.applicants?.total || 0} sub={`${stats.applicants?.by_status?.approved || 0} approved`} />
-          <Stat label="Events" value={stats.events?.total || 0} sub={`${stats.events?.by_status?.pending || 0} pending`} />
+          <Stat label="Events" value={stats.events?.total || 0} sub={`${(stats.events?.by_status?.pending || 0) + (stats.events?.by_status?.staffing || 0)} need attention`} />
           <Stat label="Assignments" value={stats.assignments?.total || 0} sub={`${stats.assignments?.by_status?.confirmed || 0} confirmed`} />
+          {fin && (
+            <>
+              <Stat label="Billed" value={`$${(fin.total_billed || 0).toLocaleString()}`} sub={`$${(fin.client_outstanding || 0).toLocaleString()} outstanding`} accent />
+              <Stat label="Payouts" value={`$${(fin.total_payouts || 0).toLocaleString()}`} sub={`$${(fin.payouts_pending || 0).toLocaleString()} pending`} accent />
+            </>
+          )}
         </div>
       )}
 
@@ -79,15 +88,16 @@ export default function AdminPage() {
         {tab === 'workers' && <ApplicantsPanel />}
         {tab === 'events' && <EventsPanel />}
         {tab === 'assignments' && <AssignmentsPanel />}
+        {tab === 'operations' && <OperationsPanel stats={stats} />}
       </div>
     </div>
   )
 }
 
-function Stat({ label, value, sub }) {
+function Stat({ label, value, sub, accent }) {
   return (
     <div className="flex-shrink-0">
-      <div className="text-white text-lg font-bold">{value}</div>
+      <div className={`text-lg font-bold ${accent ? 'text-p-green' : 'text-white'}`}>{value}</div>
       <div className="text-p-muted text-xs">{label}</div>
       {sub && <div className="text-p-muted text-[10px]">{sub}</div>}
     </div>

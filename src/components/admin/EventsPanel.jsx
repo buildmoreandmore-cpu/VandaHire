@@ -21,6 +21,19 @@ const ASSIGNMENT_COLORS = {
   cancelled: 'bg-red-500/20 text-red-400',
 }
 
+const INVOICE_COLORS = {
+  not_sent: 'text-p-muted',
+  sent: 'text-yellow-400',
+  paid: 'text-green-400',
+  overdue: 'text-red-400',
+}
+
+const PAYMENT_COLORS = {
+  unpaid: 'text-p-muted',
+  partial: 'text-yellow-400',
+  paid: 'text-green-400',
+}
+
 export default function EventsPanel() {
   const [events, setEvents] = useState([])
   const [filter, setFilter] = useState('all')
@@ -35,6 +48,10 @@ export default function EventsPanel() {
   const [availableWorkers, setAvailableWorkers] = useState([])
   const [selectedWorkers, setSelectedWorkers] = useState([])
   const [assigning, setAssigning] = useState(false)
+
+  // Billing edit state
+  const [editingBilling, setEditingBilling] = useState(null)
+  const [billingForm, setBillingForm] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -68,10 +85,38 @@ export default function EventsPanel() {
   const handleStatusChange = async (id, newStatus) => {
     setUpdating(id)
     try {
-      await updateEvent(id, newStatus)
+      await updateEvent(id, { status: newStatus })
       setEvents(prev => prev.map(e => e.id === id ? { ...e, status: newStatus } : e))
     } catch (err) {
       console.error('Failed to update:', err)
+    }
+    setUpdating(null)
+  }
+
+  const startEditBilling = (ev) => {
+    setEditingBilling(ev.id)
+    setBillingForm({
+      bill_rate: ev.bill_rate || '',
+      total_bill_amount: ev.total_bill_amount || '',
+      invoice_status: ev.invoice_status || 'not_sent',
+      payment_status: ev.payment_status || 'unpaid',
+    })
+  }
+
+  const saveBilling = async (id) => {
+    setUpdating(id)
+    try {
+      const updates = {
+        bill_rate: billingForm.bill_rate ? parseFloat(billingForm.bill_rate) : null,
+        total_bill_amount: billingForm.total_bill_amount ? parseFloat(billingForm.total_bill_amount) : null,
+        invoice_status: billingForm.invoice_status,
+        payment_status: billingForm.payment_status,
+      }
+      await updateEvent(id, updates)
+      setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
+      setEditingBilling(null)
+    } catch (err) {
+      console.error('Failed to update billing:', err)
     }
     setUpdating(null)
   }
@@ -81,7 +126,6 @@ export default function EventsPanel() {
     setSelectedWorkers([])
     try {
       const workers = await fetchApplicants('approved')
-      // Filter out already assigned workers
       const assignedIds = new Set(assignments.map(a => a.worker_id))
       setAvailableWorkers(workers.filter(w => !assignedIds.has(w.id)))
     } catch (err) {
@@ -94,7 +138,6 @@ export default function EventsPanel() {
     setAssigning(true)
     try {
       await createAssignments(expanded, selectedWorkers)
-      // Reload assignments
       const data = await fetchAssignments({ event_id: expanded })
       setAssignments(data)
       setShowAssignModal(false)
@@ -122,6 +165,16 @@ export default function EventsPanel() {
     }
   }
 
+  const getConfirmLink = (a) => {
+    if (!a.confirmation_token) return null
+    return `${window.location.origin}/confirm?token=${a.confirmation_token}`
+  }
+
+  const copyConfirmLink = (a) => {
+    const link = getConfirmLink(a)
+    if (link) navigator.clipboard?.writeText(link)
+  }
+
   const formatDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const formatTime = (t) => {
     if (!t) return ''
@@ -130,6 +183,7 @@ export default function EventsPanel() {
     const ampm = hr >= 12 ? 'PM' : 'AM'
     return `${hr % 12 || 12}:${m} ${ampm}`
   }
+  const fmtMoney = (v) => v != null && v !== '' ? `$${parseFloat(v).toFixed(2)}` : '—'
 
   return (
     <div>
@@ -188,6 +242,75 @@ export default function EventsPanel() {
                     {ev.notes && <Detail label="Notes" value={ev.notes} />}
                   </div>
 
+                  {/* Billing Section */}
+                  <div className="bg-black/20 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Billing</h4>
+                      {editingBilling !== ev.id ? (
+                        <button onClick={() => startEditBilling(ev)} className="text-p-green text-[10px] font-medium hover:opacity-80">
+                          Edit
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => saveBilling(ev.id)} className="text-p-green text-[10px] font-medium hover:opacity-80">Save</button>
+                          <button onClick={() => setEditingBilling(null)} className="text-p-muted text-[10px] font-medium hover:opacity-80">Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                    {editingBilling === ev.id ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-p-muted text-[10px]">Bill Rate ($/hr)</label>
+                          <input type="number" step="0.01" value={billingForm.bill_rate} onChange={e => setBillingForm(f => ({ ...f, bill_rate: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-p-muted text-[10px]">Total Bill ($)</label>
+                          <input type="number" step="0.01" value={billingForm.total_bill_amount} onChange={e => setBillingForm(f => ({ ...f, total_bill_amount: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
+                        </div>
+                        <div>
+                          <label className="text-p-muted text-[10px]">Invoice</label>
+                          <select value={billingForm.invoice_status} onChange={e => setBillingForm(f => ({ ...f, invoice_status: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5">
+                            <option value="not_sent">Not Sent</option>
+                            <option value="sent">Sent</option>
+                            <option value="paid">Paid</option>
+                            <option value="overdue">Overdue</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-p-muted text-[10px]">Payment</label>
+                          <select value={billingForm.payment_status} onChange={e => setBillingForm(f => ({ ...f, payment_status: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5">
+                            <option value="unpaid">Unpaid</option>
+                            <option value="partial">Partial</option>
+                            <option value="paid">Paid</option>
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <span className="text-p-muted">Bill Rate: </span>
+                          <span className="text-white">{fmtMoney(ev.bill_rate)}/hr</span>
+                        </div>
+                        <div>
+                          <span className="text-p-muted">Total: </span>
+                          <span className="text-white">{fmtMoney(ev.total_bill_amount)}</span>
+                        </div>
+                        <div>
+                          <span className="text-p-muted">Invoice: </span>
+                          <span className={INVOICE_COLORS[ev.invoice_status] || 'text-p-muted'}>{(ev.invoice_status || 'not_sent').replace(/_/g, ' ')}</span>
+                        </div>
+                        <div>
+                          <span className="text-p-muted">Payment: </span>
+                          <span className={PAYMENT_COLORS[ev.payment_status] || 'text-p-muted'}>{ev.payment_status || 'unpaid'}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Event Actions */}
                   <div className="flex gap-2 mb-4">
                     {ev.status === 'pending' && (
@@ -242,7 +365,13 @@ export default function EventsPanel() {
                             </span>
                             <div className="flex gap-1">
                               {a.status === 'invited' && (
-                                <SmallBtn label="Confirm" onClick={() => handleAssignmentStatus(a.id, 'confirmed')} />
+                                <>
+                                  <SmallBtn label="Confirm" onClick={() => handleAssignmentStatus(a.id, 'confirmed')} />
+                                  <SmallBtn label="Decline" onClick={() => handleAssignmentStatus(a.id, 'declined')} />
+                                  {a.confirmation_token && (
+                                    <SmallBtn label="Copy Link" onClick={() => copyConfirmLink(a)} />
+                                  )}
+                                </>
                               )}
                               {a.status === 'confirmed' && (
                                 <SmallBtn label="Check In" onClick={() => handleAssignmentStatus(a.id, 'checked_in')} />

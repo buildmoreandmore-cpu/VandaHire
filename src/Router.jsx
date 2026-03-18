@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from 'react'
 import App from './App.jsx'
 import EventRequestPage from './pages/EventRequestPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
+import ConfirmPage from './pages/ConfirmPage.jsx'
 
 const RouterContext = createContext()
 
@@ -31,6 +32,8 @@ export default function Router() {
     ? <AdminPage />
     : path.startsWith('/events')
     ? <EventRequestPage />
+    : path.startsWith('/confirm')
+    ? <ConfirmPage />
     : <App />
 
   return (

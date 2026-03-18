@@ -44,6 +44,7 @@ export default async function handler(req, res) {
         .from('assignments')
         .select(`
           id, created_at, status, notes, event_id, worker_id,
+          pay_rate, hours_worked, payout_amount, payout_status,
           events ( title, event_date, city ),
           applicants ( first_name, last_name, email, phone )
         `)
@@ -63,6 +64,10 @@ export default async function handler(req, res) {
         worker_name: `${row.applicants?.first_name || ''} ${row.applicants?.last_name || ''}`.trim(),
         worker_email: row.applicants?.email,
         worker_phone: row.applicants?.phone,
+        pay_rate: row.pay_rate,
+        hours_worked: row.hours_worked,
+        payout_amount: row.payout_amount,
+        payout_status: row.payout_status,
       }))
       filename = 'vanda-assignments.csv'
 

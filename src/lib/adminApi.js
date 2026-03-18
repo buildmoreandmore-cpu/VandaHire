@@ -55,10 +55,10 @@ export const updateApplicant = (id, status) =>
 export const fetchEvents = (status) =>
   adminFetch(`/api/admin/events${status ? `?status=${status}` : ''}`)
 
-export const updateEvent = (id, status) =>
+export const updateEvent = (id, fields) =>
   adminFetch('/api/admin/events', {
     method: 'PATCH',
-    body: JSON.stringify({ id, status }),
+    body: JSON.stringify({ id, ...fields }),
   })
 
 // Assignments
@@ -73,10 +73,10 @@ export const createAssignments = (event_id, worker_ids) =>
     body: JSON.stringify({ event_id, worker_ids }),
   })
 
-export const updateAssignment = (id, status) =>
+export const updateAssignment = (id, fields) =>
   adminFetch('/api/admin/assignments', {
     method: 'PATCH',
-    body: JSON.stringify({ id, status }),
+    body: JSON.stringify({ id, ...(typeof fields === 'string' ? { status: fields } : fields) }),
   })
 
 export const deleteAssignment = (id) =>
