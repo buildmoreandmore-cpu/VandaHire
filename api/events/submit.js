@@ -10,6 +10,9 @@ export default async function handler(req, res) {
     title, organizer, contact_name, contact_email, contact_phone,
     event_date, start_time, end_time, location, city,
     workers_needed, role_types, pay_rate, dress_code, notes,
+    // new fields
+    service_type, meeting_point, supervisor_name, supervisor_phone,
+    briefing_required, briefing_date, briefing_time, briefing_location, briefing_slots,
   } = req.body
 
   // Validation
@@ -55,6 +58,16 @@ export default async function handler(req, res) {
         dress_code: dress_code || '',
         notes: notes || '',
         status: 'pending',
+        // new fields
+        service_type: service_type || 'single_event',
+        meeting_point: meeting_point || '',
+        supervisor_name: supervisor_name || '',
+        supervisor_phone: supervisor_phone || '',
+        briefing_required: !!briefing_required,
+        briefing_date: briefing_required && briefing_date ? briefing_date : null,
+        briefing_time: briefing_required && briefing_time ? briefing_time : null,
+        briefing_location: briefing_required ? (briefing_location || '') : '',
+        briefing_slots: briefing_required ? (briefing_slots || []) : [],
       })
       .select('id')
       .single()

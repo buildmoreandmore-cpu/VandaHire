@@ -91,3 +91,24 @@ export const createCheckoutSession = (event_id) =>
     method: 'POST',
     body: JSON.stringify({ event_id }),
   })
+
+// Dispatch actions
+export const sendShiftDetails = (assignmentId) =>
+  adminFetch('/api/admin/send-shift', {
+    method: 'POST',
+    body: JSON.stringify({ assignment_id: assignmentId }),
+  })
+
+export const sendSurvey = (assignmentId) =>
+  adminFetch('/api/admin/send-survey', {
+    method: 'POST',
+    body: JSON.stringify({ assignment_id: assignmentId }),
+  })
+
+export const fetchSurveys = () => adminFetch('/api/admin/surveys')
+
+export const notifyWorkers = (eventId) =>
+  adminFetch('/api/admin/notify-workers', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })

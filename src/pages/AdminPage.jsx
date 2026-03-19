@@ -5,11 +5,13 @@ import ApplicantsPanel from '../components/admin/ApplicantsPanel.jsx'
 import EventsPanel from '../components/admin/EventsPanel.jsx'
 import AssignmentsPanel from '../components/admin/AssignmentsPanel.jsx'
 import OperationsPanel from '../components/admin/OperationsPanel.jsx'
+import SurveysPanel from '../components/admin/SurveysPanel.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
   { key: 'events', label: 'Events' },
   { key: 'assignments', label: 'Assignments' },
+  { key: 'surveys', label: 'Surveys' },
   { key: 'operations', label: 'Operations' },
 ]
 
@@ -88,6 +90,7 @@ export default function AdminPage() {
         {tab === 'workers' && <ApplicantsPanel />}
         {tab === 'events' && <EventsPanel />}
         {tab === 'assignments' && <AssignmentsPanel />}
+        {tab === 'surveys' && <SurveysPanel />}
         {tab === 'operations' && <OperationsPanel stats={stats} />}
       </div>
     </div>

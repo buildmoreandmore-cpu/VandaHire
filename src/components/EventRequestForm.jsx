@@ -6,6 +6,14 @@ const ROLE_OPTIONS = [
   'General Labor', 'Security', 'Registration', 'Catering Support',
 ]
 
+const SERVICE_TYPES = [
+  { value: 'single_event', label: 'One-Time Event', desc: 'I need staff for a one-time event' },
+  { value: 'ongoing', label: 'Ongoing Staffing', desc: 'I need ongoing staffing support' },
+  { value: 'direct_hire', label: 'Direct Hire', desc: 'I want to hire from your pool directly' },
+]
+
+const EMPTY_SLOT = { date: '', time: '', label: '' }
+
 export default function EventRequestForm({ onSuccess }) {
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -13,11 +21,19 @@ export default function EventRequestForm({ onSuccess }) {
     contact_phone: '', event_date: '', start_time: '', end_time: '',
     location: '', city: '', workers_needed: '', role_types: [],
     pay_rate: '', dress_code: '', notes: '',
+    // new fields
+    service_type: 'single_event',
+    meeting_point: '', supervisor_name: '', supervisor_phone: '',
+    briefing_required: false,
+    briefing_mode: 'fixed', // 'fixed' | 'slots'
+    briefing_date: '', briefing_time: '', briefing_location: '',
+    briefing_slots: [{ ...EMPTY_SLOT }],
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const setBool = (field) => (val) => setForm(prev => ({ ...prev, [field]: val }))
 
   const toggleRole = (role) => {
     setForm(prev => ({
@@ -35,19 +51,39 @@ export default function EventRequestForm({ onSuccess }) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
   }
 
+  const updateSlot = (idx, field, value) => {
+    const slots = form.briefing_slots.map((s, i) => i === idx ? { ...s, [field]: value } : s)
+    setForm(prev => ({ ...prev, briefing_slots: slots }))
+  }
+
+  const addSlot = () => {
+    if (form.briefing_slots.length < 3) {
+      setForm(prev => ({ ...prev, briefing_slots: [...prev.briefing_slots, { ...EMPTY_SLOT }] }))
+    }
+  }
+
+  const removeSlot = (idx) => {
+    setForm(prev => ({ ...prev, briefing_slots: prev.briefing_slots.filter((_, i) => i !== idx) }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
 
     try {
+      const payload = {
+        ...form,
+        workers_needed: parseInt(form.workers_needed, 10) || 1,
+        briefing_slots: form.briefing_mode === 'slots' ? form.briefing_slots : [],
+        briefing_date: form.briefing_mode === 'fixed' ? form.briefing_date : null,
+        briefing_time: form.briefing_mode === 'fixed' ? form.briefing_time : null,
+        briefing_location: form.briefing_required ? form.briefing_location : '',
+      }
       const res = await fetch('/api/events/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          workers_needed: parseInt(form.workers_needed, 10) || 1,
-        }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -62,6 +98,7 @@ export default function EventRequestForm({ onSuccess }) {
   }
 
   const inputCls = 'w-full bg-p-surface border border-p-border rounded-lg px-4 py-3 text-white text-sm placeholder-p-muted focus:outline-none focus:border-p-green transition-colors'
+  const isCustomService = form.service_type === 'ongoing' || form.service_type === 'direct_hire'
 
   return (
     <div className="max-w-[600px] mx-auto px-6 py-8">
@@ -78,6 +115,35 @@ export default function EventRequestForm({ onSuccess }) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6 fade-up-delay-2">
+
+        {/* Service Type */}
+        <Section title="Service Type">
+          <div className="grid grid-cols-3 gap-2">
+            {SERVICE_TYPES.map(st => (
+              <button
+                key={st.value}
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, service_type: st.value }))}
+                className={`p-3 rounded-lg border text-left transition-all duration-150 ${
+                  form.service_type === st.value
+                    ? 'border-p-green bg-p-green/10'
+                    : 'border-p-border bg-p-surface hover:border-p-muted'
+                }`}
+              >
+                <div className={`text-xs font-semibold mb-1 ${form.service_type === st.value ? 'text-p-green' : 'text-white'}`}>
+                  {st.label}
+                </div>
+                <div className="text-p-muted text-[10px] leading-tight">{st.desc}</div>
+              </button>
+            ))}
+          </div>
+          {isCustomService && (
+            <div className="bg-p-surface border border-p-border rounded-lg px-4 py-3 text-p-muted text-xs">
+              We'll reach out to discuss a custom arrangement after you submit.
+            </div>
+          )}
+        </Section>
+
         {/* Event Info */}
         <Section title="Event Details">
           <input className={inputCls} placeholder="Event Title *" value={form.title} onChange={set('title')} required />
@@ -142,6 +208,125 @@ export default function EventRequestForm({ onSuccess }) {
           </div>
           <input className={inputCls} placeholder="Pay Rate (e.g. $18/hr)" value={form.pay_rate} onChange={set('pay_rate')} />
           <input className={inputCls} placeholder="Dress Code / Requirements" value={form.dress_code} onChange={set('dress_code')} />
+        </Section>
+
+        {/* On-Site Info */}
+        <Section title="On-Site Info">
+          <input
+            className={inputCls}
+            placeholder="Exact meeting point (e.g. back entrance on Peachtree St)"
+            value={form.meeting_point}
+            onChange={set('meeting_point')}
+          />
+          <input
+            className={inputCls}
+            placeholder="On-site supervisor name"
+            value={form.supervisor_name}
+            onChange={set('supervisor_name')}
+          />
+          <input
+            className={inputCls}
+            type="tel"
+            placeholder="Supervisor's cell"
+            value={form.supervisor_phone}
+            onChange={(e) => setForm({ ...form, supervisor_phone: formatPhone(e.target.value) })}
+          />
+        </Section>
+
+        {/* Pre-Event Briefing */}
+        <Section title="Pre-Event Briefing">
+          <div className="flex items-center justify-between bg-p-surface border border-p-border rounded-lg px-4 py-3">
+            <span className="text-white text-sm">Schedule a pre-event briefing for your workers?</span>
+            <button
+              type="button"
+              onClick={() => setBool('briefing_required')(!form.briefing_required)}
+              className={`w-10 h-5 rounded-full transition-all duration-200 relative ${form.briefing_required ? 'bg-p-green' : 'bg-p-border'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 ${form.briefing_required ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
+
+          {form.briefing_required && (
+            <div className="space-y-3 pl-1">
+              <div className="flex gap-4">
+                {['fixed', 'slots'].map(mode => (
+                  <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="briefing_mode"
+                      value={mode}
+                      checked={form.briefing_mode === mode}
+                      onChange={() => setForm(prev => ({ ...prev, briefing_mode: mode }))}
+                      className="accent-p-green"
+                    />
+                    <span className="text-white text-xs">
+                      {mode === 'fixed' ? 'Fixed time' : 'Offer time slots'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              {form.briefing_mode === 'fixed' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className={inputCls} type="date" value={form.briefing_date} onChange={set('briefing_date')} />
+                    <input className={inputCls} type="time" value={form.briefing_time} onChange={set('briefing_time')} />
+                  </div>
+                  <input
+                    className={inputCls}
+                    placeholder="Briefing location"
+                    value={form.briefing_location}
+                    onChange={set('briefing_location')}
+                  />
+                </div>
+              )}
+
+              {form.briefing_mode === 'slots' && (
+                <div className="space-y-2">
+                  <input
+                    className={inputCls}
+                    placeholder="Briefing location"
+                    value={form.briefing_location}
+                    onChange={set('briefing_location')}
+                  />
+                  {form.briefing_slots.map((slot, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        className={`${inputCls} flex-1`}
+                        type="date"
+                        value={slot.date}
+                        onChange={(e) => updateSlot(idx, 'date', e.target.value)}
+                      />
+                      <input
+                        className={`${inputCls} flex-1`}
+                        type="time"
+                        value={slot.time}
+                        onChange={(e) => updateSlot(idx, 'time', e.target.value)}
+                      />
+                      <input
+                        className={`${inputCls} flex-1`}
+                        placeholder="Label (e.g. Option A)"
+                        value={slot.label}
+                        onChange={(e) => updateSlot(idx, 'label', e.target.value)}
+                      />
+                      {form.briefing_slots.length > 1 && (
+                        <button type="button" onClick={() => removeSlot(idx)} className="text-p-muted hover:text-white text-lg leading-none">×</button>
+                      )}
+                    </div>
+                  ))}
+                  {form.briefing_slots.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={addSlot}
+                      className="text-p-green text-xs hover:opacity-80 transition-opacity"
+                    >
+                      + Add another slot
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </Section>
 
         {/* Notes */}

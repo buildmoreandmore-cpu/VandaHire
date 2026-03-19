@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAssignments, updateAssignment } from '../../lib/adminApi.js'
+import { fetchAssignments, updateAssignment, sendShiftDetails, sendSurvey } from '../../lib/adminApi.js'
 
 const ASSIGNMENT_COLORS = {
   invited: 'bg-yellow-500/20 text-yellow-400',
@@ -21,6 +21,7 @@ export default function AssignmentsPanel() {
   const [loading, setLoading] = useState(true)
   const [editingPay, setEditingPay] = useState(null)
   const [payForm, setPayForm] = useState({})
+  const [sending, setSending] = useState({}) // { [id]: 'shift' | 'survey' | null }
 
   const load = async () => {
     setLoading(true)
@@ -78,9 +79,40 @@ export default function AssignmentsPanel() {
     }
   }
 
+  const handleSendShift = async (id) => {
+    setSending(prev => ({ ...prev, [id]: 'shift' }))
+    try {
+      await sendShiftDetails(id)
+      setAssignments(prev => prev.map(a =>
+        a.id === id ? { ...a, shift_sent_at: new Date().toISOString() } : a
+      ))
+    } catch (err) {
+      alert('Failed to send shift details: ' + err.message)
+    }
+    setSending(prev => ({ ...prev, [id]: null }))
+  }
+
+  const handleSendSurvey = async (id) => {
+    setSending(prev => ({ ...prev, [id]: 'survey' }))
+    try {
+      await sendSurvey(id)
+      setAssignments(prev => prev.map(a =>
+        a.id === id ? { ...a, survey_sent_at: new Date().toISOString() } : a
+      ))
+    } catch (err) {
+      alert('Failed to send survey: ' + err.message)
+    }
+    setSending(prev => ({ ...prev, [id]: null }))
+  }
+
   const formatDate = (d) => {
     if (!d) return ''
     return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  const formatSentAt = (ts) => {
+    if (!ts) return null
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
   const fmtMoney = (v) => v != null && v !== '' ? `$${parseFloat(v).toFixed(2)}` : '—'
@@ -131,6 +163,9 @@ export default function AssignmentsPanel() {
                           {a.applicants?.first_name} {a.applicants?.last_name}
                         </div>
                         <div className="text-p-muted text-[10px] truncate">{a.applicants?.city} · {a.applicants?.phone}</div>
+                        {a.briefing_slot && (
+                          <div className="text-p-green text-[10px] mt-0.5">Briefing: {a.briefing_slot}</div>
+                        )}
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${ASSIGNMENT_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                         {a.status?.replace(/_/g, ' ')}
@@ -182,9 +217,35 @@ export default function AssignmentsPanel() {
                           <span className="text-p-muted">Hrs: <span className="text-white">{a.hours_worked ?? '—'}</span></span>
                           <span className="text-p-muted">Payout: <span className="text-white">{fmtMoney(a.payout_amount)}</span></span>
                           <span className={`font-medium ${PAYOUT_COLORS[a.payout_status] || 'text-p-muted'}`}>{a.payout_status || 'pending'}</span>
-                          <button onClick={() => startEditPay(a)} className="text-p-green font-medium hover:opacity-80">Edit</button>
+                          <button onClick={() => startEditPay(a)} className="text-p-green font-medium hover:opacity-80">Edit Pay</button>
                         </>
                       )}
+                    </div>
+
+                    {/* Dispatch action buttons */}
+                    <div className="flex items-center gap-2 mt-1.5 pl-11">
+                      <button
+                        onClick={() => handleSendShift(a.id)}
+                        disabled={!!sending[a.id]}
+                        className="px-2.5 py-1 rounded text-[10px] border border-p-border text-p-muted hover:border-p-green hover:text-p-green transition-colors disabled:opacity-40"
+                      >
+                        {sending[a.id] === 'shift' ? 'Sending...' : 'Send Shift Details'}
+                      </button>
+                      <button
+                        onClick={() => handleSendSurvey(a.id)}
+                        disabled={!!sending[a.id]}
+                        className="px-2.5 py-1 rounded text-[10px] border border-p-border text-p-muted hover:border-p-green hover:text-p-green transition-colors disabled:opacity-40"
+                      >
+                        {sending[a.id] === 'survey' ? 'Sending...' : 'Send Survey'}
+                      </button>
+                      <div className="flex gap-3 ml-1">
+                        {a.shift_sent_at && (
+                          <span className="text-[9px] text-p-muted">Shift sent {formatSentAt(a.shift_sent_at)}</span>
+                        )}
+                        {a.survey_sent_at && (
+                          <span className="text-[9px] text-p-muted">Survey sent {formatSentAt(a.survey_sent_at)}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

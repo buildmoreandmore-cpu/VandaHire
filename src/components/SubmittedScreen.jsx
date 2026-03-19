@@ -39,8 +39,12 @@ export default function SubmittedScreen({ firstName }) {
           You're submitted.
         </h2>
 
-        <p className="text-[#888] text-base leading-relaxed mb-8 fade-up-delay-1">
+        <p className="text-[#888] text-base leading-relaxed mb-4 fade-up-delay-1">
           Check your email in the next few minutes.
+        </p>
+
+        <p className="text-[#555] text-xs leading-relaxed mb-8 fade-up-delay-2 max-w-xs">
+          Applying does not guarantee placement. Shifts are offered based on location, availability, and fit.
         </p>
 
         <p className="text-[#555] text-sm fade-up-delay-2">
