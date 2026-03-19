@@ -9,14 +9,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const adminToken = process.env.VANDA_ADMIN_TOKEN
-  if (!adminToken) {
+  const raw = process.env.VANDA_ADMIN_TOKEN
+  if (!raw) {
     console.error('[export] VANDA_ADMIN_TOKEN not configured')
     return res.status(500).json({ error: 'Export not configured' })
   }
+  const tokens = raw.split(',').map(t => t.trim())
 
   const authHeader = req.headers.authorization
-  if (!authHeader || authHeader !== `Bearer ${adminToken}`) {
+  if (!authHeader || !tokens.some(t => authHeader === `Bearer ${t}`)) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
