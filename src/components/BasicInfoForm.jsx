@@ -141,7 +141,6 @@ function PhotoUpload({ value, onChange, error }) {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="user"
         onChange={handleFile}
         className="hidden"
       />

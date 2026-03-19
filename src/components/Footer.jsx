@@ -11,12 +11,12 @@ export default function Footer() {
           <VandaLogo size="sm" onClick={() => navigate('/')} />
         </div>
 
-        {/* Nav links — two rows, centered */}
-        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-[#666] mb-8">
+        {/* Nav links */}
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-8 sm:gap-y-3 text-sm text-[#666] mb-8">
           <button onClick={() => navigate('/how-it-works')} className="hover:text-white transition-colors">How It Works</button>
           <button onClick={() => navigate('/events')} className="hover:text-white transition-colors">Request Staff</button>
-          <button onClick={() => navigate('/')} className="hover:text-white transition-colors">Apply for Work</button>
-          <button onClick={() => navigate('/organizer')} className="hover:text-white transition-colors">Organizer Portal</button>
+          <button onClick={() => { navigate('/'); window.scrollTo(0, 0) }} className="hover:text-white transition-colors">Apply for Work</button>
+          <button onClick={() => navigate('/organizer')} className="hover:text-white transition-colors">Check Event Status</button>
           <button onClick={() => navigate('/blog')} className="hover:text-white transition-colors">Blog</button>
         </div>
 
