@@ -1,6 +1,6 @@
 // Shared admin auth check for all admin API routes
 export function checkAdmin(req) {
-  const adminToken = process.env.PORTER_ADMIN_TOKEN
+  const adminToken = process.env.VANDA_ADMIN_TOKEN
   if (!adminToken) {
     return { ok: false, status: 500, error: 'Admin not configured' }
   }

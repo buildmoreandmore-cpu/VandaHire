@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Admin CSV export. Supports: applicants (default), events, assignments.
-// Auth: set PORTER_ADMIN_TOKEN env var, pass as Bearer token.
+// Auth: set VANDA_ADMIN_TOKEN env var, pass as Bearer token.
 // Usage: curl -H "Authorization: Bearer <token>" https://yourapp.vercel.app/api/export?type=applicants
 
 export default async function handler(req, res) {
@@ -9,9 +9,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const adminToken = process.env.PORTER_ADMIN_TOKEN
+  const adminToken = process.env.VANDA_ADMIN_TOKEN
   if (!adminToken) {
-    console.error('[export] PORTER_ADMIN_TOKEN not configured')
+    console.error('[export] VANDA_ADMIN_TOKEN not configured')
     return res.status(500).json({ error: 'Export not configured' })
   }
 

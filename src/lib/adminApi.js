@@ -1,4 +1,4 @@
-// Admin API helper — uses PORTER_ADMIN_TOKEN stored in localStorage
+// Admin API helper — uses VANDA_ADMIN_TOKEN stored in localStorage
 
 const TOKEN_KEY = 'vanda_admin_token'
 

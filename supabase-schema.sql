@@ -1,4 +1,4 @@
--- Porter staffing platform schema
+-- VandaHire staffing platform schema
 -- Run in Supabase SQL editor
 
 -- ============================================================
