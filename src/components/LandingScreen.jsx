@@ -1,15 +1,64 @@
 import { useNavigate } from '../Router.jsx'
 import Footer from './Footer.jsx'
 
+// SVG icons for roles
+const IconBroom = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 21l7-7" /><path d="M12.5 8.5l-3.5 3.5 4 4 3.5-3.5" /><path d="M15 6l3-3 3 3-3 3" />
+  </svg>
+)
+
+const IconTrash = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+  </svg>
+)
+
+const IconBox = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+  </svg>
+)
+
+const IconMegaphone = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 11l19-9-9 19-2-8-8-2z" />
+  </svg>
+)
+
+const IconHardHat = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z" /><path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5" /><path d="M4 15V9a8 8 0 0 1 16 0v6" />
+  </svg>
+)
+
+const IconShield = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+)
+
+const IconClipboard = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+  </svg>
+)
+
+const IconUtensils = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+  </svg>
+)
+
 const ROLES = [
-  { icon: '🧹', label: 'Janitorial' },
-  { icon: '🗑️', label: 'Cleanup' },
-  { icon: '📦', label: 'Setup & Breakdown' },
-  { icon: '📣', label: 'Brand Activation' },
-  { icon: '🏗️', label: 'General Labor' },
-  { icon: '🛡️', label: 'Security' },
-  { icon: '📋', label: 'Registration' },
-  { icon: '🍽️', label: 'Catering Support' },
+  { Icon: IconBroom,     label: 'Janitorial' },
+  { Icon: IconTrash,     label: 'Cleanup' },
+  { Icon: IconBox,       label: 'Setup & Breakdown' },
+  { Icon: IconMegaphone, label: 'Brand Activation' },
+  { Icon: IconHardHat,   label: 'General Labor' },
+  { Icon: IconShield,    label: 'Security' },
+  { Icon: IconClipboard, label: 'Registration' },
+  { Icon: IconUtensils,  label: 'Catering Support' },
 ]
 
 const ORGANIZER_STEPS = [
@@ -48,13 +97,13 @@ export default function LandingScreen({ onStart }) {
             onClick={onStart}
             className="bg-[#c8ff00] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
           >
-            I'm Looking for Work →
+            I'm Looking for Work
           </button>
           <button
             onClick={() => navigate('/events')}
             className="border border-[#2a2a2a] text-white rounded-full py-4 px-10 font-semibold text-base hover:border-[#444] hover:bg-[#111] transition-all duration-200"
           >
-            Request Staff →
+            Request Staff
           </button>
         </div>
       </div>
@@ -77,7 +126,7 @@ export default function LandingScreen({ onStart }) {
             onClick={() => navigate('/how-it-works')}
             className="text-[#777] text-sm hover:text-white transition-colors underline underline-offset-4"
           >
-            See full walkthrough →
+            See full walkthrough
           </button>
         </div>
       </section>
@@ -87,9 +136,9 @@ export default function LandingScreen({ onStart }) {
         <div className="text-[#c8ff00] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {ROLES.map(({ icon, label }) => (
-            <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-[#2a2a2a] transition-colors">
-              <span className="text-2xl">{icon}</span>
+          {ROLES.map(({ Icon, label }) => (
+            <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-[#2a2a2a] transition-colors">
+              <span className="text-[#c8ff00]"><Icon /></span>
               <span className="text-sm text-[#888] text-center">{label}</span>
             </div>
           ))}
