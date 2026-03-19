@@ -4,7 +4,7 @@ const SIZE_MAP = {
   lg: { icon: 64, vanda: 'text-5xl', hire: 'text-sm', gap: 'gap-4' },
 }
 
-export default function VandaLogo({ size = 'md', onClick, showTagline = false }) {
+export default function VandaLogo({ size = 'md', onClick }) {
   const s = SIZE_MAP[size] || SIZE_MAP.md
   const iconSize = s.icon
 
@@ -40,14 +40,6 @@ export default function VandaLogo({ size = 'md', onClick, showTagline = false })
         <span className={`text-[#3ecf8e] font-bold tracking-[0.25em] uppercase mt-0.5 ${s.hire}`}>
           HIRE
         </span>
-        {showTagline && (
-          <>
-            <span className="block w-full h-px bg-[#333] mt-2 mb-1.5" />
-            <span className="text-[#666] text-xs font-normal tracking-normal">
-              Show up. Get paid.
-            </span>
-          </>
-        )}
       </span>
     </span>
   )

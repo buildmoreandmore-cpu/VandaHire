@@ -1,5 +1,6 @@
 import { useNavigate } from '../Router.jsx'
 import VandaLogo from './VandaLogo.jsx'
+import Footer from './Footer.jsx'
 
 // SVG icons for roles
 const IconBroom = () => (
@@ -80,7 +81,7 @@ export default function LandingScreen({ onStart }) {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <VandaLogo onClick={() => {}} showTagline />
+        <VandaLogo onClick={() => {}} />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
@@ -171,6 +172,7 @@ export default function LandingScreen({ onStart }) {
         </div>
       </section>
 
+      <Footer />
     </div>
   )
 }
