@@ -145,3 +145,43 @@ create index if not exists idx_assignments_confirmation_token
 --   ADD COLUMN IF NOT EXISTS stripe_payment_url text,
 --   ADD COLUMN IF NOT EXISTS stripe_payment_id text,
 --   ADD COLUMN IF NOT EXISTS stripe_paid_at timestamptz;
+
+-- ============================================================
+-- MIGRATION: Geofencing + Check-In/Out
+-- ============================================================
+-- Run this in Supabase SQL editor to add geofence + check-in fields:
+--
+-- ALTER TABLE public.events
+--   ADD COLUMN IF NOT EXISTS latitude double precision,
+--   ADD COLUMN IF NOT EXISTS longitude double precision,
+--   ADD COLUMN IF NOT EXISTS geofence_radius_meters integer NOT NULL DEFAULT 200;
+--
+-- ALTER TABLE public.assignments
+--   ADD COLUMN IF NOT EXISTS check_in_time timestamptz,
+--   ADD COLUMN IF NOT EXISTS check_out_time timestamptz,
+--   ADD COLUMN IF NOT EXISTS check_in_lat double precision,
+--   ADD COLUMN IF NOT EXISTS check_in_lng double precision,
+--   ADD COLUMN IF NOT EXISTS check_out_lat double precision,
+--   ADD COLUMN IF NOT EXISTS check_out_lng double precision,
+--   ADD COLUMN IF NOT EXISTS hours_tracked numeric(6,2);
+--
+-- -- Add supervisor flag to assignments
+-- ALTER TABLE public.assignments
+--   ADD COLUMN IF NOT EXISTS is_supervisor boolean NOT NULL DEFAULT false;
+--
+-- -- Add service tier to events (labor_supply | managed_labor)
+-- ALTER TABLE public.events
+--   ADD COLUMN IF NOT EXISTS service_tier text NOT NULL DEFAULT 'labor_supply';
+--
+-- -- Create incident log table
+-- CREATE TABLE IF NOT EXISTS public.incident_log (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   event_id uuid NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+--   reporter_id uuid NOT NULL REFERENCES public.applicants(id) ON DELETE CASCADE,
+--   incident_type text NOT NULL DEFAULT 'other',
+--   description text NOT NULL DEFAULT '',
+--   resolved boolean NOT NULL DEFAULT false
+-- );
+-- ALTER TABLE public.incident_log ENABLE ROW LEVEL SECURITY;
+-- CREATE INDEX IF NOT EXISTS idx_incident_log_event ON public.incident_log(event_id);

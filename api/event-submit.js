@@ -13,6 +13,7 @@ export default async function handler(req, res) {
     workers_needed, role_types, pay_rate, dress_code, notes,
     service_type, meeting_point, supervisor_name, supervisor_phone,
     briefing_required, briefing_date, briefing_time, briefing_location, briefing_slots,
+    latitude, longitude,
   } = req.body
 
   const missing = []
@@ -52,6 +53,8 @@ export default async function handler(req, res) {
         briefing_time: briefing_required && briefing_time ? briefing_time : null,
         briefing_location: briefing_required ? (briefing_location || '') : '',
         briefing_slots: briefing_required ? (briefing_slots || []) : [],
+        latitude: latitude || null,
+        longitude: longitude || null,
       })
       .select('id')
       .single()

@@ -98,7 +98,7 @@ async function handleEvents(req, res, supabase) {
     return res.status(200).json(data)
   }
   if (req.method === 'PATCH') {
-    const { id, status, bill_rate, total_bill_amount, invoice_status, payment_status } = req.body
+    const { id, status, bill_rate, total_bill_amount, invoice_status, payment_status, latitude, longitude, geofence_radius_meters } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const updates = { updated_at: new Date().toISOString() }
     const validStatuses = ['pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
@@ -109,6 +109,12 @@ async function handleEvents(req, res, supabase) {
     if (total_bill_amount !== undefined) updates.total_bill_amount = total_bill_amount
     if (invoice_status !== undefined) { if (!validInvoice.includes(invoice_status)) return res.status(400).json({ error: 'Invalid invoice_status' }); updates.invoice_status = invoice_status }
     if (payment_status !== undefined) { if (!validPayment.includes(payment_status)) return res.status(400).json({ error: 'Invalid payment_status' }); updates.payment_status = payment_status }
+    if (latitude !== undefined) updates.latitude = latitude
+    if (longitude !== undefined) updates.longitude = longitude
+    if (geofence_radius_meters !== undefined) updates.geofence_radius_meters = geofence_radius_meters
+    const validServiceTiers = ['labor_supply', 'managed_labor']
+    const { service_tier } = req.body
+    if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
     const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single()
     if (error) throw error
@@ -119,7 +125,7 @@ async function handleEvents(req, res, supabase) {
 
 async function handleAssignments(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('assignments').select('id, created_at, updated_at, status, notes, event_id, worker_id, pay_rate, hours_worked, payout_amount, payout_status, confirmation_token, shift_sent_at, survey_sent_at, briefing_slot, briefing_confirmed, events ( id, title, event_date, start_time, end_time, city, status, bill_rate ), applicants ( id, first_name, last_name, email, phone, city, photo_url, status )').order('created_at', { ascending: false })
+    let query = supabase.from('assignments').select('id, created_at, updated_at, status, notes, event_id, worker_id, pay_rate, hours_worked, payout_amount, payout_status, confirmation_token, shift_sent_at, survey_sent_at, briefing_slot, briefing_confirmed, check_in_time, check_out_time, check_in_lat, check_in_lng, check_out_lat, check_out_lng, hours_tracked, is_supervisor, events ( id, title, event_date, start_time, end_time, city, status, bill_rate, service_tier ), applicants ( id, first_name, last_name, email, phone, city, photo_url, status )').order('created_at', { ascending: false })
     if (req.query.event_id) query = query.eq('event_id', req.query.event_id)
     if (req.query.worker_id) query = query.eq('worker_id', req.query.worker_id)
     const { data, error } = await query
@@ -135,7 +141,7 @@ async function handleAssignments(req, res, supabase) {
     return res.status(200).json({ created: data.length, assignments: data })
   }
   if (req.method === 'PATCH') {
-    const { id, status, pay_rate, hours_worked, payout_amount, payout_status, notes } = req.body
+    const { id, status, pay_rate, hours_worked, payout_amount, payout_status, notes, is_supervisor } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const validStatuses = ['invited', 'confirmed', 'declined', 'checked_in', 'completed', 'cancelled']
     const validPayout = ['pending', 'approved', 'paid']
@@ -146,6 +152,7 @@ async function handleAssignments(req, res, supabase) {
     if (payout_amount !== undefined) updates.payout_amount = payout_amount
     if (payout_status !== undefined) { if (!validPayout.includes(payout_status)) return res.status(400).json({ error: 'Invalid payout_status' }); updates.payout_status = payout_status }
     if (notes !== undefined) updates.notes = notes
+    if (is_supervisor !== undefined) updates.is_supervisor = is_supervisor
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
     const { data, error } = await supabase.from('assignments').update(updates).eq('id', id).select().single()
     if (error) throw error
@@ -255,6 +262,25 @@ async function handleNotifyWorkers(req, res, supabase) {
   return res.status(200).json({ success: true, sent, total: workers.length })
 }
 
+async function handleIncidents(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { event_id } = req.query
+    let query = supabase.from('incident_log').select('id, created_at, event_id, reporter_id, incident_type, description, resolved, applicants ( first_name, last_name ), events ( title )').order('created_at', { ascending: false })
+    if (event_id) query = query.eq('event_id', event_id)
+    const { data, error } = await query
+    if (error) throw error
+    return res.status(200).json(data || [])
+  }
+  if (req.method === 'PATCH') {
+    const { id, resolved } = req.body
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { data, error } = await supabase.from('incident_log').update({ resolved }).eq('id', id).select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
 // ─── dispatcher ───────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -275,6 +301,7 @@ export default async function handler(req, res) {
       case 'send-shift': return await handleSendShift(req, res, supabase)
       case 'send-survey': return await handleSendSurvey(req, res, supabase)
       case 'notify-workers': return await handleNotifyWorkers(req, res, supabase)
+      case 'incidents': return await handleIncidents(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {

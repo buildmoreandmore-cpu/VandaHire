@@ -118,6 +118,12 @@ export default function StatusPage() {
                     >
                       View Available Shifts →
                     </button>
+                    <button
+                      onClick={() => navigate('/my-shifts')}
+                      className="bg-[#1a1a1a] text-white border border-[#2a2a2a] rounded-full py-3 px-8 font-semibold text-sm hover:border-[#3ecf8e] transition-all w-full sm:w-auto"
+                    >
+                      My Shifts & Check-In →
+                    </button>
                     <p className="text-[#555] text-xs">New shifts are posted regularly. Check back often.</p>
                   </div>
                 )}

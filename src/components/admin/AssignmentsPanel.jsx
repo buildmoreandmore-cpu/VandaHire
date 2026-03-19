@@ -49,7 +49,7 @@ export default function AssignmentsPanel() {
     setEditingPay(a.id)
     setPayForm({
       pay_rate: a.pay_rate || '',
-      hours_worked: a.hours_worked || '',
+      hours_worked: a.hours_worked || a.hours_tracked || '',
       payout_amount: a.payout_amount || '',
       payout_status: a.payout_status || 'pending',
     })
@@ -165,6 +165,25 @@ export default function AssignmentsPanel() {
                         <div className="text-p-muted text-[10px] truncate">{a.applicants?.city} · {a.applicants?.phone}</div>
                         {a.briefing_slot && (
                           <div className="text-p-green text-[10px] mt-0.5">Briefing: {a.briefing_slot}</div>
+                        )}
+                        {(a.check_in_time || a.check_out_time) && (
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                            {a.check_in_time && (
+                              <span className="text-blue-400" title={`GPS: ${a.check_in_lat?.toFixed(4)}, ${a.check_in_lng?.toFixed(4)}`}>
+                                In: {new Date(a.check_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                {a.check_in_lat != null && <span className="ml-0.5 text-[8px]">📍</span>}
+                              </span>
+                            )}
+                            {a.check_out_time && (
+                              <span className="text-green-400" title={`GPS: ${a.check_out_lat?.toFixed(4)}, ${a.check_out_lng?.toFixed(4)}`}>
+                                Out: {new Date(a.check_out_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                {a.check_out_lat != null && <span className="ml-0.5 text-[8px]">📍</span>}
+                              </span>
+                            )}
+                            {a.hours_tracked && (
+                              <span className="text-white font-medium">{a.hours_tracked}h tracked</span>
+                            )}
+                          </div>
                         )}
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${ASSIGNMENT_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>

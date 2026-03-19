@@ -54,6 +54,10 @@ export default function EventsPanel() {
   const [editingBilling, setEditingBilling] = useState(null)
   const [billingForm, setBillingForm] = useState({})
 
+  // Geofence edit state
+  const [editingGeo, setEditingGeo] = useState(null)
+  const [geoForm, setGeoForm] = useState({})
+
   // Stripe payment link state
   const [creatingPaymentLink, setCreatingPaymentLink] = useState(null)
   const [paymentLinkError, setPaymentLinkError] = useState(null)
@@ -106,6 +110,53 @@ export default function EventsPanel() {
       invoice_status: ev.invoice_status || 'not_sent',
       payment_status: ev.payment_status || 'unpaid',
     })
+  }
+
+  const startEditGeo = (ev) => {
+    setEditingGeo(ev.id)
+    setGeoForm({
+      latitude: ev.latitude || '',
+      longitude: ev.longitude || '',
+      geofence_radius_meters: ev.geofence_radius_meters || 200,
+    })
+  }
+
+  const parseGoogleMapsUrl = (url) => {
+    // Try to extract lat,lng from Google Maps URL patterns
+    const patterns = [
+      /@(-?\d+\.\d+),(-?\d+\.\d+)/,           // @lat,lng
+      /place\/.*?\/(-?\d+\.\d+),(-?\d+\.\d+)/, // place/Name/lat,lng
+      /q=(-?\d+\.\d+),(-?\d+\.\d+)/,           // q=lat,lng
+    ]
+    for (const p of patterns) {
+      const m = url.match(p)
+      if (m) return { latitude: m[1], longitude: m[2] }
+    }
+    return null
+  }
+
+  const handlePasteCoords = () => {
+    navigator.clipboard?.readText().then(text => {
+      const coords = parseGoogleMapsUrl(text)
+      if (coords) setGeoForm(f => ({ ...f, ...coords }))
+    })
+  }
+
+  const saveGeo = async (id) => {
+    setUpdating(id)
+    try {
+      const updates = {
+        latitude: geoForm.latitude ? parseFloat(geoForm.latitude) : null,
+        longitude: geoForm.longitude ? parseFloat(geoForm.longitude) : null,
+        geofence_radius_meters: parseInt(geoForm.geofence_radius_meters, 10) || 200,
+      }
+      await updateEvent(id, updates)
+      setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
+      setEditingGeo(null)
+    } catch (err) {
+      console.error('Failed to update geo:', err)
+    }
+    setUpdating(null)
   }
 
   const saveBilling = async (id) => {
@@ -267,6 +318,71 @@ export default function EventsPanel() {
                     <Detail label="Pay Rate" value={ev.pay_rate} />
                     {ev.dress_code && <Detail label="Dress Code" value={ev.dress_code} />}
                     {ev.notes && <Detail label="Notes" value={ev.notes} />}
+                    <div>
+                      <span className="text-p-muted text-xs">Service Tier: </span>
+                      <select
+                        value={ev.service_tier || 'labor_supply'}
+                        onChange={async (e) => {
+                          try {
+                            await updateEvent(ev.id, { service_tier: e.target.value })
+                            setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, service_tier: e.target.value } : x))
+                          } catch (err) { console.error('Failed to update service tier:', err) }
+                        }}
+                        className="bg-p-bg border border-p-border rounded px-2 py-0.5 text-xs text-white"
+                      >
+                        <option value="labor_supply">Labor Supply</option>
+                        <option value="managed_labor">Managed Labor</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Geofence Section */}
+                  <div className="bg-black/20 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Geofence</h4>
+                      {editingGeo !== ev.id ? (
+                        <button onClick={() => startEditGeo(ev)} className="text-p-green text-[10px] font-medium hover:opacity-80">
+                          Edit
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => saveGeo(ev.id)} className="text-p-green text-[10px] font-medium hover:opacity-80">Save</button>
+                          <button onClick={() => setEditingGeo(null)} className="text-p-muted text-[10px] font-medium hover:opacity-80">Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                    {editingGeo === ev.id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-p-muted text-[10px]">Latitude</label>
+                            <input type="number" step="any" value={geoForm.latitude} onChange={e => setGeoForm(f => ({ ...f, latitude: e.target.value }))}
+                              placeholder="33.7490" className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
+                          </div>
+                          <div>
+                            <label className="text-p-muted text-[10px]">Longitude</label>
+                            <input type="number" step="any" value={geoForm.longitude} onChange={e => setGeoForm(f => ({ ...f, longitude: e.target.value }))}
+                              placeholder="-84.3880" className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
+                          </div>
+                          <div>
+                            <label className="text-p-muted text-[10px]">Radius (m)</label>
+                            <input type="number" value={geoForm.geofence_radius_meters} onChange={e => setGeoForm(f => ({ ...f, geofence_radius_meters: e.target.value }))}
+                              className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
+                          </div>
+                        </div>
+                        <button onClick={handlePasteCoords} className="text-p-green text-[10px] font-medium hover:opacity-80">
+                          Paste from Google Maps URL
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-xs">
+                        {ev.latitude && ev.longitude ? (
+                          <span className="text-white">{ev.latitude}, {ev.longitude} <span className="text-p-muted">({ev.geofence_radius_meters || 200}m radius)</span></span>
+                        ) : (
+                          <span className="text-p-muted">No coordinates set — workers can check in from anywhere</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Billing Section */}
@@ -430,7 +546,25 @@ export default function EventsPanel() {
                                 <span className="text-p-muted text-[10px]">{a.applicants?.first_name?.[0]}{a.applicants?.last_name?.[0]}</span>
                               </div>
                             )}
-                            <span className="text-white text-xs flex-1">{a.applicants?.first_name} {a.applicants?.last_name}</span>
+                            <span className="text-white text-xs flex-1">
+                              {a.applicants?.first_name} {a.applicants?.last_name}
+                              {a.is_supervisor && <span className="ml-1.5 text-[#3ecf8e] text-[9px] font-bold uppercase">Lead</span>}
+                            </span>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  await updateAssignment(a.id, { is_supervisor: !a.is_supervisor })
+                                  setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, is_supervisor: !a.is_supervisor } : x))
+                                } catch (err) { console.error('Failed to toggle supervisor:', err) }
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                                a.is_supervisor ? 'bg-[#3ecf8e]/20 text-[#3ecf8e]' : 'bg-white/5 text-p-muted hover:text-white'
+                              }`}
+                              title={a.is_supervisor ? 'Remove as supervisor' : 'Mark as supervisor'}
+                            >
+                              {a.is_supervisor ? 'Supervisor' : 'Set Lead'}
+                            </button>
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ASSIGNMENT_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                               {a.status?.replace(/_/g, ' ')}
                             </span>

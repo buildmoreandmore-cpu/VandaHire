@@ -6,6 +6,7 @@ import ConfirmPage from './pages/ConfirmPage.jsx'
 import ShiftsPage from './pages/ShiftsPage.jsx'
 import SurveyPage from './pages/SurveyPage.jsx'
 import StatusPage from './pages/StatusPage.jsx'
+import MyShiftsPage from './pages/MyShiftsPage.jsx'
 import HowItWorksPage from './pages/HowItWorksPage.jsx'
 import OrganizerPortalPage from './pages/OrganizerPortalPage.jsx'
 import SeoLandingPage from './components/SeoLandingPage.jsx'
@@ -288,6 +289,8 @@ export default function Router() {
   } else if (path.startsWith('/survey/')) {
     const token = path.replace('/survey/', '')
     page = <SurveyPage token={token} />
+  } else if (path === '/my-shifts') {
+    page = <MyShiftsPage />
   } else if (path === '/status') {
     page = <StatusPage />
   } else if (path === '/how-it-works') {
