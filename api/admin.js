@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-import { checkAdmin } from './lib/auth.js'
-import { sendSms } from './lib/sms.js'
-import { sendEmail } from './lib/email.js'
+import { checkAdmin } from '../_lib/auth.js'
+import { sendSms } from '../_lib/sms.js'
+import { sendEmail } from '../_lib/email.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)

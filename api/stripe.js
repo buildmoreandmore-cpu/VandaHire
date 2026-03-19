@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { checkAdmin } from './lib/auth.js'
+import { checkAdmin } from '../_lib/auth.js'
 
 // Disable body parser globally — we handle raw body for webhook manually
 export const config = {
