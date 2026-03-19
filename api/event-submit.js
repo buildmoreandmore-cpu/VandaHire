@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Public endpoint — event holders submit staffing requests
+// Served at /api/events/submit via vercel.json rewrite
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -10,12 +11,10 @@ export default async function handler(req, res) {
     title, organizer, contact_name, contact_email, contact_phone,
     event_date, start_time, end_time, location, city,
     workers_needed, role_types, pay_rate, dress_code, notes,
-    // new fields
     service_type, meeting_point, supervisor_name, supervisor_phone,
     briefing_required, briefing_date, briefing_time, briefing_location, briefing_slots,
   } = req.body
 
-  // Validation
   const missing = []
   if (!title) missing.push('title')
   if (!organizer) missing.push('organizer')
@@ -28,37 +27,22 @@ export default async function handler(req, res) {
   if (!location) missing.push('location')
   if (!city) missing.push('city')
   if (!workers_needed || workers_needed < 1) missing.push('workers_needed')
+  if (missing.length > 0) return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` })
 
-  if (missing.length > 0) {
-    return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` })
-  }
-
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-  )
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
   try {
     const { data, error } = await supabase
       .from('events')
       .insert({
-        title,
-        organizer,
-        contact_name,
-        contact_email,
-        contact_phone,
-        event_date,
-        start_time,
-        end_time,
-        location,
-        city,
+        title, organizer, contact_name, contact_email, contact_phone,
+        event_date, start_time, end_time, location, city,
         workers_needed: parseInt(workers_needed, 10) || 1,
         role_types: role_types || [],
         pay_rate: pay_rate || '',
         dress_code: dress_code || '',
         notes: notes || '',
         status: 'pending',
-        // new fields
         service_type: service_type || 'single_event',
         meeting_point: meeting_point || '',
         supervisor_name: supervisor_name || '',
@@ -75,7 +59,7 @@ export default async function handler(req, res) {
     if (error) throw error
     return res.status(200).json({ success: true, eventId: data.id })
   } catch (err) {
-    console.error('[events/submit] Insert error:', err)
+    console.error('[event-submit] Insert error:', err)
     return res.status(500).json({ error: 'Failed to save event request' })
   }
 }
