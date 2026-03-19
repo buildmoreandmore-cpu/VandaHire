@@ -15,40 +15,70 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Check animations (submitted screen) ── */
 @keyframes checkDraw {
-  from {
-    stroke-dashoffset: 100;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
 }
 
 @keyframes circleDraw {
-  from {
-    stroke-dashoffset: 300;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 300; }
+  to { stroke-dashoffset: 0; }
 }
 
 .check-circle {
   stroke-dasharray: 300;
   stroke-dashoffset: 300;
-  animation: circleDraw 0.6s ease-out 0.1s forwards;
+  animation: circleDraw 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
 }
 
 .check-mark {
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
-  animation: checkDraw 0.4s ease-out 0.7s forwards;
+  animation: checkDraw 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
 }
 
+/* ── Custom easing curves ── */
+/* expo-out: fast start, smooth land — the best general-purpose ease */
+/* spring: slight overshoot for interactive elements */
+
+/* ── Hero fade-up — layered: opacity + translateY + slight scale ── */
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Offset stagger — each element enters 120ms after the last */
+.fade-up-delay-1 {
+  opacity: 0;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
+}
+
+.fade-up-delay-2 {
+  opacity: 0;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards;
+}
+
+.fade-up-delay-3 {
+  opacity: 0;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.36s forwards;
+}
+
+/* ── Scroll-triggered reveal ── */
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
   }
   to {
     opacity: 1;
@@ -56,21 +86,99 @@ body {
   }
 }
 
-.fade-up {
-  animation: fadeUp 0.5s ease-out forwards;
+.reveal {
+  opacity: 0;
+  animation: revealUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-play-state: paused;
 }
 
-.fade-up-delay-1 {
-  opacity: 0;
-  animation: fadeUp 0.5s ease-out 0.2s forwards;
+.reveal.visible {
+  animation-play-state: running;
 }
 
-.fade-up-delay-2 {
-  opacity: 0;
-  animation: fadeUp 0.5s ease-out 0.4s forwards;
+/* ── Button interactions — spring feel ── */
+button, a {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.fade-up-delay-3 {
-  opacity: 0;
-  animation: fadeUp 0.5s ease-out 0.6s forwards;
+/* Green CTA buttons — lift + glow on hover */
+button.bg-\[\#3ecf8e\]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(62, 207, 142, 0.2);
+}
+
+button.bg-\[\#3ecf8e\]:active {
+  transform: translateY(0px) scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* ── Card hover — subtle lift ── */
+.border.rounded-2xl {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.border.rounded-2xl:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Logo entrance ── */
+@keyframes logoEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+nav span:first-child,
+.px-6.pt-8 span:first-child {
+  animation: logoEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Section divider line grow ── */
+@keyframes lineGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.border-t {
+  position: relative;
+}
+
+/* ── Smooth scrolling ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Focus states — accessible spring ── */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #3ecf8e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Blog card hover ── */
+.border.rounded-xl {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.border.rounded-xl:hover {
+  transform: translateY(-3px);
+  border-color: #3ecf8e !important;
+  box-shadow: 0 8px 24px rgba(62, 207, 142, 0.08);
+}
+
+/* ── Mobile touch optimizations ── */
+@media (hover: none) {
+  button.bg-\[\#3ecf8e\]:hover,
+  .border.rounded-2xl:hover,
+  .border.rounded-xl:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate } from '../Router.jsx'
 import VandaLogo from './VandaLogo.jsx'
 import Footer from './Footer.jsx'
@@ -76,9 +77,27 @@ const WHY_VANDA = [
 
 export default function LandingScreen({ onStart }) {
   const navigate = useNavigate()
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.15 }
+    )
+    const sections = containerRef.current?.querySelectorAll('.reveal')
+    sections?.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div ref={containerRef} className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
         <VandaLogo onClick={() => {}} />
@@ -121,7 +140,7 @@ export default function LandingScreen({ onStart }) {
       </div>
 
       {/* How It Works for Organizers */}
-      <section className="px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How staffing works</h2>
         <div className="grid md:grid-cols-3 gap-8">
@@ -144,7 +163,7 @@ export default function LandingScreen({ onStart }) {
       </section>
 
       {/* Roles We Staff */}
-      <section className="px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -158,7 +177,7 @@ export default function LandingScreen({ onStart }) {
       </section>
 
       {/* Why Vanda */}
-      <section className="px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
         <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">Why Vanda</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Built for the job</h2>
         <div className="grid md:grid-cols-3 gap-8">
