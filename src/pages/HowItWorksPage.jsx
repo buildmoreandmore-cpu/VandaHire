@@ -3,17 +3,44 @@ import Footer from '../components/Footer.jsx'
 import VandaLogo from '../components/VandaLogo.jsx'
 
 const ORGANIZER_STEPS = [
-  { step: '01', title: 'Submit a request', body: 'Fill out your event details — date, location, roles, headcount, pay rate, and any briefing requirements. Takes under 5 minutes.' },
-  { step: '02', title: 'Vanda reviews & confirms', body: 'We review your request, select vetted workers who match your needs, and confirm your crew within 24 hours.' },
-  { step: '03', title: 'Crew dispatched via SMS', body: 'Each worker receives their full shift details — meeting point, supervisor contact, dress code, and briefing schedule — by text message.' },
-  { step: '04', title: 'Post-event report delivered', body: 'After the event, workers submit a quick survey. You get a summary of attendance, ratings, and notes from the crew.' },
+  { step: '01', title: 'Submit a request', body: 'Fill out your event details — date, location, roles, and headcount. Choose labor supply (you supervise) or managed labor (we supervise). Takes under 5 minutes.' },
+  { step: '02', title: 'We build your crew', body: 'Vanda selects vetted, approved workers. For managed labor, we assign a Vanda site supervisor who leads the crew on the ground.' },
+  { step: '03', title: 'GPS-verified check-in', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who showed up, when, and where — no disputed hours.' },
+  { step: '04', title: 'Real-time crew management', body: 'Your supervisor tracks attendance, handles issues, and logs incidents in real time. After the event, you get a clean report with hours, attendance, and any notes.' },
 ]
 
 const WORKER_STEPS = [
   { step: '01', title: 'Apply in minutes', body: 'Submit your application with basic info. No resume needed. Just tell us who you are and what roles you\'re comfortable with.' },
   { step: '02', title: 'Get approved', body: 'Our team reviews your application. If it\'s a fit, you\'ll be added to the approved worker pool within 48 hours.' },
-  { step: '03', title: 'Claim shifts from your phone', body: 'When events come up in your area, we SMS you the details. Claim the shift directly — no app download required.' },
-  { step: '04', title: 'Show up & get paid', body: 'Arrive at the meeting point, check in with the on-site supervisor, and complete your shift. Payment follows based on the agreed rate.' },
+  { step: '03', title: 'Claim shifts & check in with GPS', body: 'When events come up in your area, we SMS you the details. Claim shifts from your phone. On the day, check in via GPS when you arrive at the venue.' },
+  { step: '04', title: 'Show up & get paid', body: 'Your hours are automatically tracked from check-in to check-out. No manual timesheets — your GPS-verified time goes straight to payroll.' },
+]
+
+const SERVICE_TIERS = [
+  {
+    title: 'Labor Supply',
+    desc: 'For operators and organizers who have their own on-site supervision.',
+    features: [
+      'Pre-screened, vetted workers from our pool',
+      'Individual SMS dispatch with shift details',
+      'GPS check-in/check-out at the venue',
+      'Automated hours tracking',
+      'You provide on-site supervision',
+    ],
+  },
+  {
+    title: 'Managed Labor',
+    desc: 'For organizers who want one call, one invoice, zero labor headaches.',
+    features: [
+      'Everything in Labor Supply, plus:',
+      'Vanda site supervisor assigned to your event',
+      'Supervisor arrives 30 min early, manages crew',
+      'Live crew roster with check-in status',
+      'Real-time incident logging',
+      'Post-event attendance report',
+      'Single point of contact on the ground',
+    ],
+  },
 ]
 
 export default function HowItWorksPage() {
@@ -31,8 +58,29 @@ export default function HowItWorksPage() {
       <div className="px-6 py-16 text-center max-w-3xl mx-auto w-full">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 fade-up">How It Works</h1>
         <p className="text-[#888] text-lg fade-up-delay-1">
-          Vanda connects event organizers with vetted, ready-to-work crew. Here's how the platform works for both sides.
+          Vanda provides vetted event crews with GPS-verified check-in. Choose labor supply or fully managed — we handle the rest.
         </p>
+      </div>
+
+      {/* Service Tiers */}
+      <div className="px-6 pb-16 max-w-5xl mx-auto w-full">
+        <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">Two Service Tiers</div>
+        <div className="grid md:grid-cols-2 gap-6">
+          {SERVICE_TIERS.map(tier => (
+            <div key={tier.title} className={`border rounded-2xl p-6 ${tier.title === 'Managed Labor' ? 'border-[#3ecf8e]/30 bg-[#3ecf8e]/[0.02]' : 'border-[#1e1e1e]'}`}>
+              <h3 className="text-white text-xl font-bold mb-2">{tier.title}</h3>
+              <p className="text-[#888] text-sm mb-4">{tier.desc}</p>
+              <ul className="space-y-2">
+                {tier.features.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <span className="text-[#3ecf8e] mt-1 text-xs">+</span>
+                    <span className="text-[#aaa]">{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Two columns */}

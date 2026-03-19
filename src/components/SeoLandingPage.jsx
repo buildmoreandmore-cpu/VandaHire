@@ -51,11 +51,11 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
         <div className="flex flex-wrap items-center gap-4 mt-8 text-xs text-[#555] fade-up-delay-3">
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
-            Vetted-only worker pool
+            GPS-verified crew check-in
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
-            SMS briefings before every shift
+            On-site supervisor available
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
@@ -78,9 +78,9 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
         <h2 className="text-2xl font-extrabold mb-10 tracking-tight">How It Works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
-            { step: '01', title: 'Submit your event', body: 'Tell us your date, location, roles needed, and any briefing requirements. Takes under 5 minutes.' },
-            { step: '02', title: 'We staff your crew', body: 'Vanda reviews your request, selects vetted and approved workers, and confirms your roster.' },
-            { step: '03', title: 'Workers dispatched via SMS', body: 'Each worker receives their shift details, meeting point, supervisor info, and briefing schedule by text.' },
+            { step: '01', title: 'Submit your event', body: 'Tell us your date, location, and roles. Choose labor supply or managed labor — where we provide an on-site supervisor too.' },
+            { step: '02', title: 'GPS-verified crew arrives', body: 'Every worker checks in via geofence at your venue. You see who\'s on site in real time — no disputed hours, no ghost check-ins.' },
+            { step: '03', title: 'We handle the ground', body: 'For managed events, your Vanda supervisor runs the crew, logs incidents, and gives you a clean post-event report. One call, one invoice.' },
           ].map(({ step, title, body }) => (
             <div key={step}>
               <div className="text-[#3ecf8e] font-extrabold text-sm mb-2">{step}</div>
@@ -91,10 +91,25 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
         </div>
       </div>
 
+      {/* Service Tiers */}
+      <div className="px-6 py-16 border-t border-[#1a1a1a] max-w-4xl mx-auto w-full">
+        <h2 className="text-2xl font-extrabold mb-6 tracking-tight">Two Ways to Work With Vanda</h2>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="border border-[#1e1e1e] rounded-xl p-5">
+            <h3 className="text-white font-bold mb-2">Labor Supply</h3>
+            <p className="text-[#777] text-sm leading-relaxed">We provide pre-screened workers with GPS check-in. You provide supervision on site. Best for operators who manage their own crews.</p>
+          </div>
+          <div className="border border-[#3ecf8e]/30 bg-[#3ecf8e]/[0.02] rounded-xl p-5">
+            <h3 className="text-white font-bold mb-2">Managed Labor</h3>
+            <p className="text-[#777] text-sm leading-relaxed">We provide workers and a Vanda site supervisor. They manage the crew, track attendance, log incidents, and report back to you. One call, zero labor headaches.</p>
+          </div>
+        </div>
+      </div>
+
       {/* CTA */}
       <div className="px-6 py-16 border-t border-[#1a1a1a] bg-[#111] text-center">
         <h2 className="text-3xl font-extrabold mb-4 tracking-tight">Ready to staff your next event?</h2>
-        <p className="text-[#888] mb-8">Submit a request and we'll confirm your crew within 24 hours.</p>
+        <p className="text-[#888] mb-8">Submit a request and we'll confirm your crew within 24 hours. Labor supply or fully managed — your choice.</p>
         <button
           onClick={() => navigate('/events')}
           className="bg-[#3ecf8e] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"

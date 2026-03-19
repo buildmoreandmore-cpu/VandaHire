@@ -64,15 +64,15 @@ const ROLES = [
 ]
 
 const ORGANIZER_STEPS = [
-  { step: '01', title: 'Submit your event', body: 'Tell us your date, location, roles needed, and briefing requirements. Takes under 5 minutes.' },
-  { step: '02', title: 'We staff your crew', body: 'Vanda reviews your request and selects vetted, approved workers who match your needs.' },
-  { step: '03', title: 'Workers dispatched via SMS', body: 'Each crew member gets full shift details — meeting point, supervisor contact, and briefing schedule — by text.' },
+  { step: '01', title: 'Submit your event', body: 'Tell us your date, location, roles needed, and whether you want labor supply or a fully managed crew. Takes under 5 minutes.' },
+  { step: '02', title: 'We staff your crew', body: 'Vanda selects vetted, approved workers. For managed labor, we assign a Vanda site supervisor to lead your crew on the ground.' },
+  { step: '03', title: 'GPS-verified arrival', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who\'s on site, in real time.' },
 ]
 
 const WHY_VANDA = [
-  { title: 'Vetted & approved workers only', body: 'Every worker on the platform has been reviewed and approved by our team before being offered shifts.' },
-  { title: 'SMS dispatch — no group texts', body: 'Workers get direct, individual SMS briefings with all the info they need. No group chats, no confusion.' },
-  { title: 'Briefings + post-shift reports', body: 'Optional pre-event briefings and post-shift worker surveys keep you informed before and after every event.' },
+  { title: 'Two tiers — you choose', body: 'Need workers only? We supply pre-screened crew. Want hands-off? Our managed labor tier includes an on-site Vanda supervisor who handles everything.' },
+  { title: 'GPS check-in at every event', body: 'Workers verify their location when they arrive. No more disputed hours or ghost check-ins — every arrival is GPS-stamped.' },
+  { title: 'On-site supervisor + incident log', body: 'For managed events, your Vanda supervisor tracks the crew roster, logs any incidents in real time, and gives you a clean post-event report.' },
 ]
 
 export default function LandingScreen({ onStart }) {
@@ -115,8 +115,8 @@ export default function LandingScreen({ onStart }) {
         </p>
 
         <p className="text-[#888] text-base leading-relaxed mb-10 fade-up-delay-1">
-          Staffing for events, activations, festivals, janitorial, setup, and facilities.
-          Apply for work or request staff in a few minutes.
+          Event staffing and managed labor for festivals, corporate events, activations, and venues.
+          We show up, we manage the crew, you run your event.
         </p>
 
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
@@ -135,14 +135,14 @@ export default function LandingScreen({ onStart }) {
         </div>
 
         <p className="fade-up-delay-3 text-[#555] text-sm mt-6">
-          Workers can apply in minutes. Event organizers can request staff on the same site.
+          Workers apply in minutes. Organizers get vetted crew with GPS-verified check-in.
         </p>
       </div>
 
       {/* How It Works for Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How staffing works</h2>
+        <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {ORGANIZER_STEPS.map(({ step, title, body }) => (
             <div key={step}>

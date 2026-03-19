@@ -13,6 +13,21 @@ const SERVICE_TYPES = [
   { value: 'direct_hire', label: 'Direct Hire', desc: 'I want to hire from your pool directly' },
 ]
 
+const SERVICE_TIERS = [
+  {
+    value: 'labor_supply',
+    label: 'Labor Supply',
+    desc: 'We provide pre-screened workers. You supervise on site.',
+    features: ['Vetted workers', 'SMS dispatch', 'GPS check-in'],
+  },
+  {
+    value: 'managed_labor',
+    label: 'Managed Labor',
+    desc: 'We provide workers + a Vanda supervisor. You focus on your event.',
+    features: ['On-site Vanda supervisor', 'Live crew tracking', 'Incident reporting', 'Post-event report'],
+  },
+]
+
 const EMPTY_SLOT = { date: '', time: '', label: '' }
 
 export default function EventRequestForm({ onSuccess }) {
@@ -23,6 +38,7 @@ export default function EventRequestForm({ onSuccess }) {
     location: '', city: '', workers_needed: '', role_types: [],
     pay_rate: '', dress_code: '', notes: '',
     // new fields
+    service_tier: 'labor_supply',
     service_type: 'single_event',
     meeting_point: '', supervisor_name: '', supervisor_phone: '',
     briefing_required: false,
@@ -115,10 +131,43 @@ export default function EventRequestForm({ onSuccess }) {
         Request Staff
       </h1>
       <p className="text-p-muted text-sm mb-8 fade-up-delay-1">
-        Tell us about your event and staffing needs. We'll get back to you within 24 hours.
+        Tell us about your event and staffing needs. Choose labor supply or fully managed — we'll confirm within 24 hours.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6 fade-up-delay-2">
+
+        {/* Service Tier */}
+        <Section title="How much do you need from us?">
+          <div className="grid grid-cols-2 gap-3">
+            {SERVICE_TIERS.map(tier => (
+              <button
+                key={tier.value}
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, service_tier: tier.value }))}
+                className={`p-4 rounded-lg border text-left transition-all duration-150 ${
+                  form.service_tier === tier.value
+                    ? 'border-p-green bg-p-green/10'
+                    : 'border-p-border bg-p-surface hover:border-p-muted'
+                }`}
+              >
+                <div className={`text-sm font-bold mb-1 ${form.service_tier === tier.value ? 'text-p-green' : 'text-white'}`}>
+                  {tier.label}
+                </div>
+                <div className="text-p-muted text-[10px] leading-tight mb-2">{tier.desc}</div>
+                <div className="flex flex-wrap gap-1">
+                  {tier.features.map(f => (
+                    <span key={f} className="text-[9px] text-[#555] bg-white/5 rounded px-1.5 py-0.5">{f}</span>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+          {form.service_tier === 'managed_labor' && (
+            <div className="bg-[#3ecf8e]/5 border border-[#3ecf8e]/20 rounded-lg px-4 py-3 text-[#3ecf8e] text-xs leading-relaxed">
+              A Vanda supervisor will be assigned to your event. They'll manage the crew on the ground — check-in, task assignments, incident handling, and client communication. You get a single point of contact and a post-event report.
+            </div>
+          )}
+        </Section>
 
         {/* Service Type */}
         <Section title="Service Type">
@@ -222,19 +271,28 @@ export default function EventRequestForm({ onSuccess }) {
             value={form.meeting_point}
             onChange={set('meeting_point')}
           />
-          <input
-            className={inputCls}
-            placeholder="On-site supervisor name"
-            value={form.supervisor_name}
-            onChange={set('supervisor_name')}
-          />
-          <input
-            className={inputCls}
-            type="tel"
-            placeholder="Supervisor's cell"
-            value={form.supervisor_phone}
-            onChange={(e) => setForm({ ...form, supervisor_phone: formatPhone(e.target.value) })}
-          />
+          {form.service_tier === 'labor_supply' && (
+            <>
+              <input
+                className={inputCls}
+                placeholder="Your on-site supervisor name"
+                value={form.supervisor_name}
+                onChange={set('supervisor_name')}
+              />
+              <input
+                className={inputCls}
+                type="tel"
+                placeholder="Supervisor's cell"
+                value={form.supervisor_phone}
+                onChange={(e) => setForm({ ...form, supervisor_phone: formatPhone(e.target.value) })}
+              />
+            </>
+          )}
+          {form.service_tier === 'managed_labor' && (
+            <div className="bg-p-surface border border-p-border rounded-lg px-4 py-3 text-p-muted text-xs">
+              A Vanda supervisor will be assigned after you submit. They'll arrive 30 min before your crew, manage check-in, and be your single point of contact on site.
+            </div>
+          )}
         </Section>
 
         {/* Pre-Event Briefing */}
