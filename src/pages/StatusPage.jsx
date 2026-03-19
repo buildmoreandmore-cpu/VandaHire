@@ -96,9 +96,14 @@ export default function StatusPage() {
         </form>
 
         {result && (
-          <div className="mt-10">
+          <div className="mt-10 fade-up">
             {result.found ? (
               <div className={`border rounded-2xl p-6 ${STATUS_MESSAGES[result.status]?.bg || 'border-[#2a2a2a]'}`}>
+                {result.first_name && (
+                  <p className="text-white text-lg font-bold mb-3">
+                    Hey{result.first_name ? `, ${result.first_name}` : ''} 👋
+                  </p>
+                )}
                 <div className={`font-bold text-lg mb-2 ${STATUS_MESSAGES[result.status]?.color || 'text-white'}`}>
                   {STATUS_MESSAGES[result.status]?.label || result.status}
                 </div>
@@ -106,12 +111,15 @@ export default function StatusPage() {
                   {STATUS_MESSAGES[result.status]?.message || 'Status unknown — contact crew@joinvanda.co.'}
                 </p>
                 {result.status === 'approved' && (
-                  <button
-                    onClick={() => navigate('/shifts')}
-                    className="mt-4 bg-[#3ecf8e] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
-                  >
-                    View Available Shifts →
-                  </button>
+                  <div className="mt-5 space-y-3">
+                    <button
+                      onClick={() => navigate('/shifts')}
+                      className="bg-[#3ecf8e] text-black rounded-full py-3 px-8 font-semibold text-sm hover:opacity-90 transition-all w-full sm:w-auto"
+                    >
+                      View Available Shifts →
+                    </button>
+                    <p className="text-[#555] text-xs">New shifts are posted regularly. Check back often.</p>
+                  </div>
                 )}
               </div>
             ) : (

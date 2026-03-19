@@ -28,12 +28,22 @@ export default function ShiftsPage() {
     setClaimed(worker)
   }
 
+  // Positive reinforcement: vibrate on successful shift claim
+  useEffect(() => {
+    if (claimed && navigator.vibrate) navigator.vibrate([80, 50, 80])
+  }, [claimed])
+
   if (claimed) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-6 text-center">
-        <div className="mb-6 text-5xl">🎉</div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3">Shift Claimed!</h2>
-        <p className="text-p-muted text-sm mb-8 max-w-xs">
+        <div className="mb-6">
+          <svg className="w-20 h-20" viewBox="0 0 100 100" fill="none">
+            <circle className="check-circle" cx="50" cy="50" r="46" stroke="#3ecf8e" strokeWidth="4" strokeLinecap="round" />
+            <polyline className="check-mark" points="30,52 44,66 70,38" stroke="#3ecf8e" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+        </div>
+        <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3 fade-up">Shift Claimed!</h2>
+        <p className="text-[#888] text-sm mb-8 max-w-xs fade-up-delay-1">
           Thanks, {claimed.first_name}! We've received your request. The Vanda team will confirm your assignment via text.
         </p>
         <button

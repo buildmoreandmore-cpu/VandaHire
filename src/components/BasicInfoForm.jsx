@@ -226,6 +226,7 @@ function Field({ label, error, children }) {
 
 export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError, onBack }) {
   const [errors, setErrors] = useState({})
+  const [section, setSection] = useState(1) // Progressive disclosure: 1 = basics, 2 = screening
 
   const set = (field, value) => {
     onChange(prev => ({ ...prev, [field]: value }))
@@ -370,55 +371,87 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
             />
           </Field>
 
-          {/* Structured screening */}
-          <div className="border-t border-[#222] pt-5 mt-2">
-            <p className="text-[#888] text-sm mb-5">A few quick taps — no writing required.</p>
+          {/* Section 1 continue button */}
+          {section === 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const e = {}
+                if (!formData.first_name.trim()) e.first_name = 'Required'
+                if (!formData.last_name.trim()) e.last_name = 'Required'
+                if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Enter a valid email'
+                const phoneDigits = formData.phone.replace(/\D/g, '')
+                if (phoneDigits.length < 10) e.phone = 'Enter a 10-digit US phone number'
+                if (!formData.city.trim()) e.city = 'Required'
+                if (!formData.zip.trim() || !/^\d{5}$/.test(formData.zip)) e.zip = 'Enter a valid 5-digit zip'
+                if (formData.roles.length === 0) e.roles = 'Select at least one role'
+                if (formData.availability.length === 0) e.availability = 'Select at least one option'
+                if (!formData.photo) e.photo = 'Please add a photo'
+                if (Object.keys(e).length > 0) {
+                  setErrors(e)
+                  return
+                }
+                setErrors({})
+                setSection(2)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="mt-4 w-full rounded-full py-4 font-semibold text-base bg-[#3ecf8e] text-black hover:opacity-90 transition-all duration-200 cursor-pointer"
+            >
+              Continue →
+            </button>
+          )}
 
-            <div className="flex flex-col gap-5">
-              <Field label="Past Experience" error={errors.experience_types}>
-                <PillToggle
-                  options={EXPERIENCE_TYPES}
-                  selected={formData.experience_types}
-                  onChange={val => set('experience_types', val)}
-                />
-              </Field>
+          {/* Structured screening — section 2 (progressive disclosure) */}
+          {section === 2 && (
+            <div className="border-t border-[#222] pt-5 mt-2 fade-up">
+              <p className="text-[#888] text-sm mb-5">Almost done — just a few quick taps.</p>
 
-              <Field label="Shift Windows" error={errors.availability_windows}>
-                <PillToggle
-                  options={AVAILABILITY_WINDOWS}
-                  selected={formData.availability_windows}
-                  onChange={val => set('availability_windows', val)}
-                />
-              </Field>
+              <div className="flex flex-col gap-5">
+                <Field label="Past Experience" error={errors.experience_types}>
+                  <PillToggle
+                    options={EXPERIENCE_TYPES}
+                    selected={formData.experience_types}
+                    onChange={val => set('experience_types', val)}
+                  />
+                </Field>
 
-              <Field label="Reliable Transportation?" error={errors.has_transportation}>
-                <SingleSelect
-                  options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
-                  selected={formData.has_transportation}
-                  onChange={val => set('has_transportation', val)}
-                />
-              </Field>
+                <Field label="Shift Windows" error={errors.availability_windows}>
+                  <PillToggle
+                    options={AVAILABILITY_WINDOWS}
+                    selected={formData.availability_windows}
+                    onChange={val => set('availability_windows', val)}
+                  />
+                </Field>
 
-              <Field label="Available on Short Notice?" error={errors.short_notice}>
-                <SingleSelect
-                  options={SHORT_NOTICE_OPTIONS}
-                  selected={formData.short_notice}
-                  onChange={val => set('short_notice', val)}
-                />
-              </Field>
+                <Field label="Reliable Transportation?" error={errors.has_transportation}>
+                  <SingleSelect
+                    options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                    selected={formData.has_transportation}
+                    onChange={val => set('has_transportation', val)}
+                  />
+                </Field>
 
-              <Field label="Anything Else? (optional)">
-                <textarea
-                  placeholder="Anything we should know..."
-                  value={formData.notes}
-                  onChange={e => set('notes', e.target.value)}
-                  rows={2}
-                  maxLength={300}
-                  className={inputClass('notes') + ' resize-none'}
-                />
-              </Field>
+                <Field label="Available on Short Notice?" error={errors.short_notice}>
+                  <SingleSelect
+                    options={SHORT_NOTICE_OPTIONS}
+                    selected={formData.short_notice}
+                    onChange={val => set('short_notice', val)}
+                  />
+                </Field>
+
+                <Field label="Anything Else? (optional)">
+                  <textarea
+                    placeholder="Anything we should know..."
+                    value={formData.notes}
+                    onChange={e => set('notes', e.target.value)}
+                    rows={2}
+                    maxLength={300}
+                    className={inputClass('notes') + ' resize-none'}
+                  />
+                </Field>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {submitError && (
@@ -427,27 +460,38 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
           </div>
         )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={submitting}
-          className={`mt-8 w-full rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
-            ${submitting
-              ? 'bg-[#333] text-[#666] cursor-not-allowed'
-              : 'bg-[#3ecf8e] text-black hover:opacity-90 cursor-pointer'
-            }`}
-        >
-          {submitting ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Submitting...
-            </>
-          ) : (
-            'Submit Application'
-          )}
-        </button>
+        {section === 2 && (
+          <div className="flex gap-3 mt-8">
+            <button
+              type="button"
+              onClick={() => setSection(1)}
+              className="rounded-full py-4 px-6 font-semibold text-base border border-[#2a2a2a] text-[#888] hover:border-[#444] transition-all duration-200 cursor-pointer"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className={`flex-1 rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
+                ${submitting
+                  ? 'bg-[#333] text-[#666] cursor-not-allowed'
+                  : 'bg-[#3ecf8e] text-black hover:opacity-90 cursor-pointer'
+                }`}
+            >
+              {submitting ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Submitting...
+                </>
+              ) : (
+                'Submit Application'
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

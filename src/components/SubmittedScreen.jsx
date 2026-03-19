@@ -1,6 +1,12 @@
+import { useEffect } from 'react'
 import ProgressBar from './ProgressBar.jsx'
 
 export default function SubmittedScreen({ firstName }) {
+  // Positive reinforcement: haptic feedback on submission success
+  useEffect(() => {
+    if (navigator.vibrate) navigator.vibrate([80, 50, 80])
+  }, [])
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       <ProgressBar step={2} total={2} />
@@ -36,7 +42,7 @@ export default function SubmittedScreen({ firstName }) {
         </div>
 
         <h2 className="text-4xl font-extrabold text-white tracking-tight mb-3 fade-up">
-          You're submitted.
+          {firstName ? `You're in, ${firstName}.` : "You're submitted."}
         </h2>
 
         <p className="text-[#888] text-base leading-relaxed mb-4 fade-up-delay-1">

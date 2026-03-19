@@ -46,6 +46,22 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
         >
           Request Staff →
         </button>
+
+        {/* Social proof — processing fluency */}
+        <div className="flex flex-wrap items-center gap-4 mt-8 text-xs text-[#555] fade-up-delay-3">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
+            Vetted-only worker pool
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
+            SMS briefings before every shift
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3ecf8e]" />
+            24-hour crew confirmation
+          </span>
+        </div>
       </div>
 
       {/* Description */}

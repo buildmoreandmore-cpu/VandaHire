@@ -1,7 +1,14 @@
+import { useEffect } from 'react'
 import { useNavigate } from '../Router.jsx'
 
 export default function EventSubmittedScreen({ title }) {
   const navigate = useNavigate()
+
+  // Positive reinforcement: haptic feedback on submission success
+  useEffect(() => {
+    if (navigator.vibrate) navigator.vibrate([80, 50, 80])
+  }, [])
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center px-6 text-center">
       <div className="mb-8">
