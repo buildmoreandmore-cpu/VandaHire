@@ -68,6 +68,7 @@ export default function App() {
           onSubmit={handleSubmit}
           submitting={submitting}
           submitError={submitError}
+          onBack={() => setScreen(SCREENS.LANDING)}
         />
       )}
       {screen === SCREENS.SUBMITTED && (

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from '../Router.jsx'
 import Footer from '../components/Footer.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 
 const STATUS_MESSAGES = {
   pending: {
@@ -11,8 +12,8 @@ const STATUS_MESSAGES = {
   },
   approved: {
     label: 'Approved',
-    color: 'text-[#c8ff00]',
-    bg: 'bg-[#c8ff00]/10 border-[#c8ff00]/20',
+    color: 'text-[#3ecf8e]',
+    bg: 'bg-[#3ecf8e]/10 border-[#3ecf8e]/20',
     message: 'You\'re approved! Check available shifts at /shifts.',
   },
   rejected: {
@@ -62,7 +63,7 @@ export default function StatusPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-2xl mx-auto w-full">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight">Vanda</button>
+        <VandaLogo onClick={() => navigate('/')} />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
@@ -79,7 +80,7 @@ export default function StatusPage() {
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}
               placeholder="(404) 555-0100"
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#c8ff00] transition-colors"
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#3ecf8e] transition-colors"
             />
           </div>
 
@@ -88,7 +89,7 @@ export default function StatusPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#c8ff00] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+            className="bg-[#3ecf8e] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
           >
             {loading ? 'Looking up…' : 'Check Status →'}
           </button>
@@ -107,7 +108,7 @@ export default function StatusPage() {
                 {result.status === 'approved' && (
                   <button
                     onClick={() => navigate('/shifts')}
-                    className="mt-4 bg-[#c8ff00] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
+                    className="mt-4 bg-[#3ecf8e] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
                   >
                     View Available Shifts →
                   </button>
@@ -121,7 +122,7 @@ export default function StatusPage() {
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="bg-[#c8ff00] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
+                  className="bg-[#3ecf8e] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
                 >
                   Apply at joinvanda.co →
                 </button>

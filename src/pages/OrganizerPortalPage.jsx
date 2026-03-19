@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from '../Router.jsx'
 import Footer from '../components/Footer.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 
 const STATUS_STYLES = {
   pending:   { label: 'Pending',   color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/30' },
   approved:  { label: 'Approved',  color: 'text-blue-400',   bg: 'bg-blue-400/10 border-blue-400/30' },
   staffing:  { label: 'Staffing',  color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/30' },
-  confirmed: { label: 'Confirmed', color: 'text-[#c8ff00]',  bg: 'bg-[#c8ff00]/10 border-[#c8ff00]/30' },
+  confirmed: { label: 'Confirmed', color: 'text-[#3ecf8e]',  bg: 'bg-[#3ecf8e]/10 border-[#3ecf8e]/30' },
   completed: { label: 'Completed', color: 'text-[#888]',     bg: 'bg-white/5 border-white/10' },
   cancelled: { label: 'Cancelled', color: 'text-red-400',    bg: 'bg-red-400/10 border-red-400/30' },
 }
@@ -57,7 +58,7 @@ export default function OrganizerPortalPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-3xl mx-auto w-full">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight">Vanda</button>
+        <VandaLogo onClick={() => navigate('/')} />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
@@ -74,7 +75,7 @@ export default function OrganizerPortalPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#c8ff00] transition-colors"
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#3ecf8e] transition-colors"
             />
           </div>
 
@@ -83,7 +84,7 @@ export default function OrganizerPortalPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#c8ff00] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+            className="bg-[#3ecf8e] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
           >
             {loading ? 'Looking up…' : 'View My Requests →'}
           </button>
@@ -117,7 +118,7 @@ export default function OrganizerPortalPage() {
                 </p>
                 <button
                   onClick={() => navigate('/events')}
-                  className="bg-[#c8ff00] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
+                  className="bg-[#3ecf8e] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
                 >
                   Submit a Staff Request →
                 </button>

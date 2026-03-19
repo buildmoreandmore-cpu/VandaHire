@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import ProgressBar from './ProgressBar.jsx'
+import VandaLogo from './VandaLogo.jsx'
 
 const ROLES = [
   { value: 'janitorial', label: 'Janitorial' },
@@ -104,7 +105,7 @@ function PhotoUpload({ value, onChange, error }) {
 
       {value ? (
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#c8ff00] flex-shrink-0">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#3ecf8e] flex-shrink-0">
             <img src={value} alt="Selfie preview" className="w-full h-full object-cover" />
           </div>
           <button
@@ -120,7 +121,7 @@ function PhotoUpload({ value, onChange, error }) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={loading}
-          className="w-20 h-20 rounded-full border-2 border-dashed border-[#333] hover:border-[#c8ff00] flex items-center justify-center transition-all duration-200 cursor-pointer"
+          className="w-20 h-20 rounded-full border-2 border-dashed border-[#333] hover:border-[#3ecf8e] flex items-center justify-center transition-all duration-200 cursor-pointer"
         >
           {loading ? (
             <svg className="w-6 h-6 animate-spin text-[#888]" fill="none" viewBox="0 0 24 24">
@@ -175,7 +176,7 @@ function PillToggle({ options, selected, onChange }) {
             onClick={() => toggle(opt.value)}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer
               ${active
-                ? 'border-[#c8ff00] bg-[#c8ff00]/10 text-[#c8ff00]'
+                ? 'border-[#3ecf8e] bg-[#3ecf8e]/10 text-[#3ecf8e]'
                 : 'border-[#333] text-[#888] hover:border-[#555]'
               }`}
           >
@@ -199,7 +200,7 @@ function SingleSelect({ options, selected, onChange }) {
             onClick={() => onChange(opt.value)}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer
               ${active
-                ? 'border-[#c8ff00] bg-[#c8ff00]/10 text-[#c8ff00]'
+                ? 'border-[#3ecf8e] bg-[#3ecf8e]/10 text-[#3ecf8e]'
                 : 'border-[#333] text-[#888] hover:border-[#555]'
               }`}
           >
@@ -223,7 +224,7 @@ function Field({ label, error, children }) {
   )
 }
 
-export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError }) {
+export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError, onBack }) {
   const [errors, setErrors] = useState({})
 
   const set = (field, value) => {
@@ -262,7 +263,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
   }
 
   const inputClass = (field) =>
-    `w-full bg-[#141414] border rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-[#c8ff00] placeholder-[#555] transition-all duration-200 ${
+    `w-full bg-[#141414] border rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-[#3ecf8e] placeholder-[#555] transition-all duration-200 ${
       errors[field] ? 'border-[#ff4444]' : 'border-[#222]'
     }`
 
@@ -271,9 +272,14 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
       <ProgressBar step={1} total={2} />
 
       <div className="flex-1 flex flex-col max-w-[480px] mx-auto w-full px-6 py-10">
-        <div className="mb-8">
-          <span className="text-white font-extrabold text-xl tracking-tight">Vanda</span>
-          <p className="text-[#555] text-xs mt-1">Step 1 of 2</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <VandaLogo size="sm" />
+            <p className="text-[#555] text-xs mt-1">Step 1 of 2</p>
+          </div>
+          {onBack && (
+            <button onClick={onBack} className="text-[#555] text-sm hover:text-white transition-colors">← Back</button>
+          )}
         </div>
 
         <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Apply now</h2>
@@ -427,7 +433,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
           className={`mt-8 w-full rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
             ${submitting
               ? 'bg-[#333] text-[#666] cursor-not-allowed'
-              : 'bg-[#c8ff00] text-black hover:opacity-90 cursor-pointer'
+              : 'bg-[#3ecf8e] text-black hover:opacity-90 cursor-pointer'
             }`}
         >
           {submitting ? (

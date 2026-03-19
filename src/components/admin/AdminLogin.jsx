@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { setToken } from '../../lib/adminApi.js'
+import VandaLogo from '../VandaLogo.jsx'
 
 export default function AdminLogin({ onLogin }) {
   const [token, setTokenVal] = useState('')
@@ -39,7 +40,7 @@ export default function AdminLogin({ onLogin }) {
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <span className="text-white font-extrabold text-2xl tracking-tight">Vanda</span>
+          <VandaLogo />
           <p className="text-p-muted text-xs mt-1">Coordinator Access</p>
         </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from '../Router.jsx'
 import ShiftCard from '../components/ShiftCard.jsx'
 import ClaimModal from '../components/ClaimModal.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 
 export default function ShiftsPage() {
   const navigate = useNavigate()
@@ -49,7 +50,7 @@ export default function ShiftsPage() {
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Header */}
       <div className="border-b border-p-border px-5 py-4 flex items-center justify-between">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-xl tracking-tight">Vanda</button>
+        <VandaLogo onClick={() => navigate('/')} />
         <span className="text-p-muted text-xs">Available Shifts</span>
       </div>
 

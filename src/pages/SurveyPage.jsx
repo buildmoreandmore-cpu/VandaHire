@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import SurveyForm from '../components/SurveyForm.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 
 export default function SurveyPage({ token }) {
   const [survey, setSurvey] = useState(null)
@@ -65,7 +66,7 @@ export default function SurveyPage({ token }) {
     return (
       <div className="min-h-screen bg-[#0a0a0a]">
         <div className="border-b border-p-border px-5 py-4">
-          <span className="text-white font-extrabold text-xl tracking-tight">Vanda</span>
+          <VandaLogo size="sm" />
         </div>
 
         <div className="max-w-[540px] mx-auto px-5 py-8">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getToken, clearToken, fetchStats } from '../lib/adminApi.js'
 import AdminLogin from '../components/admin/AdminLogin.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 import ApplicantsPanel from '../components/admin/ApplicantsPanel.jsx'
 import EventsPanel from '../components/admin/EventsPanel.jsx'
 import AssignmentsPanel from '../components/admin/AssignmentsPanel.jsx'
@@ -44,7 +45,7 @@ export default function AdminPage() {
       {/* Header */}
       <div className="border-b border-p-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => { clearToken(); setAuthed(false); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} className="text-white font-extrabold text-lg tracking-tight cursor-pointer">Vanda</button>
+          <VandaLogo size="sm" onClick={() => { clearToken(); setAuthed(false); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
           <span className="text-p-muted text-xs">Coordinator</span>
         </div>
         <button onClick={handleLogout} className="text-p-muted text-xs hover:text-white transition-colors">

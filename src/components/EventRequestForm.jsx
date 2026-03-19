@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from '../Router.jsx'
+import VandaLogo from './VandaLogo.jsx'
 
 const ROLE_OPTIONS = [
   'Janitorial', 'Cleanup', 'Setup & Breakdown', 'Brand Activation',
@@ -102,9 +103,12 @@ export default function EventRequestForm({ onSuccess }) {
 
   return (
     <div className="max-w-[600px] mx-auto px-6 py-8">
-      <div className="mb-8">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight cursor-pointer">Vanda</button>
-        <p className="text-p-muted text-xs mt-1">Event Staffing Platform</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <VandaLogo onClick={() => navigate('/')} />
+          <p className="text-p-muted text-xs mt-1">Event Staffing Platform</p>
+        </div>
+        <button onClick={() => navigate('/')} className="text-[#555] text-sm hover:text-white transition-colors">← Back</button>
       </div>
 
       <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2 fade-up">

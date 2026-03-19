@@ -19,14 +19,14 @@ export default function SubmittedScreen({ firstName }) {
               cx="50"
               cy="50"
               r="46"
-              stroke="#c8ff00"
+              stroke="#3ecf8e"
               strokeWidth="4"
               strokeLinecap="round"
             />
             <polyline
               className="check-mark"
               points="30,52 44,66 70,38"
-              stroke="#c8ff00"
+              stroke="#3ecf8e"
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -51,7 +51,7 @@ export default function SubmittedScreen({ firstName }) {
           Questions? Email us at{' '}
           <a
             href="mailto:crew@joinvanda.co"
-            className="text-[#888] hover:text-[#c8ff00] transition-colors duration-200"
+            className="text-[#888] hover:text-[#3ecf8e] transition-colors duration-200"
           >
             crew@joinvanda.co
           </a>

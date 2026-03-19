@@ -1,5 +1,6 @@
 import { useNavigate } from '../Router.jsx'
 import Footer from '../components/Footer.jsx'
+import VandaLogo from '../components/VandaLogo.jsx'
 
 const ORGANIZER_STEPS = [
   { step: '01', title: 'Submit a request', body: 'Fill out your event details — date, location, roles, headcount, pay rate, and any briefing requirements. Takes under 5 minutes.' },
@@ -22,7 +23,7 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight">Vanda</button>
+        <VandaLogo onClick={() => navigate('/')} />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
@@ -38,11 +39,11 @@ export default function HowItWorksPage() {
       <div className="px-6 pb-20 max-w-5xl mx-auto w-full grid md:grid-cols-2 gap-12">
         {/* For Organizers */}
         <div>
-          <div className="text-[#c8ff00] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+          <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
           <div className="space-y-8">
             {ORGANIZER_STEPS.map(({ step, title, body }) => (
               <div key={step} className="flex gap-4">
-                <div className="text-[#c8ff00] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
+                <div className="text-[#3ecf8e] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
                 <div>
                   <div className="text-white font-bold text-lg mb-1">{title}</div>
                   <div className="text-[#777] text-sm leading-relaxed">{body}</div>
@@ -54,11 +55,11 @@ export default function HowItWorksPage() {
 
         {/* For Workers */}
         <div>
-          <div className="text-[#c8ff00] font-semibold text-xs tracking-widest uppercase mb-6">For Workers</div>
+          <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Workers</div>
           <div className="space-y-8">
             {WORKER_STEPS.map(({ step, title, body }) => (
               <div key={step} className="flex gap-4">
-                <div className="text-[#c8ff00] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
+                <div className="text-[#3ecf8e] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
                 <div>
                   <div className="text-white font-bold text-lg mb-1">{title}</div>
                   <div className="text-[#777] text-sm leading-relaxed">{body}</div>
@@ -76,7 +77,7 @@ export default function HowItWorksPage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => navigate('/events')}
-            className="bg-[#c8ff00] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
+            className="bg-[#3ecf8e] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
           >
             Request Staff →
           </button>

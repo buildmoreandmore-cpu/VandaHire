@@ -481,7 +481,7 @@ export default function EventsPanel() {
                                         prev.includes(w.id) ? prev.filter(id => id !== w.id) : [...prev, w.id]
                                       )
                                     }}
-                                    className="accent-[#c8ff00]"
+                                    className="accent-[#3ecf8e]"
                                   />
                                   {w.photo_url ? (
                                     <img src={w.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />

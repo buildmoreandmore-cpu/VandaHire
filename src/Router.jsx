@@ -9,6 +9,10 @@ import StatusPage from './pages/StatusPage.jsx'
 import HowItWorksPage from './pages/HowItWorksPage.jsx'
 import OrganizerPortalPage from './pages/OrganizerPortalPage.jsx'
 import SeoLandingPage from './components/SeoLandingPage.jsx'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx'
+import TermsOfServicePage from './pages/TermsOfServicePage.jsx'
+import BlogIndexPage from './pages/BlogIndexPage.jsx'
+import BlogPostPage from './pages/BlogPostPage.jsx'
 
 const RouterContext = createContext()
 
@@ -21,6 +25,7 @@ function getPath() {
 }
 
 const SEO_PAGES = {
+  // --- Tier 1: Original 5 ---
   '/event-staffing-atlanta': {
     keyword: 'event staffing Atlanta',
     headline: 'Atlanta Event Staffing — Vetted Crews, Fast Dispatch',
@@ -71,6 +76,190 @@ const SEO_PAGES = {
       'From Midtown to Buckhead to East Atlanta, Vanda can build a crew for your next activation quickly. We dispatch each team member individually by SMS — no group chats, no last-minute dropouts going unnoticed. Submit your activation staffing request and we\'ll confirm your team within 24 hours.',
     ],
   },
+
+  // --- Tier 1: New 8 ---
+  '/trade-show-staffing-atlanta': {
+    keyword: 'trade show staffing Atlanta',
+    headline: 'Trade Show Staffing in Atlanta — Booth Staff, Floor Support, Load-In Crews',
+    subhead: 'Professional trade show staff for Atlanta convention venues — booth labor, registration, floor support, and load-in crews.',
+    description: [
+      'Atlanta hosts some of the largest trade shows in the Southeast, with major events at the Georgia World Congress Center drawing tens of thousands of attendees across multiple days. Trade show staffing requires precision: booth setup crews that understand load-in windows, registration staff who can handle high-volume check-in, and floor support teams ready to move with the event.',
+      'Vanda provides trade show staffing across Atlanta convention venues. Every worker is vetted before joining our pool and receives an individual SMS briefing before their shift — meeting point, supervisor contact, dress code, and role-specific instructions. No group chats. No missed messages. Just workers who show up prepared.',
+      'Whether you need a 6-person load-in crew for a booth installation or 20 registration staff for a multi-day conference, Vanda can build your roster and confirm within 24 hours. Submit your trade show staffing request and we\'ll get back to you the same day.',
+    ],
+  },
+  '/conference-staffing-atlanta': {
+    keyword: 'conference staffing Atlanta',
+    headline: 'Conference Staffing in Atlanta — Registration, Logistics, and Floor Support',
+    subhead: 'Vetted conference staff for Atlanta events — registration crews, room monitors, A/V runners, and general conference labor.',
+    description: [
+      'Atlanta conferences range from 50-person corporate offsites to multi-day industry events with thousands of attendees. Each one needs a different staffing mix, but the requirements are consistent: workers who arrive on time, know their role, and don\'t require hand-holding on the day of your event.',
+      'Vanda staffs Atlanta conferences with vetted, briefed workers across every role in your event. Registration and check-in staff, room monitors, break service support, load-in crews, and general event labor — all dispatched individually by SMS with shift-specific briefing details before they arrive on site.',
+      'Corporate conferences have tight timelines and high visibility. A registration line that backs up at 8am sets the wrong tone for the entire day. Vanda\'s pre-briefing system means your staff knows exactly where to go, who to report to, and what the plan is before they walk through the door. Submit your conference staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/corporate-event-staffing-atlanta': {
+    keyword: 'corporate event staffing Atlanta',
+    headline: 'Corporate Event Staffing in Atlanta',
+    subhead: 'Professional, vetted staff for Atlanta corporate events — galas, client dinners, product launches, and employee events.',
+    description: [
+      'Corporate events in Atlanta demand a different caliber of staff. Your guests are clients, partners, and executives. The margin for error is low. A setup crew that\'s still working when your attendees arrive, a server who doesn\'t know the floor plan, or a registration team that falls behind at check-in — each one reflects on you.',
+      'Vanda provides corporate event staffing across Atlanta. We staff setup and breakdown crews, catering servers and runners, registration and check-in staff, and general event labor. Every worker in our pool is vetted and pre-approved. Every worker receives an individual SMS briefing 24 hours before their shift covering their meeting point, supervisor contact, dress code, and role.',
+      'Whether you\'re staffing a 50-person client dinner in Buckhead or a 500-person gala at a downtown Atlanta venue, Vanda can build your crew and confirm availability within 24 hours. Submit a corporate event staffing request and we\'ll get back to you the same day.',
+    ],
+  },
+  '/event-setup-crew-atlanta': {
+    keyword: 'event setup crew Atlanta',
+    headline: 'Event Setup Crew in Atlanta — Ready for Load-In',
+    subhead: 'Reliable setup crews for Atlanta events — furniture, staging, AV prep, and venue configuration done right the first time.',
+    description: [
+      'Event setup is where everything begins. A crew that moves efficiently, handles venue equipment carefully, and finishes before your other vendors need to begin their work makes every other part of your event easier. A crew that shows up late, works slowly, or doesn\'t know the floor plan creates a cascade of problems that follows you all day.',
+      'Vanda provides event setup crews across Atlanta. Our workers are vetted, briefed before every shift, and dispatched individually by SMS with their meeting point, supervisor contact, and setup-specific instructions. Whether you need a 3-person furniture setup crew for a ballroom flip or a 10-person load-in team for a major installation, we can staff your crew quickly.',
+      'Atlanta venues have specific load-in windows, dock access requirements, and equipment protocols. Vanda\'s briefing system includes venue-specific details so your setup crew isn\'t learning the building on your time. Submit your setup crew request and we\'ll confirm within 24 hours.',
+    ],
+  },
+  '/event-cleanup-crew-atlanta': {
+    keyword: 'event cleanup crew Atlanta',
+    headline: 'Event Cleanup Crew in Atlanta — Fast, Thorough, Professional',
+    subhead: 'Post-event cleanup and breakdown crews for Atlanta venues — janitorial, teardown, and venue restore teams ready when your event ends.',
+    description: [
+      'Post-event cleanup is the part of event planning that gets underestimated every time. Your event ends, your guests leave, and you have a venue contract that requires the space to be restored to a specific condition within a specific window. A cleanup crew that moves fast and knows the work is the difference between hitting that window and paying overage fees.',
+      'Vanda provides event cleanup and breakdown crews across Atlanta. We staff janitorial teams, furniture breakdown crews, trash removal labor, and full venue restore teams. Every worker is pre-approved and briefed before their shift with a meeting point, supervisor contact, and specific task breakdown for the cleanup scope.',
+      'For multi-day events, we can coordinate rotating cleanup crews that maintain venue condition throughout the event before executing full breakdown and restore at the close. Submit your cleanup crew request and we\'ll confirm your team within 24 hours.',
+    ],
+  },
+  '/catering-staff-atlanta': {
+    keyword: 'catering staff Atlanta',
+    headline: 'Catering Staff in Atlanta — Servers, Runners, and Banquet Labor',
+    subhead: 'Professional catering support staff for Atlanta events — food runners, servers, bussers, and banquet labor ready for your next event.',
+    description: [
+      'Great food service at an event requires more than a catering company. It requires enough hands on the floor to execute service smoothly — servers who know the floor plan, runners who keep food moving from kitchen to table, bussers who clear plates before they stack up, and support staff who can adapt when the timeline shifts.',
+      'Vanda provides catering support staff for Atlanta events across every service format: plated dinners, buffet service, cocktail receptions, and banquet events. All workers are vetted, pre-approved, and briefed before their shift with specific service instructions, floor layouts, and supervisor contacts.',
+      'Catering staff ratios matter. For plated service, plan for 1 server per 10–12 guests. For buffet, 1 per 20–25. Vanda can help you calculate the right headcount for your event format and confirm your team within 24 hours of your request.',
+    ],
+  },
+  '/event-registration-staff-atlanta': {
+    keyword: 'event registration staff Atlanta',
+    headline: 'Event Registration Staff in Atlanta',
+    subhead: 'Professional check-in and registration staff for Atlanta conferences, galas, and corporate events.',
+    description: [
+      'The first impression your attendees have of your event is at registration. A check-in line that moves smoothly, staff who are confident with the system, and a process that gets guests to their seats without friction — these things are invisible when they work and unforgettable when they don\'t.',
+      'Vanda provides event registration and check-in staff across Atlanta. Our workers are briefed on your specific check-in system, badge distribution process, and guest flow before they arrive on site. Every worker receives individual SMS instructions covering the meeting point, supervisor contact, dress code, and registration-specific details.',
+      'For events up to 200 guests: plan for 4 registration staff with a 30-minute arrival window. For 200–500 guests: 6–8 staff. For larger events, we\'ll help you calculate the right ratio and build in floaters who can handle exceptions and redirect guests. Submit your request and we\'ll confirm your registration team within 24 hours.',
+    ],
+  },
+  '/wedding-event-staff-atlanta': {
+    keyword: 'wedding event staff Atlanta',
+    headline: 'Wedding Event Staff in Atlanta',
+    subhead: 'Vetted, professional wedding day staff for Atlanta venues — setup, service, and breakdown crews for your wedding.',
+    description: [
+      'A wedding day has no margin for error and no second takes. Your venue setup needs to be complete before guests arrive. Your service staff needs to execute a timeline that was planned months in advance. Your breakdown crew needs to have the space restored before the venue\'s cutoff. Every role on your wedding day crew needs to be filled by someone who shows up prepared.',
+      'Vanda provides wedding event staff across Atlanta. We staff venue setup crews, ceremony and reception assistants, catering service support, bartender\'s assistants, and breakdown teams. Every worker is vetted before joining our pool and receives a pre-shift SMS briefing with venue-specific details, supervisor contact, and their specific role for the day.',
+      'Atlanta wedding venues each have their own access protocols, vendor timelines, and load-in requirements. Vanda\'s briefing process includes venue-specific information so your crew arrives knowing the plan. Submit your wedding staffing request and we\'ll confirm your team within 24 hours.',
+    ],
+  },
+
+  // --- Tier 3: Local / Niche ---
+  '/event-staffing-buckhead-atlanta': {
+    keyword: 'event staffing Buckhead Atlanta',
+    headline: 'Event Staffing in Buckhead, Atlanta',
+    subhead: 'Vetted event crews for Buckhead venues — corporate events, galas, private events, and more.',
+    description: [
+      'Buckhead is home to some of Atlanta\'s highest-profile event venues — luxury hotels, private clubs, rooftop spaces, and corporate campuses. Events in Buckhead tend to have elevated expectations: polished staff, precise timelines, and presentation that matches the venue.',
+      'Vanda provides event staffing for Buckhead events across all roles: setup and breakdown, catering support, registration, and general event labor. Every worker is vetted and pre-approved before joining our pool. Every worker is briefed individually by SMS before their shift with venue-specific meeting points, supervisor contacts, and dress code requirements.',
+      'Submit your Buckhead event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staffing-midtown-atlanta': {
+    keyword: 'event staffing Midtown Atlanta',
+    headline: 'Event Staffing in Midtown Atlanta',
+    subhead: 'On-demand event crews for Midtown Atlanta venues — conferences, festivals, activations, and corporate events.',
+    description: [
+      'Midtown Atlanta is the heart of the city\'s event scene — from the Fox Theatre to Piedmont Park, from corporate campuses to rooftop venues. Midtown events range from large-scale festivals to intimate corporate functions, and staffing requirements vary just as widely.',
+      'Vanda staffs Midtown Atlanta events with vetted, briefed workers across every role. Whether you\'re managing a 2,000-person outdoor event in Piedmont Park or a 150-person conference at a Midtown hotel, we can build your crew roster and confirm availability within 24 hours.',
+      'Submit your Midtown event staffing request and we\'ll get back to you the same day.',
+    ],
+  },
+  '/event-staffing-decatur-ga': {
+    keyword: 'event staffing Decatur GA',
+    headline: 'Event Staffing in Decatur, GA',
+    subhead: 'Reliable event crews for Decatur events — festivals, corporate gatherings, and community events.',
+    description: [
+      'Decatur hosts a vibrant calendar of events year-round, including the Decatur Book Festival, local restaurant festivals, and community events across the city. Each event requires reliable, prepared staff who know their role before they arrive.',
+      'Vanda provides event staffing for Decatur events, including setup crews, festival staff, registration workers, janitorial teams, and general event labor. All workers are vetted, pre-approved, and briefed individually by SMS before their shift.',
+      'Submit your Decatur event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staffing-sandy-springs-ga': {
+    keyword: 'event staffing Sandy Springs GA',
+    headline: 'Event Staffing in Sandy Springs, GA',
+    subhead: 'Professional event crews for Sandy Springs venues — corporate events, private functions, and community gatherings.',
+    description: [
+      'Sandy Springs is home to major corporate headquarters, upscale event venues, and a growing calendar of community events. Whether you\'re staffing a corporate gathering at a Sandy Springs campus or a private event at one of the area\'s premier venues, you need crew that reflects the professionalism of the location.',
+      'Vanda provides event staffing for Sandy Springs events. Our workers are vetted, briefed before every shift, and dispatched directly by SMS with venue-specific instructions. We staff setup and breakdown crews, catering support, registration staff, and general event labor.',
+      'Submit your Sandy Springs event staffing request and we\'ll confirm your team within 24 hours.',
+    ],
+  },
+  '/event-staffing-marietta-ga': {
+    keyword: 'event staffing Marietta GA',
+    headline: 'Event Staffing in Marietta, GA',
+    subhead: 'Vetted event crews for Marietta events — corporate gatherings, community events, and private functions.',
+    description: [
+      'Marietta\'s event calendar includes corporate events, community festivals, and private gatherings across the city and the broader Cobb County area. Staffing events in Marietta requires workers who are prepared before they arrive — not learning their role when they walk in the door.',
+      'Vanda provides event staffing for Marietta and the Cobb County area. Every worker is vetted before joining our pool and briefed individually by SMS before their shift with specific meeting points, supervisor contacts, and role details.',
+      'Submit your Marietta event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staffing-alpharetta-ga': {
+    keyword: 'event staffing Alpharetta GA',
+    headline: 'Event Staffing in Alpharetta, GA',
+    subhead: 'On-demand event crews for Alpharetta — corporate events, concerts, festivals, and private functions.',
+    description: [
+      'Alpharetta is one of Atlanta\'s fastest-growing event markets — home to Ameris Bank Amphitheatre, a thriving corporate corridor, and a growing hospitality scene. Events in Alpharetta span outdoor concerts, corporate gatherings, and private functions that require professional, reliable staff.',
+      'Vanda provides event staffing for Alpharetta and the North Fulton area. We staff setup crews, catering support, registration staff, janitorial teams, and general event labor. All workers are pre-approved and briefed by SMS before their shift.',
+      'Submit your Alpharetta event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staffing-college-park-ga': {
+    keyword: 'event staffing College Park GA',
+    headline: 'Event Staffing in College Park, GA',
+    subhead: 'Vetted event crews for College Park and the ATL airport corridor — convention, hospitality, and event labor.',
+    description: [
+      'College Park sits at the gateway to Atlanta Hartsfield-Jackson Airport and is home to major convention hotels, conference centers, and corporate event venues. The area hosts a high volume of multi-day conferences, corporate training events, and industry gatherings that require consistent, reliable staffing across multiple shifts.',
+      'Vanda provides event staffing for College Park venues. Our workers are vetted, briefed before every shift, and dispatched individually by SMS. We staff conference registration crews, catering support, setup and breakdown teams, and general event labor.',
+      'Submit your College Park event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staff-georgia-world-congress-center': {
+    keyword: 'event staff Georgia World Congress Center',
+    headline: 'Event Staff for the Georgia World Congress Center',
+    subhead: 'Experienced event crews for GWCC events — load-in labor, registration staff, janitorial crews, and floor support.',
+    description: [
+      'The Georgia World Congress Center is one of the largest convention centers in the United States, hosting major trade shows, conferences, conventions, and sporting events year-round. Events at the GWCC have strict load-in windows, complex logistics, and high staffing volumes. You need workers who know how to operate in that environment.',
+      'Vanda provides event staffing for GWCC events. We staff load-in and breakdown crews, trade show booth labor, registration and check-in staff, floor support, and janitorial teams. Every worker is vetted before joining our pool and briefed individually by SMS with GWCC-specific meeting points, dock access details, and supervisor contacts.',
+      'For large GWCC events, we recommend submitting your staffing request at least 7 days out to ensure crew availability. Submit your request and we\'ll confirm your team within 24 hours.',
+    ],
+  },
+  '/event-staff-ponce-city-market': {
+    keyword: 'event staff Ponce City Market',
+    headline: 'Event Staff for Ponce City Market',
+    subhead: 'Professional event crews for PCM activations, pop-ups, private events, and brand activations.',
+    description: [
+      'Ponce City Market is one of Atlanta\'s premier mixed-use event destinations — from rooftop events and brand pop-ups to private dining experiences and corporate activations. Events at PCM require staff who understand the venue\'s flow, know the access points, and can execute in a high-visibility environment.',
+      'Vanda provides event staff for Ponce City Market events. We staff brand activation teams, setup crews, catering support, registration workers, and general event labor. All workers are briefed with PCM-specific meeting points and access details before their shift.',
+      'Submit your Ponce City Market event staffing request and we\'ll confirm your crew within 24 hours.',
+    ],
+  },
+  '/event-staff-mercedes-benz-stadium': {
+    keyword: 'event staff Mercedes-Benz Stadium area',
+    headline: 'Event Staff for Mercedes-Benz Stadium Events',
+    subhead: 'Experienced event crews for stadium-area events — setup, janitorial, labor, and support for large-scale Atlanta events.',
+    description: [
+      'Mercedes-Benz Stadium and the surrounding Westside Atlanta corridor host some of the largest events in the Southeast — Super Bowl activations, college football championships, major concerts, and stadium-scale corporate events. These events require high-volume staffing with workers who can handle large-scale logistics without hand-holding.',
+      'Vanda provides event staff for Mercedes-Benz Stadium area events. We staff large-scale setup and breakdown crews, janitorial and cleanup teams, load-in labor, registration and check-in staff, and general event support. Every worker is vetted, pre-approved, and briefed individually by SMS before their shift.',
+      'For stadium-scale events, submit your staffing request at least 7–10 days in advance. We\'ll build your roster, confirm workers, and deliver shift-specific SMS briefings to every crew member before show day. Submit your request and we\'ll confirm within 24 hours.',
+    ],
+  },
 }
 
 export default function Router() {
@@ -105,6 +294,15 @@ export default function Router() {
     page = <HowItWorksPage />
   } else if (path === '/organizer') {
     page = <OrganizerPortalPage />
+  } else if (path === '/privacy') {
+    page = <PrivacyPolicyPage />
+  } else if (path === '/terms') {
+    page = <TermsOfServicePage />
+  } else if (path === '/blog') {
+    page = <BlogIndexPage />
+  } else if (path.startsWith('/blog/')) {
+    const slug = path.replace('/blog/', '')
+    page = <BlogPostPage slug={slug} />
   } else if (SEO_PAGES[path]) {
     page = <SeoLandingPage {...SEO_PAGES[path]} />
   } else {

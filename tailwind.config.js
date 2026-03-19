@@ -6,7 +6,7 @@ export default {
       colors: {
         'p-bg': '#0a0a0a',
         'p-surface': '#141414',
-        'p-green': '#c8ff00',
+        'p-green': '#3ecf8e',
         'p-border': '#222222',
         'p-muted': '#888888',
         'p-disabled': '#333333',

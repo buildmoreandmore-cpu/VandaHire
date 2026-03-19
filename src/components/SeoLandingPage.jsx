@@ -1,14 +1,35 @@
+import { useEffect } from 'react'
 import { useNavigate } from '../Router.jsx'
 import Footer from './Footer.jsx'
+import VandaLogo from './VandaLogo.jsx'
 
 export default function SeoLandingPage({ keyword, headline, subhead, description }) {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const prevTitle = document.title
+    document.title = `${headline} | Vanda`
+
+    let metaDesc = document.querySelector('meta[name="description"]')
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta')
+      metaDesc.setAttribute('name', 'description')
+      document.head.appendChild(metaDesc)
+    }
+    const prevDesc = metaDesc.getAttribute('content')
+    metaDesc.setAttribute('content', subhead)
+
+    return () => {
+      document.title = prevTitle
+      if (metaDesc) metaDesc.setAttribute('content', prevDesc)
+    }
+  }, [headline, subhead])
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-4xl mx-auto w-full">
-        <button onClick={() => navigate('/')} className="text-white font-extrabold text-2xl tracking-tight">Vanda</button>
+        <VandaLogo onClick={() => navigate('/')} />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
@@ -21,7 +42,7 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
 
         <button
           onClick={() => navigate('/events')}
-          className="bg-[#c8ff00] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 fade-up-delay-2"
+          className="bg-[#3ecf8e] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 fade-up-delay-2"
         >
           Request Staff →
         </button>
@@ -46,7 +67,7 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
             { step: '03', title: 'Workers dispatched via SMS', body: 'Each worker receives their shift details, meeting point, supervisor info, and briefing schedule by text.' },
           ].map(({ step, title, body }) => (
             <div key={step}>
-              <div className="text-[#c8ff00] font-extrabold text-sm mb-2">{step}</div>
+              <div className="text-[#3ecf8e] font-extrabold text-sm mb-2">{step}</div>
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
@@ -60,7 +81,7 @@ export default function SeoLandingPage({ keyword, headline, subhead, description
         <p className="text-[#888] mb-8">Submit a request and we'll confirm your crew within 24 hours.</p>
         <button
           onClick={() => navigate('/events')}
-          className="bg-[#c8ff00] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
+          className="bg-[#3ecf8e] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
         >
           Request Staff →
         </button>
