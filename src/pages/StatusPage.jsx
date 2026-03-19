@@ -48,7 +48,7 @@ export default function StatusPage() {
     }
     setLoading(true)
     try {
-      const res = await fetch(`/api/worker/status?phone=${encodeURIComponent(digits)}`)
+      const res = await fetch(`/api/status?type=worker&phone=${encodeURIComponent(digits)}`)
       const data = await res.json()
       setResult(data)
     } catch {

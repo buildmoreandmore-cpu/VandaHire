@@ -37,7 +37,7 @@ export default function OrganizerPortalPage() {
     }
     setLoading(true)
     try {
-      const res = await fetch(`/api/organizer/status?email=${encodeURIComponent(email.trim())}`)
+      const res = await fetch(`/api/status?type=organizer&email=${encodeURIComponent(email.trim())}`)
       const data = await res.json()
       setResults(data)
     } catch {
