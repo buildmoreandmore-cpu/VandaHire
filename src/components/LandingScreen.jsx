@@ -80,7 +80,7 @@ export default function LandingScreen({ onStart }) {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <VandaLogo onClick={() => {}} />
+        <VandaLogo onClick={() => {}} showTagline />
         <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 

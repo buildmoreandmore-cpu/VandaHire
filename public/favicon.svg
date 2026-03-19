@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="8" fill="#0a0a0a"/>
-  <!-- Funnel top bar -->
-  <rect x="4" y="6" width="24" height="3" rx="1.5" fill="#3ecf8e"/>
-  <!-- Funnel body (inverted triangle) -->
-  <path d="M5 9L12 19.5H20L27 9H5Z" fill="#3ecf8e"/>
-  <!-- Funnel stem -->
-  <rect x="13.5" y="19.5" width="5" height="7" rx="1.5" fill="#3ecf8e"/>
+  <line x1="5" y1="7" x2="27" y2="7" stroke="#3ecf8e" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="5" y1="7" x2="16" y2="22" stroke="#3ecf8e" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="27" y1="7" x2="16" y2="22" stroke="#3ecf8e" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="16" y1="22" x2="16" y2="28" stroke="#3ecf8e" stroke-width="2" stroke-linecap="round"/>
 </svg>

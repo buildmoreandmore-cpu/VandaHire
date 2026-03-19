@@ -8,6 +8,6 @@
     { "source": "/api/stripe/create-checkout", "destination": "/api/stripe?action=checkout" },
     { "source": "/api/stripe/webhook", "destination": "/api/stripe?action=webhook" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api).*)", "destination": "/index.html" }
+    { "source": "/((?!api|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }
   ]
 }
