@@ -85,27 +85,38 @@ export default function LandingScreen({ onStart }) {
       </div>
 
       {/* Hero */}
-      <div className="px-6 py-20 text-center max-w-3xl mx-auto w-full">
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter leading-none mb-4 fade-up">
-          The crew behind<br />the event.
+      <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
+        <h1 className="text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
+          Show up.<br />Get paid.
         </h1>
-        <p className="text-[#888] text-lg leading-relaxed mb-10 max-w-xl mx-auto fade-up-delay-1">
-          Vanda connects event organizers with vetted, ready-to-work crew — and connects workers with paid shifts in their city.
+
+        <p className="text-[#c8ff00] text-sm font-semibold tracking-wide mb-8 fade-up">
+          The People Behind What Works.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center fade-up-delay-2">
+
+        <p className="text-[#888] text-base leading-relaxed mb-10 fade-up-delay-1">
+          Staffing for events, activations, festivals, janitorial, setup, and facilities.
+          Apply for work or request staff in a few minutes.
+        </p>
+
+        <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
           <button
             onClick={onStart}
-            className="bg-[#c8ff00] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
+            className="bg-[#c8ff00] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
           >
-            I'm Looking for Work
+            I'm Looking for Work →
           </button>
           <button
             onClick={() => navigate('/events')}
-            className="border border-[#2a2a2a] text-white rounded-full py-4 px-10 font-semibold text-base hover:border-[#444] hover:bg-[#111] transition-all duration-200"
+            className="block w-full rounded-full py-4 px-10 font-semibold text-base border border-[#2a2a2a] text-white hover:border-[#444] hover:bg-[#111] transition-all duration-200 cursor-pointer"
           >
-            Request Staff
+            I Need Staff for an Event →
           </button>
         </div>
+
+        <p className="fade-up-delay-3 text-[#555] text-sm mt-6">
+          Workers can apply in minutes. Event organizers can request staff on the same site.
+        </p>
       </div>
 
       {/* How It Works for Organizers */}
