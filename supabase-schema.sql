@@ -58,12 +58,19 @@ create table if not exists public.events (
   notes text not null default '',
 
   -- Billing / client payment tracking
-  bill_rate numeric(10,2),          -- what Porter charges the client per worker/hr
-  total_bill_amount numeric(10,2),  -- total invoice amount
+  bill_rate numeric(10,2),          -- what Vandahire charges the client per worker/hr
+  total_bill_amount numeric(10,2),  -- total service-fee invoice amount
   invoice_status text not null default 'not_sent',  -- not_sent | sent | paid | overdue
   payment_status text not null default 'unpaid',    -- unpaid | partial | paid
 
+  -- Stripe integration (Vandahire service-fee collection)
+  stripe_checkout_session_id text,  -- Stripe Checkout Session ID
+  stripe_payment_url text,          -- Stripe-hosted payment link URL
+  stripe_payment_id text,           -- Stripe Payment Intent ID (set after payment)
+  stripe_paid_at timestamptz,       -- when Stripe payment succeeded
+
   -- Status lifecycle: pending → approved → staffing → confirmed → completed | cancelled
+  --   (awaiting_payment is used when approved but service fee not yet paid)
   status text not null default 'pending'
 );
 
@@ -131,3 +138,10 @@ create index if not exists idx_assignments_confirmation_token
 -- CREATE INDEX IF NOT EXISTS idx_assignments_confirmation_token
 --   ON public.assignments(confirmation_token)
 --   WHERE confirmation_token IS NOT NULL;
+--
+-- -- Add Stripe fields to events (Vandahire service-fee collection)
+-- ALTER TABLE public.events
+--   ADD COLUMN IF NOT EXISTS stripe_checkout_session_id text,
+--   ADD COLUMN IF NOT EXISTS stripe_payment_url text,
+--   ADD COLUMN IF NOT EXISTS stripe_payment_id text,
+--   ADD COLUMN IF NOT EXISTS stripe_paid_at timestamptz;

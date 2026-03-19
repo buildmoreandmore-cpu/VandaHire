@@ -84,3 +84,10 @@ export const deleteAssignment = (id) =>
     method: 'DELETE',
     body: JSON.stringify({ id }),
   })
+
+// Stripe — create checkout session for Vandahire service fee
+export const createCheckoutSession = (event_id) =>
+  adminFetch('/api/stripe/create-checkout', {
+    method: 'POST',
+    body: JSON.stringify({ event_id }),
+  })

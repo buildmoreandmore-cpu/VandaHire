@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'id required' })
     }
 
-    const validStatuses = ['pending', 'approved', 'staffing', 'confirmed', 'completed', 'cancelled']
+    const validStatuses = ['pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
     const validInvoiceStatuses = ['not_sent', 'sent', 'paid', 'overdue']
     const validPaymentStatuses = ['unpaid', 'partial', 'paid']
 

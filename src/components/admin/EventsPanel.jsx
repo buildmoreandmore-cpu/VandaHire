@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession } from '../../lib/adminApi.js'
 
-const STATUS_OPTIONS = ['all', 'pending', 'approved', 'staffing', 'confirmed', 'completed', 'cancelled']
+const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-500/20 text-yellow-400',
   approved: 'bg-blue-500/20 text-blue-400',
+  awaiting_payment: 'bg-orange-500/20 text-orange-400',
   staffing: 'bg-purple-500/20 text-purple-400',
   confirmed: 'bg-green-500/20 text-green-400',
   completed: 'bg-green-500/20 text-green-400',
@@ -52,6 +53,10 @@ export default function EventsPanel() {
   // Billing edit state
   const [editingBilling, setEditingBilling] = useState(null)
   const [billingForm, setBillingForm] = useState({})
+
+  // Stripe payment link state
+  const [creatingPaymentLink, setCreatingPaymentLink] = useState(null)
+  const [paymentLinkError, setPaymentLinkError] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -119,6 +124,28 @@ export default function EventsPanel() {
       console.error('Failed to update billing:', err)
     }
     setUpdating(null)
+  }
+
+  const handleCreatePaymentLink = async (ev) => {
+    setCreatingPaymentLink(ev.id)
+    setPaymentLinkError(null)
+    try {
+      const result = await createCheckoutSession(ev.id)
+      // Update the event in local state with the Stripe fields
+      setEvents(prev => prev.map(e => e.id === ev.id ? {
+        ...e,
+        stripe_checkout_session_id: result.session_id,
+        stripe_payment_url: result.checkout_url,
+        invoice_status: 'sent',
+      } : e))
+      // Copy payment link to clipboard
+      if (result.checkout_url) {
+        navigator.clipboard?.writeText(result.checkout_url)
+      }
+    } catch (err) {
+      setPaymentLinkError(err.message || 'Failed to create payment link')
+    }
+    setCreatingPaymentLink(null)
   }
 
   const openAssignModal = async () => {
@@ -290,33 +317,77 @@ export default function EventsPanel() {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <div>
-                          <span className="text-p-muted">Bill Rate: </span>
-                          <span className="text-white">{fmtMoney(ev.bill_rate)}/hr</span>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div>
+                            <span className="text-p-muted">Bill Rate: </span>
+                            <span className="text-white">{fmtMoney(ev.bill_rate)}/hr</span>
+                          </div>
+                          <div>
+                            <span className="text-p-muted">Total: </span>
+                            <span className="text-white">{fmtMoney(ev.total_bill_amount)}</span>
+                          </div>
+                          <div>
+                            <span className="text-p-muted">Invoice: </span>
+                            <span className={INVOICE_COLORS[ev.invoice_status] || 'text-p-muted'}>{(ev.invoice_status || 'not_sent').replace(/_/g, ' ')}</span>
+                          </div>
+                          <div>
+                            <span className="text-p-muted">Payment: </span>
+                            <span className={PAYMENT_COLORS[ev.payment_status] || 'text-p-muted'}>{ev.payment_status || 'unpaid'}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-p-muted">Total: </span>
-                          <span className="text-white">{fmtMoney(ev.total_bill_amount)}</span>
-                        </div>
-                        <div>
-                          <span className="text-p-muted">Invoice: </span>
-                          <span className={INVOICE_COLORS[ev.invoice_status] || 'text-p-muted'}>{(ev.invoice_status || 'not_sent').replace(/_/g, ' ')}</span>
-                        </div>
-                        <div>
-                          <span className="text-p-muted">Payment: </span>
-                          <span className={PAYMENT_COLORS[ev.payment_status] || 'text-p-muted'}>{ev.payment_status || 'unpaid'}</span>
+
+                        {/* Stripe Payment Link */}
+                        <div className="flex items-center gap-2 pt-1">
+                          {ev.payment_status === 'paid' ? (
+                            <span className="text-green-400 text-xs font-medium">
+                              Paid via Stripe {ev.stripe_paid_at ? `on ${new Date(ev.stripe_paid_at).toLocaleDateString()}` : ''}
+                            </span>
+                          ) : ev.stripe_payment_url ? (
+                            <>
+                              <button
+                                onClick={() => navigator.clipboard?.writeText(ev.stripe_payment_url)}
+                                className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-[10px] text-p-muted hover:text-white transition-colors"
+                              >
+                                Copy Payment Link
+                              </button>
+                              <a
+                                href={ev.stripe_payment_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-[10px] text-p-muted hover:text-white transition-colors"
+                              >
+                                Open in Stripe
+                              </a>
+                            </>
+                          ) : ev.total_bill_amount ? (
+                            <button
+                              onClick={() => handleCreatePaymentLink(ev)}
+                              disabled={creatingPaymentLink === ev.id}
+                              className="px-2.5 py-1 bg-[#635bff] hover:bg-[#5349e0] rounded text-[10px] text-white font-medium transition-colors disabled:opacity-50"
+                            >
+                              {creatingPaymentLink === ev.id ? 'Creating...' : 'Generate Stripe Payment Link'}
+                            </button>
+                          ) : (
+                            <span className="text-p-muted text-[10px]">Set total bill amount to generate payment link</span>
+                          )}
+                          {paymentLinkError && creatingPaymentLink === null && (
+                            <span className="text-red-400 text-[10px]">{paymentLinkError}</span>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* Event Actions */}
-                  <div className="flex gap-2 mb-4">
+                  <div className="flex gap-2 flex-wrap mb-4">
                     {ev.status === 'pending' && (
                       <ActionBtn label="Approve" cls="bg-green-600 hover:bg-green-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'approved')} />
                     )}
-                    {(ev.status === 'approved' || ev.status === 'pending') && (
+                    {(ev.status === 'approved' || ev.status === 'awaiting_payment') && ev.payment_status !== 'paid' && (
+                      <ActionBtn label="Awaiting Payment" cls="bg-orange-600 hover:bg-orange-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'awaiting_payment')} />
+                    )}
+                    {(ev.status === 'approved' || ev.status === 'pending' || ev.status === 'awaiting_payment') && (
                       <ActionBtn label="Start Staffing" cls="bg-purple-600 hover:bg-purple-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'staffing')} />
                     )}
                     {ev.status === 'staffing' && (
