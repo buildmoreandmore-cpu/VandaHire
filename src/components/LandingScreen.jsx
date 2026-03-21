@@ -134,7 +134,7 @@ export default function LandingScreen({ onStart }) {
           Show up.<br />Get paid.
         </h1>
 
-        <p className="text-p-green text-sm font-semibold tracking-wide mb-4 fade-up">
+        <p className="text-[#999] text-sm font-semibold tracking-wide mb-4 fade-up">
           The People Behind What Works.
         </p>
 
@@ -150,7 +150,7 @@ export default function LandingScreen({ onStart }) {
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
           <button
             onClick={onStart}
-            className="bg-p-green text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
+            className="bg-white text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
           >
             I'm Looking for Work →
           </button>
@@ -181,12 +181,12 @@ export default function LandingScreen({ onStart }) {
 
       {/* How It Works for Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {ORGANIZER_STEPS.map(({ step, title, body }) => (
             <div key={step}>
-              <div className="text-p-green font-extrabold text-sm mb-2">{step}</div>
+              <div className="text-white font-extrabold text-sm mb-2">{step}</div>
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
@@ -204,12 +204,12 @@ export default function LandingScreen({ onStart }) {
 
       {/* Roles We Staff */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {ROLES.map(({ Icon, label }) => (
             <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-[#2a2a2a] transition-colors">
-              <span className="text-p-green"><Icon /></span>
+              <span className="text-white"><Icon /></span>
               <span className="text-sm text-[#888] text-center">{label}</span>
             </div>
           ))}
@@ -218,11 +218,11 @@ export default function LandingScreen({ onStart }) {
 
       {/* Why V&A Hire */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Hire</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Hire</div>
         <div className="grid md:grid-cols-3 gap-8">
           {WHY_VANDA.map(({ title, body }) => (
             <div key={title}>
-              <div className="w-2 h-2 rounded-full bg-p-green mb-4" />
+              <div className="w-2 h-2 rounded-full bg-white mb-4" />
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
@@ -232,7 +232,7 @@ export default function LandingScreen({ onStart }) {
 
       {/* About / Trust Section */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">About V&A Hire</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">About V&A Hire</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
         <div className="text-[#888] text-sm leading-relaxed space-y-4 max-w-2xl">
           <p>
@@ -248,7 +248,7 @@ export default function LandingScreen({ onStart }) {
 
       {/* Pricing Transparency */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-8">Clear, honest pricing</h2>
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           <div className="border border-[#1e1e1e] rounded-2xl p-6">
@@ -284,7 +284,7 @@ export default function LandingScreen({ onStart }) {
 
       {/* What Happens Next — Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">What Happens Next</div>
+        <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">What Happens Next</div>
         <div className="grid md:grid-cols-2 gap-12">
           <div>
             <h3 className="text-xl font-bold mb-6">For Organizers</h3>
