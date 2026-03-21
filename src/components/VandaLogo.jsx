@@ -1,7 +1,7 @@
 const SIZE_MAP = {
-  sm: { height: 36 },
-  md: { height: 52 },
-  lg: { height: 72 },
+  sm: { height: 48 },
+  md: { height: 72 },
+  lg: { height: 96 },
 }
 
 export default function VandaLogo({ size = 'md', onClick }) {
