@@ -58,7 +58,7 @@ async function shiftReminders(supabase) {
 
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <h2 style="color:#16a34a">Shift Reminder — ${event.title}</h2>
+        <h2 style="color:#ffffff">Shift Reminder — ${event.title}</h2>
         <p>Hi ${worker.first_name},</p>
         <p>Your shift is <strong>${urgency}</strong>!</p>
         <table style="width:100%;border-collapse:collapse;margin:15px 0">
@@ -68,7 +68,7 @@ async function shiftReminders(supabase) {
           ${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}
         </table>
         <p>Please arrive 10 minutes early. If you can no longer make it, let us know ASAP.</p>
-        <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+        <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
       </div>`
 
     try {
@@ -141,7 +141,7 @@ async function balanceReminders(supabase) {
     const balance = parseFloat(event.balance_amount) || 0
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <h2 style="color:#16a34a">Balance Payment ${daysUntilDue < 0 ? '— OVERDUE' : 'Reminder'}</h2>
+        <h2 style="color:#ffffff">Balance Payment ${daysUntilDue < 0 ? '— OVERDUE' : 'Reminder'}</h2>
         <p>Hi ${event.contact_name || 'there'},</p>
         <p>${urgencyMsg}</p>
         <table style="width:100%;border-collapse:collapse;margin:15px 0">
@@ -150,7 +150,7 @@ async function balanceReminders(supabase) {
           <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Due Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.balance_due_date)}</td></tr>
         </table>
         <p>To make your payment, please contact us or use the payment link provided by your coordinator.</p>
-        <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+        <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
       </div>`
 
     try {
@@ -223,8 +223,8 @@ async function postEvent(supabase) {
                   <h2>Thanks for working ${event.title}!</h2>
                   <p>Hi ${a.applicants.first_name},</p>
                   <p>We'd love to hear about your experience. It takes less than 2 minutes.</p>
-                  <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Your Survey</a></p>
-                  <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+                  <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#ffffff;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Your Survey</a></p>
+                  <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
                 </div>`,
             })
             await supabase.from('assignments').update({ survey_sent_at: new Date().toISOString() }).eq('id', a.id)
@@ -362,7 +362,7 @@ async function autoStaffing(supabase) {
                 subject: `New Shift Available — ${event.title}`,
                 html: `
                   <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                    <h2 style="color:#16a34a">You've Been Matched to a Shift!</h2>
+                    <h2 style="color:#ffffff">You've Been Matched to a Shift!</h2>
                     <p>Hi ${w.first_name},</p>
                     <p>We have a shift that matches your profile:</p>
                     <table style="width:100%;border-collapse:collapse;margin:15px 0">
@@ -372,8 +372,8 @@ async function autoStaffing(supabase) {
                       <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
                       ${event.pay_rate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Pay</td><td style="padding:8px;border-bottom:1px solid #eee">${event.pay_rate}</td></tr>` : ''}
                     </table>
-                    <p style="text-align:center;margin:20px 0"><a href="${confirmUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Confirm This Shift</a></p>
-                    <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+                    <p style="text-align:center;margin:20px 0"><a href="${confirmUrl}" style="background:#ffffff;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Confirm This Shift</a></p>
+                    <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
                   </div>`,
               })
             } catch (e) {
@@ -406,7 +406,7 @@ async function autoStaffing(supabase) {
                   ${event.dress_code ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Dress Code</td><td style="padding:8px;border-bottom:1px solid #eee">${event.dress_code}</td></tr>` : ''}
                 </table>
                 <p>Please arrive 10 minutes early.</p>
-                <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+                <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
               </div>`,
           })
           await supabase.from('assignments').update({ shift_sent_at: new Date().toISOString() }).eq('id', a.id)
@@ -453,12 +453,12 @@ async function autoReviewTimeout(supabase) {
         try {
           await sendEmail({
             to: applicant.email,
-            subject: 'You\'re Approved! Complete Your Verification — V&A Hire',
+            subject: 'You\'re Approved! Complete Your Verification — V&A Workforce',
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-              <h2 style="color:#16a34a">Welcome to V&A Hire, ${applicant.first_name}!</h2>
+              <h2 style="color:#ffffff">Welcome to V&A Workforce, ${applicant.first_name}!</h2>
               <p>Your application has been approved! Complete your verification video to start claiming shifts:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/verify" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></p>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/verify" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></p>
+              <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error(`[cron/auto-review] Email failed:`, e.message) }
@@ -469,11 +469,11 @@ async function autoReviewTimeout(supabase) {
         try {
           await sendEmail({
             to: applicant.email,
-            subject: 'Your V&A Hire Application',
+            subject: 'Your V&A Workforce Application',
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
               <h2>Thanks for applying, ${applicant.first_name}.</h2>
               <p>We've reviewed your application and unfortunately we're not a fit at this time.</p>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error(`[cron/auto-review] Email failed:`, e.message) }
@@ -511,8 +511,8 @@ async function surveyFollowUp(supabase) {
           <h2>We'd still love your feedback!</h2>
           <p>Hi ${survey.applicants.first_name},</p>
           <p>You haven't completed your survey for <strong>${survey.events?.title || 'your recent shift'}</strong> yet. It only takes 2 minutes:</p>
-          <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Survey</a></p>
-          <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+          <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#ffffff;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Survey</a></p>
+          <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
         </div>`,
       })
       sent++
@@ -563,8 +563,8 @@ async function autoBalanceLink(supabase) {
             <h2>Balance Payment Due</h2>
             <p>Hi ${event.contact_name || 'there'},</p>
             <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is due by ${formatDate(event.balance_due_date)}.</p>
-            <p style="text-align:center;margin:20px 0"><a href="${existingPayment.stripe_checkout_url}" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance Now</a></p>
-            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            <p style="text-align:center;margin:20px 0"><a href="${existingPayment.stripe_checkout_url}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance Now</a></p>
+            <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
           </div>`,
         })
         sent++
@@ -627,7 +627,7 @@ async function lateFees(supabase) {
               <tr style="font-weight:bold"><td style="padding:10px">Total Due</td><td style="padding:10px;text-align:right">$${(balance + lateFeeAmount).toFixed(2)}</td></tr>
             </table>
             <p>Please pay immediately to avoid further fees. Late fees are assessed at 2% per week, capped at 10%.</p>
-            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error(`[cron/late-fees] Email failed:`, e.message) }
@@ -736,7 +736,7 @@ async function briefingReminders(supabase) {
             ${event.briefing_time ? `<p><strong>Time:</strong> ${formatTime(event.briefing_time)}</p>` : ''}
             ${event.briefing_location ? `<p><strong>Location:</strong> ${event.briefing_location}</p>` : ''}
             <p>Please be on time. This briefing covers important event details.</p>
-            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
           </div>`,
         })
         sent++
@@ -806,8 +806,8 @@ async function autoChargeBalance(supabase) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is now due.</p>
               <p>We were unable to charge your card on file. Please visit your event portal to make payment:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         }
@@ -854,15 +854,15 @@ async function autoChargeBalance(supabase) {
               to: event.contact_email,
               subject: `Balance Charged — Receipt for ${event.title}`,
               html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                <h2 style="color:#16a34a">Balance Payment Processed</h2>
+                <h2 style="color:#ffffff">Balance Payment Processed</h2>
                 <p>Hi ${event.contact_name || 'there'},</p>
                 <p>Per the service agreement you signed, we've charged your card on file for the remaining balance on <strong>${event.title}</strong>.</p>
                 <table style="width:100%;border-collapse:collapse;margin:15px 0">
                   <tr><td style="padding:10px;border-bottom:1px solid #eee">Balance Charged</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right;font-size:18px;font-weight:bold">$${balance.toFixed(2)}</td></tr>
                   <tr><td style="padding:10px;border-bottom:1px solid #eee">Card</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">•••• ${paymentMethod.card?.last4 || '****'}</td></tr>
                 </table>
-                <p>Thank you for working with V&A Hire!</p>
-                <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+                <p>Thank you for working with V&A Workforce!</p>
+                <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
               </div>`,
             })
           } catch (e) { console.error(`[cron/auto-charge] Receipt email failed:`, e.message) }
@@ -889,8 +889,8 @@ async function autoChargeBalance(supabase) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>We attempted to charge your card for the balance of <strong>$${balance.toFixed(2)}</strong> on ${event.title}, but your bank requires additional verification.</p>
               <p>Please visit the organizer portal to complete payment:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Complete Payment</a></p>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Complete Payment</a></p>
+              <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         }
@@ -918,8 +918,8 @@ async function autoChargeBalance(supabase) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>We were unable to charge your card on file for the balance of <strong>$${balance.toFixed(2)}</strong> on ${event.title}.</p>
               <p>Please update your payment method or pay manually to avoid late fees:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error(`[cron/auto-charge] Failure email failed:`, e.message) }
@@ -989,9 +989,9 @@ async function postEventInvoice(supabase) {
         to: event.contact_email,
         subject: `Invoice — ${event.title}`,
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0a0a0a;color:#ffffff">
-          <h2 style="color:#16a34a;border-bottom:3px solid #16a34a;padding-bottom:10px;font-family:'Syne',sans-serif">Event Invoice</h2>
+          <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px;font-family:'Syne',sans-serif">Event Invoice</h2>
           <p>Hi ${event.contact_name || 'there'},</p>
-          <p>Thank you for working with V&A Hire! Here's your post-event invoice for <strong>${event.title}</strong>.</p>
+          <p>Thank you for working with V&A Workforce! Here's your post-event invoice for <strong>${event.title}</strong>.</p>
 
           <table style="width:100%;border-collapse:collapse;margin:15px 0">
             <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Event Date</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${formatDate(event.event_date)}</td></tr>
@@ -1001,25 +1001,25 @@ async function postEventInvoice(supabase) {
             <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Total Hours</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${totalHours.toFixed(1)}h</td></tr>
           </table>
 
-          ${workerRows ? `<h3 style="color:#16a34a;font-size:14px;margin:20px 0 8px">Crew Summary</h3>
+          ${workerRows ? `<h3 style="color:#ffffff;font-size:14px;margin:20px 0 8px">Crew Summary</h3>
           <table style="width:100%;border-collapse:collapse">${workerRows}</table>` : ''}
 
           <div style="background:#141414;border:1px solid #1e1e1e;border-radius:12px;padding:20px;margin:20px 0">
             <table style="width:100%;border-collapse:collapse">
-              <tr><td style="padding:8px;color:#888">Deposit Paid</td><td style="padding:8px;text-align:right;color:#16a34a">$${deposit.toFixed(2)}</td></tr>
+              <tr><td style="padding:8px;color:#888">Deposit Paid</td><td style="padding:8px;text-align:right;color:#ffffff">$${deposit.toFixed(2)}</td></tr>
               <tr><td style="padding:8px;color:#888">Balance ${balancePaid ? 'Paid' : 'Due'}</td><td style="padding:8px;text-align:right;${balancePaid ? 'color:#ffffff' : 'font-weight:bold;color:#fff'}">${balancePaid ? '' : ''}$${balance.toFixed(2)}</td></tr>
-              <tr style="font-size:18px;font-weight:bold"><td style="padding:10px;border-top:2px solid #16a34a">Total</td><td style="padding:10px;border-top:2px solid #16a34a;text-align:right;color:#16a34a">$${total.toFixed(2)}</td></tr>
+              <tr style="font-size:18px;font-weight:bold"><td style="padding:10px;border-top:2px solid #ffffff">Total</td><td style="padding:10px;border-top:2px solid #ffffff;text-align:right;color:#ffffff">$${total.toFixed(2)}</td></tr>
             </table>
           </div>
 
-          ${!balancePaid ? `<p style="text-align:center;margin:20px 0"><a href="${payUrl}" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance — $${balance.toFixed(2)}</a></p>` : ''}
+          ${!balancePaid ? `<p style="text-align:center;margin:20px 0"><a href="${payUrl}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance — $${balance.toFixed(2)}</a></p>` : ''}
 
           <div style="background:#141414;border:1px solid #1e1e1e;border-radius:12px;padding:16px;margin:20px 0;text-align:center">
             <p style="margin:0 0 8px;color:#888;font-size:14px">How was your experience?</p>
             <p style="margin:0"><a href="${surveyUrl}" style="color:#ffffff;font-weight:bold;text-decoration:none;font-size:16px">Share Your Feedback →</a></p>
           </div>
 
-          <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
+          <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Workforce Staffing • vandahire.com</p>
         </div>`,
       })
 

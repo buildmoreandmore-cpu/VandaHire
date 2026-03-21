@@ -150,7 +150,7 @@ export default async function handler(req, res) {
         sendEmail({
           to: email,
           subject: 'Welcome to Vanda — You\'re Approved!',
-          html: `<h2>Welcome to Vanda, ${first_name}!</h2><p>Great news — your application has been reviewed and you're approved to start claiming shifts.</p><p><a href="${siteUrl}/shifts" style="background:#16a34a;color:#000;padding:10px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Browse Open Shifts →</a></p><p style="color:#888;font-size:14px;">We'll also text you when new events open up in your area. Welcome to the crew!</p>`,
+          html: `<h2>Welcome to Vanda, ${first_name}!</h2><p>Great news — your application has been reviewed and you're approved to start claiming shifts.</p><p><a href="${siteUrl}/shifts" style="background:#ffffff;color:#000;padding:10px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Browse Open Shifts →</a></p><p style="color:#888;font-size:14px;">We'll also text you when new events open up in your area. Welcome to the crew!</p>`,
         }).catch(e => console.error('[submit] Welcome email error:', e.message))
       )
     }

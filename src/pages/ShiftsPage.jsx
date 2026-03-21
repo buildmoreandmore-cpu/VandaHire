@@ -45,7 +45,7 @@ export default function ShiftsPage() {
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3 fade-up">Shift Claimed!</h2>
         <p className="text-[#888] text-sm mb-8 max-w-xs fade-up-delay-1">
-          Thanks, {claimed.first_name}! We've received your request. The V&A Hire team will confirm your assignment via text.
+          Thanks, {claimed.first_name}! We've received your request. The V&A Workforce team will confirm your assignment via text.
         </p>
         <button
           onClick={() => { setClaimed(null); setShifts([]); setLoading(true); fetch('/api/shifts').then(r => r.json()).then(d => { setShifts(Array.isArray(d) ? d : []); setLoading(false) }) }}
@@ -72,7 +72,7 @@ export default function ShiftsPage() {
         <InstallPrompt />
         <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Open Shifts</h1>
         <p className="text-p-muted text-sm mb-6">
-          Approved V&A Hire workers can claim shifts below. Not in our pool yet?{' '}
+          Approved V&A Workforce workers can claim shifts below. Not in our pool yet?{' '}
           <button onClick={() => navigate('/')} className="text-p-green hover:opacity-80 transition-opacity">Apply here →</button>
         </p>
 

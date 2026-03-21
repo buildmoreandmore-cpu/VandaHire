@@ -961,7 +961,7 @@ export default function EventsPanel() {
                             )}
                             <span className="text-white text-xs flex-1">
                               {a.applicants?.first_name} {a.applicants?.last_name}
-                              {a.is_supervisor && <span className="ml-1.5 text-[#16a34a] text-[9px] font-bold uppercase">Lead</span>}
+                              {a.is_supervisor && <span className="ml-1.5 text-[#ffffff] text-[9px] font-bold uppercase">Lead</span>}
                             </span>
                             <button
                               onClick={async (e) => {
@@ -972,7 +972,7 @@ export default function EventsPanel() {
                                 } catch (err) { console.error('Failed to toggle supervisor:', err) }
                               }}
                               className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
-                                a.is_supervisor ? 'bg-[#16a34a]/20 text-[#16a34a]' : 'bg-white/5 text-p-muted hover:text-white'
+                                a.is_supervisor ? 'bg-[#ffffff]/20 text-[#ffffff]' : 'bg-white/5 text-p-muted hover:text-white'
                               }`}
                               title={a.is_supervisor ? 'Remove as supervisor' : 'Mark as supervisor'}
                             >
@@ -1031,7 +1031,7 @@ export default function EventsPanel() {
                                           prev.includes(w.id) ? prev.filter(id => id !== w.id) : [...prev, w.id]
                                         )
                                       }}
-                                      className="accent-[#16a34a]"
+                                      className="accent-[#ffffff]"
                                     />
                                     {w.photo_url ? (
                                       <img src={w.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
@@ -1217,7 +1217,7 @@ export default function EventsPanel() {
                                       name="benchWorker"
                                       checked={selectedBenchWorker === w.id}
                                       onChange={() => setSelectedBenchWorker(w.id)}
-                                      className="accent-[#16a34a]"
+                                      className="accent-[#ffffff]"
                                     />
                                     {w.photo_url ? (
                                       <img src={w.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />

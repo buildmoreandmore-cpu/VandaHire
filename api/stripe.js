@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: 'usd', unit_amount: Math.round(parseFloat(amount) * 100), product_data: { name: `V&A Hire Service Fee — ${event.title}`, description: `Event: ${event.title} on ${event.event_date}.` } }, quantity: 1 }],
+      line_items: [{ price_data: { currency: 'usd', unit_amount: Math.round(parseFloat(amount) * 100), product_data: { name: `V&A Workforce Service Fee — ${event.title}`, description: `Event: ${event.title} on ${event.event_date}.` } }, quantity: 1 }],
       metadata: { event_id: event.id, event_title: event.title },
       success_url: `${appUrl}/admin?payment=success&event=${event.id}`,
       cancel_url: `${appUrl}/admin?payment=cancelled&event=${event.id}`,
@@ -283,21 +283,21 @@ export default async function handler(req, res) {
             to: eventForEmail.contact_email,
             subject: `Deposit Received — ${eventForEmail.title}`,
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-              <h2 style="color:#16a34a">Deposit Confirmed</h2>
+              <h2 style="color:#ffffff">Deposit Confirmed</h2>
               <p>Hi ${eventForEmail.contact_name || 'there'},</p>
               <p>We've received your deposit of <strong>$${dep.toFixed(2)}</strong> for <strong>${eventForEmail.title}</strong>.</p>
               <table style="width:100%;border-collapse:collapse;margin:15px 0">
                 <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Event Date</td><td style="padding:10px;border-bottom:1px solid #eee">${eventForEmail.event_date}</td></tr>
-                <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Deposit Paid</td><td style="padding:10px;border-bottom:1px solid #eee;color:#16a34a;font-weight:bold">$${dep.toFixed(2)}</td></tr>
+                <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Deposit Paid</td><td style="padding:10px;border-bottom:1px solid #eee;color:#ffffff;font-weight:bold">$${dep.toFixed(2)}</td></tr>
                 <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Balance Due (Net 15)</td><td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">$${bal.toFixed(2)}${balanceDueDate ? ` by ${balanceDueDate}` : ''}</td></tr>
                 <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Total</td><td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">$${total.toFixed(2)}</td></tr>
               </table>
               <p>We're now staffing your event. You'll receive updates as we assign crew members.</p>
-              <h3 style="margin:24px 0 8px;color:#16a34a">Your Signed Service Agreement</h3>
+              <h3 style="margin:24px 0 8px;color:#ffffff">Your Signed Service Agreement</h3>
               <p style="color:#888;font-size:13px">Below is a copy of the Service Agreement you accepted for your records.</p>
               ${signedFooter}
               ${agreementHtml}
-              <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error('[stripe/webhook] Deposit email failed:', e.message) }
@@ -331,16 +331,16 @@ export default async function handler(req, res) {
             to: eventForReceipt.contact_email,
             subject: `Payment Complete — Receipt for ${eventForReceipt.title}`,
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-              <h2 style="color:#16a34a">Payment Complete</h2>
+              <h2 style="color:#ffffff">Payment Complete</h2>
               <p>Hi ${eventForReceipt.contact_name || 'there'},</p>
               <p>All payments for <strong>${eventForReceipt.title}</strong> have been received. Here's your receipt:</p>
               <table style="width:100%;border-collapse:collapse;margin:15px 0">
                 <tr><td style="padding:10px;border-bottom:1px solid #eee">Deposit Paid</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">$${dep.toFixed(2)}</td></tr>
                 <tr><td style="padding:10px;border-bottom:1px solid #eee">Balance Paid</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">$${bal.toFixed(2)}</td></tr>
-                <tr style="font-size:18px;font-weight:bold"><td style="padding:12px;border-top:2px solid #333">Total Paid</td><td style="padding:12px;border-top:2px solid #333;text-align:right;color:#16a34a">$${total.toFixed(2)}</td></tr>
+                <tr style="font-size:18px;font-weight:bold"><td style="padding:12px;border-top:2px solid #333">Total Paid</td><td style="padding:12px;border-top:2px solid #333;text-align:right;color:#ffffff">$${total.toFixed(2)}</td></tr>
               </table>
-              <p>Thank you for working with V&A Hire! We hope your event was a success.</p>
-              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+              <p>Thank you for working with V&A Workforce! We hope your event was a success.</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error('[stripe/webhook] Receipt email failed:', e.message) }

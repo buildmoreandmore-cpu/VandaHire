@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 
 const QUESTIONS = [
-  'Please say your full name and tell us why you want to work with V&A Hire.',
+  'Please say your full name and tell us why you want to work with V&A Workforce.',
   'Describe a recent work experience where you had to solve a problem on the spot.',
 ]
 
@@ -136,7 +136,7 @@ export default function VideoVerifyPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ maxWidth: 500, margin: '0 auto', padding: '40px 20px' }}>
-        <h1 style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>V&A Hire Verification</h1>
+        <h1 style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>V&A Workforce Verification</h1>
         <p style={{ color: '#aaa', textAlign: 'center', marginBottom: 32, fontSize: 14 }}>
           Record a short video to complete your profile verification
         </p>

@@ -27,7 +27,7 @@ export default function BlogPostPage({ slug }) {
     if (!post) return
 
     const prevTitle = document.title
-    document.title = `${post.title} | V&A Hire`
+    document.title = `${post.title} | V&A Workforce`
 
     let metaDesc = document.querySelector('meta[name="description"]')
     if (!metaDesc) {
@@ -50,7 +50,7 @@ export default function BlogPostPage({ slug }) {
         <p className="text-[#555] text-lg mb-6">Post not found.</p>
         <button
           onClick={() => navigate('/blog')}
-          className="text-[#16a34a] font-semibold hover:opacity-80 transition-opacity"
+          className="text-[#ffffff] font-semibold hover:opacity-80 transition-opacity"
         >
           ← Back to Blog
         </button>
@@ -93,7 +93,7 @@ export default function BlogPostPage({ slug }) {
         <p className="text-[#888] mb-8">Submit a request and we'll confirm your crew within 24 hours.</p>
         <button
           onClick={() => navigate('/events')}
-          className="bg-[#16a34a] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
+          className="bg-[#ffffff] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
         >
           Request Staff →
         </button>

@@ -57,7 +57,7 @@ export default function SubmittedScreen({ firstName }) {
           Questions? Call us at{' '}
           <a
             href="tel:+14048617794"
-            className="text-[#888] hover:text-[#16a34a] transition-colors duration-200"
+            className="text-[#888] hover:text-[#ffffff] transition-colors duration-200"
           >
             (404) 861-7794
           </a>

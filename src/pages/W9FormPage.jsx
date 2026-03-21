@@ -168,7 +168,7 @@ export default function W9FormPage({ phone: phoneParam }) {
               required
               style={{ ...inputStyle, marginBottom: 16 }}
             />
-            <button type="submit" style={{ width: '100%', padding: 14, borderRadius: 8, border: 'none', background: '#16a34a', color: '#000', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
+            <button type="submit" style={{ width: '100%', padding: 14, borderRadius: 8, border: 'none', background: '#ffffff', color: '#000', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
               Look Up My Application
             </button>
           </form>
@@ -177,7 +177,7 @@ export default function W9FormPage({ phone: phoneParam }) {
         {/* Step: Loading */}
         {step === 'loading' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <div style={{ width: 48, height: 48, border: '4px solid #333', borderTopColor: '#16a34a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
+            <div style={{ width: 48, height: 48, border: '4px solid #333', borderTopColor: '#ffffff', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
             <p style={{ color: '#aaa' }}>Loading...</p>
           </div>
         )}
@@ -186,7 +186,7 @@ export default function W9FormPage({ phone: phoneParam }) {
         {step === 'form' && (
           <form onSubmit={handleSubmit}>
             <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-              <p style={{ color: '#16a34a', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 4px', fontWeight: 600 }}>
+              <p style={{ color: '#ffffff', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 4px', fontWeight: 600 }}>
                 IRS Form W-9 Substitute
               </p>
               <p style={{ color: '#666', fontSize: 12, margin: 0 }}>
@@ -307,7 +307,7 @@ export default function W9FormPage({ phone: phoneParam }) {
                     type="checkbox"
                     checked={certified}
                     onChange={e => setCertified(e.target.checked)}
-                    style={{ marginTop: 3, accentColor: '#16a34a', flexShrink: 0 }}
+                    style={{ marginTop: 3, accentColor: '#ffffff', flexShrink: 0 }}
                   />
                   <span>
                     Under penalties of perjury, I certify that the number shown on this form is my correct
@@ -334,7 +334,7 @@ export default function W9FormPage({ phone: phoneParam }) {
                 disabled={submitting}
                 style={{
                   width: '100%', padding: 16, borderRadius: 8, border: 'none',
-                  background: '#16a34a', color: '#000', fontSize: 16, fontWeight: 600,
+                  background: '#ffffff', color: '#000', fontSize: 16, fontWeight: 600,
                   cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1,
                   marginTop: 8,
                 }}
@@ -348,7 +348,7 @@ export default function W9FormPage({ phone: phoneParam }) {
         {/* Step: Done */}
         {step === 'done' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32, color: '#000' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32, color: '#000' }}>
               ✓
             </div>
             <h2 style={{ marginBottom: 8 }}>W-9 On File</h2>
@@ -360,7 +360,7 @@ export default function W9FormPage({ phone: phoneParam }) {
                 TIN ending in <strong style={{ color: '#fff' }}>***-**-{w9Data.w9_tin_last4}</strong>
               </p>
             )}
-            <a href="/shifts" style={{ display: 'inline-block', marginTop: 24, padding: '14px 28px', background: '#16a34a', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+            <a href="/shifts" style={{ display: 'inline-block', marginTop: 24, padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
               Browse Available Shifts →
             </a>
           </div>

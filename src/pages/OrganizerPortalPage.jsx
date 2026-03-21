@@ -8,7 +8,7 @@ const STATUS_STYLES = {
   approved:         { label: 'Approved',         color: 'text-blue-400',   bg: 'bg-blue-400/10 border-blue-400/30' },
   awaiting_payment: { label: 'Awaiting Payment', color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/30' },
   staffing:         { label: 'Staffing Your Event', color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/30' },
-  confirmed:        { label: 'Fully Staffed',    color: 'text-[#16a34a]',  bg: 'bg-[#16a34a]/10 border-[#16a34a]/30' },
+  confirmed:        { label: 'Fully Staffed',    color: 'text-[#ffffff]',  bg: 'bg-[#ffffff]/10 border-[#ffffff]/30' },
   completed:        { label: 'Completed',        color: 'text-[#888]',     bg: 'bg-white/5 border-white/10' },
   cancelled:        { label: 'Cancelled',        color: 'text-red-400',    bg: 'bg-red-400/10 border-red-400/30' },
 }
@@ -43,22 +43,22 @@ function ServiceAgreement({ event, onAccept, loading }) {
     <div className="border border-[#2a2a2a] rounded-2xl p-6 mt-6">
       <h3 className="text-lg font-bold mb-4">Service Agreement</h3>
       <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5 max-h-96 overflow-y-auto text-sm text-[#aaa] leading-relaxed space-y-4">
-        <p className="text-white font-bold text-base">V&A Hire Staffing Services Agreement</p>
+        <p className="text-white font-bold text-base">V&A Workforce Staffing Services Agreement</p>
         <p>This Service Agreement ("Agreement") is entered into between <strong>Varist and Associates LLC</strong> ("Company," "we," "us") and the undersigned event organizer ("Client," "you") upon acceptance.</p>
 
         <p className="text-white font-semibold">1. Scope of Services</p>
-        <p>V&A Hire will provide temporary staffing personnel ("Workers") for Client's event as described in the accepted quote. V&A Hire retains sole discretion over worker selection, assignment, and management. Workers are employees or contractors of V&A Hire, not of Client.</p>
+        <p>V&A Workforce will provide temporary staffing personnel ("Workers") for Client's event as described in the accepted quote. V&A Workforce retains sole discretion over worker selection, assignment, and management. Workers are employees or contractors of V&A Workforce, not of Client.</p>
 
         <p className="text-white font-semibold">2. Payment Terms</p>
         <p><strong>Deposit:</strong> A non-refundable deposit of <strong>${deposit > 0 ? `$${deposit.toFixed(2)}` : 'the quoted amount'}</strong> is due upon acceptance of this Agreement. Staffing will not commence until the deposit is received.</p>
-        <p><strong>Balance:</strong> The remaining balance of <strong>${balance > 0 ? `$${balance.toFixed(2)}` : 'the quoted amount'}</strong> is due Net 15 (fifteen calendar days after the event date). By accepting this Agreement, Client <strong>expressly authorizes V&A Hire to automatically charge the payment method on file</strong> for the balance amount on or after the Net 15 due date without further notice or consent.</p>
+        <p><strong>Balance:</strong> The remaining balance of <strong>${balance > 0 ? `$${balance.toFixed(2)}` : 'the quoted amount'}</strong> is due Net 15 (fifteen calendar days after the event date). By accepting this Agreement, Client <strong>expressly authorizes V&A Workforce to automatically charge the payment method on file</strong> for the balance amount on or after the Net 15 due date without further notice or consent.</p>
         <p><strong>Late Fees:</strong> Unpaid balances will incur a late fee of 2% per week, compounding, up to a maximum of 10% of the outstanding balance.</p>
 
         <p className="text-white font-semibold">3. Card Authorization & Future Charges</p>
-        <p>By providing payment information and accepting this Agreement, Client authorizes V&A Hire to: (a) charge the deposit amount immediately; (b) store the payment method securely for future charges; (c) automatically charge the balance amount on or after the Net 15 due date; (d) charge any applicable late fees, penalties, or additional charges incurred under this Agreement. This authorization remains in effect until all obligations under this Agreement are fulfilled.</p>
+        <p>By providing payment information and accepting this Agreement, Client authorizes V&A Workforce to: (a) charge the deposit amount immediately; (b) store the payment method securely for future charges; (c) automatically charge the balance amount on or after the Net 15 due date; (d) charge any applicable late fees, penalties, or additional charges incurred under this Agreement. This authorization remains in effect until all obligations under this Agreement are fulfilled.</p>
 
         <p className="text-white font-semibold">4. Non-Dispute & Chargeback Policy</p>
-        <p>Client agrees <strong>not to initiate any chargebacks, payment disputes, or reversals</strong> with their bank, credit card company, or payment processor for any charges made under this Agreement. If Client files a chargeback or dispute, Client agrees to pay: (a) the full original charge amount; (b) a $50 chargeback administration fee; (c) all costs incurred by V&A Hire in responding to the dispute, including attorney's fees. Any disputed amount that is reversed shall remain a valid debt owed by Client.</p>
+        <p>Client agrees <strong>not to initiate any chargebacks, payment disputes, or reversals</strong> with their bank, credit card company, or payment processor for any charges made under this Agreement. If Client files a chargeback or dispute, Client agrees to pay: (a) the full original charge amount; (b) a $50 chargeback administration fee; (c) all costs incurred by V&A Workforce in responding to the dispute, including attorney's fees. Any disputed amount that is reversed shall remain a valid debt owed by Client.</p>
 
         <p className="text-white font-semibold">5. Cancellation & Refund Policy</p>
         <p>Client may cancel this Agreement subject to the following refund schedule based on notice provided before the event date:</p>
@@ -71,19 +71,19 @@ function ServiceAgreement({ event, onAccept, loading }) {
         <p>Balance payments are non-refundable once services have been rendered.</p>
 
         <p className="text-white font-semibold">6. Limitation of Liability</p>
-        <p>V&A Hire's total liability for any claims arising under this Agreement shall not exceed the total amount paid by Client. <strong>In no event shall V&A Hire be liable for any indirect, incidental, consequential, special, or punitive damages</strong>, including but not limited to lost profits, lost revenue, business interruption, or damage to reputation, regardless of the cause of action or theory of liability.</p>
+        <p>V&A Workforce's total liability for any claims arising under this Agreement shall not exceed the total amount paid by Client. <strong>In no event shall V&A Workforce be liable for any indirect, incidental, consequential, special, or punitive damages</strong>, including but not limited to lost profits, lost revenue, business interruption, or damage to reputation, regardless of the cause of action or theory of liability.</p>
 
         <p className="text-white font-semibold">7. Indemnification</p>
-        <p>Client agrees to <strong>indemnify, defend, and hold harmless</strong> V&A Hire, its officers, directors, employees, agents, and contractors from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable attorney's fees) arising from or related to: (a) Client's event, venue, or premises; (b) Client's negligence or willful misconduct; (c) any injury to persons or damage to property at the event venue; (d) Client's breach of this Agreement; (e) any third-party claims related to the event.</p>
+        <p>Client agrees to <strong>indemnify, defend, and hold harmless</strong> V&A Workforce, its officers, directors, employees, agents, and contractors from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable attorney's fees) arising from or related to: (a) Client's event, venue, or premises; (b) Client's negligence or willful misconduct; (c) any injury to persons or damage to property at the event venue; (d) Client's breach of this Agreement; (e) any third-party claims related to the event.</p>
 
         <p className="text-white font-semibold">8. Venue Safety & Working Conditions</p>
-        <p>Client is solely responsible for providing a safe working environment for all Workers. V&A Hire reserves the right to immediately withdraw Workers from any unsafe conditions, and Client shall be responsible for full payment for the scheduled shift. Client shall not require Workers to perform tasks outside the agreed scope of work or that violate any applicable laws or safety regulations.</p>
+        <p>Client is solely responsible for providing a safe working environment for all Workers. V&A Workforce reserves the right to immediately withdraw Workers from any unsafe conditions, and Client shall be responsible for full payment for the scheduled shift. Client shall not require Workers to perform tasks outside the agreed scope of work or that violate any applicable laws or safety regulations.</p>
 
         <p className="text-white font-semibold">9. Non-Solicitation</p>
-        <p>Client agrees not to directly hire, contract with, or solicit any V&A Hire Worker for a period of twelve (12) months following any event at which the Worker was placed by V&A Hire. If Client breaches this provision, Client shall pay a placement fee equal to 25% of the Worker's annualized compensation or $5,000, whichever is greater.</p>
+        <p>Client agrees not to directly hire, contract with, or solicit any V&A Workforce Worker for a period of twelve (12) months following any event at which the Worker was placed by V&A Workforce. If Client breaches this provision, Client shall pay a placement fee equal to 25% of the Worker's annualized compensation or $5,000, whichever is greater.</p>
 
         <p className="text-white font-semibold">10. Collection & Enforcement</p>
-        <p>If Client fails to pay any amount due under this Agreement, V&A Hire may: (a) assess late fees as described above; (b) report the delinquency to credit bureaus; (c) engage collection agencies, with all collection costs borne by Client; (d) <strong>file a mechanic's lien, judgment lien, or UCC lien</strong> against Client's business assets; (e) pursue legal action in any court of competent jurisdiction. Client agrees to pay all costs of collection, including reasonable <strong>attorney's fees, court costs, and filing fees</strong>.</p>
+        <p>If Client fails to pay any amount due under this Agreement, V&A Workforce may: (a) assess late fees as described above; (b) report the delinquency to credit bureaus; (c) engage collection agencies, with all collection costs borne by Client; (d) <strong>file a mechanic's lien, judgment lien, or UCC lien</strong> against Client's business assets; (e) pursue legal action in any court of competent jurisdiction. Client agrees to pay all costs of collection, including reasonable <strong>attorney's fees, court costs, and filing fees</strong>.</p>
 
         <p className="text-white font-semibold">11. Governing Law & Jurisdiction</p>
         <p>This Agreement shall be governed by and construed in accordance with the laws of the <strong>State of Georgia</strong>. Any disputes arising under this Agreement shall be resolved exclusively in the state or federal courts located in Fulton County, Georgia. Client consents to personal jurisdiction in such courts.</p>
@@ -108,7 +108,7 @@ function ServiceAgreement({ event, onAccept, loading }) {
             value={signerName}
             onChange={e => setSignerName(e.target.value)}
             placeholder="John Smith"
-            className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#16a34a]"
+            className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#ffffff]"
           />
         </div>
 
@@ -117,17 +117,17 @@ function ServiceAgreement({ event, onAccept, loading }) {
             type="checkbox"
             checked={agreed}
             onChange={e => setAgreed(e.target.checked)}
-            className="mt-1 w-5 h-5 accent-[#16a34a]"
+            className="mt-1 w-5 h-5 accent-[#ffffff]"
           />
           <span className="text-sm text-[#aaa] leading-relaxed">
-            I have read and agree to the V&A Hire Service Agreement. I authorize V&A Hire to charge my payment method for the deposit now and the balance on the Net 15 due date. I understand this creates a binding legal obligation.
+            I have read and agree to the V&A Workforce Service Agreement. I authorize V&A Workforce to charge my payment method for the deposit now and the balance on the Net 15 due date. I understand this creates a binding legal obligation.
           </span>
         </label>
 
         <button
           onClick={() => onAccept(signerName)}
           disabled={!signerName.trim() || !agreed || loading}
-          className="w-full bg-[#16a34a] text-black rounded-xl py-4 font-bold text-lg hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-full bg-[#ffffff] text-black rounded-xl py-4 font-bold text-lg hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {loading ? 'Processing…' : `Accept & Pay Deposit — $${deposit.toFixed(2)}`}
         </button>
@@ -228,7 +228,7 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
         <p className="text-[#888] mb-10">Enter the email you used when requesting staff to view your events and make payments.</p>
 
         {successMsg && (
-          <div className="bg-[#16a34a]/10 border border-[#16a34a]/30 text-[#16a34a] rounded-xl p-4 mb-6 font-semibold">
+          <div className="bg-[#ffffff]/10 border border-[#ffffff]/30 text-[#ffffff] rounded-xl p-4 mb-6 font-semibold">
             {successMsg}
           </div>
         )}
@@ -243,13 +243,13 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#16a34a] transition-colors"
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#16a34a] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+            className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
           >
             {loading ? 'Looking up…' : 'View My Events →'}
           </button>
@@ -293,17 +293,17 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
                         <div className="flex gap-4 text-sm">
                           <div className="flex-1 bg-[#0a0a0a] rounded-lg p-3 text-center">
                             <div className="text-[#666] text-xs mb-1">Deposit</div>
-                            <div className={`font-bold ${depositPaid ? 'text-[#16a34a]' : 'text-white'}`}>
+                            <div className={`font-bold ${depositPaid ? 'text-[#ffffff]' : 'text-white'}`}>
                               ${deposit.toFixed(2)}
                             </div>
-                            {depositPaid && <div className="text-[#16a34a] text-xs mt-1">Paid ✓</div>}
+                            {depositPaid && <div className="text-[#ffffff] text-xs mt-1">Paid ✓</div>}
                           </div>
                           <div className="flex-1 bg-[#0a0a0a] rounded-lg p-3 text-center">
                             <div className="text-[#666] text-xs mb-1">Balance (Net 15)</div>
-                            <div className={`font-bold ${balancePaid ? 'text-[#16a34a]' : 'text-white'}`}>
+                            <div className={`font-bold ${balancePaid ? 'text-[#ffffff]' : 'text-white'}`}>
                               ${balance.toFixed(2)}
                             </div>
-                            {balancePaid && <div className="text-[#16a34a] text-xs mt-1">Paid ✓</div>}
+                            {balancePaid && <div className="text-[#ffffff] text-xs mt-1">Paid ✓</div>}
                             {needsBalance && ev.balance_due_date && (
                               <div className="text-[#888] text-xs mt-1">Due {ev.balance_due_date}</div>
                             )}
@@ -314,14 +314,14 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
                         {needsBalance && ev.stripe_payment_url && (
                           <a
                             href={ev.stripe_payment_url}
-                            className="block w-full bg-[#16a34a] text-black rounded-xl py-3 font-bold text-center mt-4 hover:opacity-90 transition-all"
+                            className="block w-full bg-[#ffffff] text-black rounded-xl py-3 font-bold text-center mt-4 hover:opacity-90 transition-all"
                           >
                             Pay Balance — ${balance.toFixed(2)}
                           </a>
                         )}
 
                         {balancePaid && depositPaid && (
-                          <div className="text-center text-[#16a34a] font-semibold mt-4 py-2">
+                          <div className="text-center text-[#ffffff] font-semibold mt-4 py-2">
                             All payments complete ✓
                           </div>
                         )}
@@ -345,7 +345,7 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
                     <div className="px-5 pb-5">
                       <a
                         href={ev.deposit_checkout_url}
-                        className="block w-full bg-[#16a34a] text-black rounded-xl py-4 font-bold text-lg text-center hover:opacity-90 transition-all"
+                        className="block w-full bg-[#ffffff] text-black rounded-xl py-4 font-bold text-lg text-center hover:opacity-90 transition-all"
                       >
                         Pay Deposit — ${deposit.toFixed(2)}
                       </a>
@@ -362,7 +362,7 @@ export default function OrganizerPortalPage({ token: routeToken } = {}) {
           <div className="mt-10 border border-[#2a2a2a] rounded-2xl p-6">
             <div className="font-bold text-lg mb-2 text-[#888]">No Events Found</div>
             <p className="text-[#666] leading-relaxed mb-4">We couldn't find any events for that email.</p>
-            <button onClick={() => navigate('/events')} className="bg-[#16a34a] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all">
+            <button onClick={() => navigate('/events')} className="bg-[#ffffff] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all">
               Submit a Staff Request →
             </button>
           </div>

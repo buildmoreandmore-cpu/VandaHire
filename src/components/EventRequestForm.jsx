@@ -23,8 +23,8 @@ const SERVICE_TIERS = [
   {
     value: 'managed_labor',
     label: 'Managed Labor',
-    desc: 'We provide workers + a V&A Hire supervisor. You focus on your event.',
-    features: ['On-site V&A Hire supervisor', 'Live crew tracking', 'Incident reporting', 'Post-event report'],
+    desc: 'We provide workers + a V&A Workforce supervisor. You focus on your event.',
+    features: ['On-site V&A Workforce supervisor', 'Live crew tracking', 'Incident reporting', 'Post-event report'],
   },
 ]
 
@@ -181,8 +181,8 @@ export default function EventRequestForm({ onSuccess }) {
             ))}
           </div>
           {form.service_tier === 'managed_labor' && (
-            <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-lg px-4 py-3 text-[#16a34a] text-xs leading-relaxed">
-              A V&A Hire supervisor will be assigned to your event. They'll manage the crew on the ground — check-in, task assignments, incident handling, and client communication. You get a single point of contact and a post-event report.
+            <div className="bg-[#ffffff]/5 border border-[#ffffff]/20 rounded-lg px-4 py-3 text-[#ffffff] text-xs leading-relaxed">
+              A V&A Workforce supervisor will be assigned to your event. They'll manage the crew on the ground — check-in, task assignments, incident handling, and client communication. You get a single point of contact and a post-event report.
             </div>
           )}
         </Section>
@@ -326,7 +326,7 @@ export default function EventRequestForm({ onSuccess }) {
           )}
           {form.service_tier === 'managed_labor' && (
             <div className="bg-p-surface border border-p-border rounded-lg px-4 py-3 text-p-muted text-xs">
-              A V&A Hire supervisor will be assigned after you submit. They'll arrive 30 min before your crew, manage check-in, and be your single point of contact on site.
+              A V&A Workforce supervisor will be assigned after you submit. They'll arrive 30 min before your crew, manage check-in, and be your single point of contact on site.
             </div>
           )}
         </Section>

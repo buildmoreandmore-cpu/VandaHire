@@ -563,13 +563,13 @@ async function handleVerifyVideo(req, res, supabase) {
     try {
       await sendEmail({
         to: worker.email,
-        subject: 'Verification Video Received — V&A Hire',
+        subject: 'Verification Video Received — V&A Workforce',
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
           <h2>Video Received!</h2>
           <p>Hi ${worker.first_name},</p>
           <p>We've received your verification video. Our team will review it shortly.</p>
           <p>Once verified, you'll be able to start claiming shifts. We'll send you an email when you're all set.</p>
-          <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+          <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
         </div>`,
       })
     } catch (e) { console.error('[verify-video] Email failed:', e.message) }
@@ -667,7 +667,7 @@ async function handleGeofenceCheck(req, res, supabase) {
           to: workerEmail.email,
           subject: `Did you leave? — ${event.title}`,
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-            <h2 style="color:#16a34a">Geofence Alert — ${event.title}</h2>
+            <h2 style="color:#ffffff">Geofence Alert — ${event.title}</h2>
             <p>Hi ${worker.first_name},</p>
             <p>It looks like you've left the event venue at ${event.location}. Please let us know what happened:</p>
             <ul>
@@ -676,7 +676,7 @@ async function handleGeofenceCheck(req, res, supabase) {
               <li><strong>Emergency?</strong> — Take care of yourself, we understand</li>
             </ul>
             <p>Please reply to this email or contact your supervisor.</p>
-            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error('[geofence-check] Email failed:', e.message) }

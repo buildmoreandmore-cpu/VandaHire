@@ -9,7 +9,7 @@ export default function BlogIndexPage() {
 
   useEffect(() => {
     const prevTitle = document.title
-    document.title = 'Event Staffing Blog — Atlanta Tips & Guides | V&A Hire'
+    document.title = 'Event Staffing Blog — Atlanta Tips & Guides | V&A Workforce'
 
     let metaDesc = document.querySelector('meta[name="description"]')
     if (!metaDesc) {
@@ -49,12 +49,12 @@ export default function BlogIndexPage() {
               onClick={() => navigate(`/blog/${post.slug}`)}
             >
               <div className="text-[#555] text-xs font-mono mb-3">{post.date}</div>
-              <h2 className="text-xl font-bold mb-2 hover:text-[#16a34a] transition-colors">
+              <h2 className="text-xl font-bold mb-2 hover:text-[#ffffff] transition-colors">
                 {post.title}
               </h2>
               <p className="text-[#777] text-sm leading-relaxed">{post.description}</p>
               <div className="mt-4">
-                <span className="text-[#16a34a] text-sm font-semibold">Read →</span>
+                <span className="text-[#ffffff] text-sm font-semibold">Read →</span>
               </div>
             </div>
           ))}
@@ -66,7 +66,7 @@ export default function BlogIndexPage() {
         <p className="text-[#888] mb-8">Submit a request and we'll confirm your crew within 24 hours.</p>
         <button
           onClick={() => navigate('/events')}
-          className="bg-[#16a34a] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
+          className="bg-[#ffffff] text-black rounded-full py-4 px-12 font-semibold text-base hover:opacity-90 transition-all duration-200"
         >
           Request Staff →
         </button>

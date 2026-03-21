@@ -49,7 +49,7 @@ function ElapsedTimer({ since }) {
     const id = setInterval(update, 1000)
     return () => clearInterval(id)
   }, [since])
-  return <span className="text-[#16a34a] font-mono text-sm">{elapsed}</span>
+  return <span className="text-[#ffffff] font-mono text-sm">{elapsed}</span>
 }
 
 // ─── Supervisor Crew Roster ──────────────────────────────────────────────────
@@ -142,7 +142,7 @@ function CrewRoster({ crew, geo, eventRadius, eventId, workersNeeded }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-white text-xs font-medium truncate">{w.first_name} {w.last_name}</span>
-                    {c.is_supervisor && <span className="text-[#16a34a] text-[9px] font-bold uppercase">Lead</span>}
+                    {c.is_supervisor && <span className="text-[#ffffff] text-[9px] font-bold uppercase">Lead</span>}
                   </div>
                   <div className="text-[#666] text-[10px]">{w.phone}</div>
                 </div>
@@ -276,7 +276,7 @@ function IncidentLog({ eventId, phone }) {
     <div className="mt-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg p-3">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Incident Log ({incidents.length})</h4>
-        <button onClick={() => setShowForm(!showForm)} className="text-[#16a34a] text-[10px] font-medium hover:opacity-80">
+        <button onClick={() => setShowForm(!showForm)} className="text-[#ffffff] text-[10px] font-medium hover:opacity-80">
           {showForm ? 'Cancel' : '+ Log Incident'}
         </button>
       </div>
@@ -297,7 +297,7 @@ function IncidentLog({ eventId, phone }) {
             onChange={(e) => setFormDesc(e.target.value)}
             placeholder="Describe the incident..."
             rows={3}
-            className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-white placeholder-[#555] resize-none focus:outline-none focus:border-[#16a34a]"
+            className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-white placeholder-[#555] resize-none focus:outline-none focus:border-[#ffffff]"
           />
           <button
             type="submit"
@@ -447,11 +447,11 @@ export default function MyShiftsPage() {
                 value={formatPhone(phone)}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="(404) 555-0100"
-                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#16a34a] transition-colors"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
               />
             </div>
             {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button type="submit" className="bg-[#16a34a] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all">
+            <button type="submit" className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all">
               View My Shifts
             </button>
           </form>
@@ -478,7 +478,7 @@ export default function MyShiftsPage() {
             <h1 className="text-2xl font-extrabold tracking-tight">My Shifts</h1>
             {worker && <p className="text-[#888] text-sm">Hey, {worker.first_name}</p>}
           </div>
-          <button onClick={() => fetchShifts(localStorage.getItem(PHONE_KEY))} className="text-[#16a34a] text-xs hover:opacity-80">Refresh</button>
+          <button onClick={() => fetchShifts(localStorage.getItem(PHONE_KEY))} className="text-[#ffffff] text-xs hover:opacity-80">Refresh</button>
         </div>
 
         {/* GPS status */}
@@ -488,7 +488,7 @@ export default function MyShiftsPage() {
           ) : geo.error ? (
             <><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">GPS: {geo.error}</span></>
           ) : (
-            <><span className="w-2 h-2 rounded-full bg-[#16a34a]" /><span className="text-[#888]">GPS active ({'\u00B1'}{Math.round(geo.accuracy)}m)</span></>
+            <><span className="w-2 h-2 rounded-full bg-[#ffffff]" /><span className="text-[#888]">GPS active ({'\u00B1'}{Math.round(geo.accuracy)}m)</span></>
           )}
         </div>
 
@@ -503,7 +503,7 @@ export default function MyShiftsPage() {
         ) : assignments.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-[#888] text-sm">No confirmed shifts yet.</p>
-            <button onClick={() => navigate('/shifts')} className="text-[#16a34a] text-sm mt-3 hover:opacity-80">Browse open shifts</button>
+            <button onClick={() => navigate('/shifts')} className="text-[#ffffff] text-sm mt-3 hover:opacity-80">Browse open shifts</button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -515,13 +515,13 @@ export default function MyShiftsPage() {
               const isSupervisor = a.is_supervisor
 
               return (
-                <div key={a.id} className={`bg-[#111] border rounded-xl p-4 ${isSupervisor ? 'border-[#16a34a]/30' : 'border-[#2a2a2a]'}`}>
+                <div key={a.id} className={`bg-[#111] border rounded-xl p-4 ${isSupervisor ? 'border-[#ffffff]/30' : 'border-[#2a2a2a]'}`}>
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-white font-semibold text-sm">{ev.title}</h3>
                         {isSupervisor && (
-                          <span className="bg-[#16a34a]/10 text-[#16a34a] text-[9px] font-bold uppercase px-1.5 py-0.5 rounded">Supervisor</span>
+                          <span className="bg-[#ffffff]/10 text-[#ffffff] text-[9px] font-bold uppercase px-1.5 py-0.5 rounded">Supervisor</span>
                         )}
                         {ev.service_tier === 'managed_labor' && (
                           <span className="bg-purple-500/10 text-purple-400 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded">Managed</span>
@@ -549,7 +549,7 @@ export default function MyShiftsPage() {
                       {distance == null ? (
                         <span className="text-[#555]">Calculating distance...</span>
                       ) : withinGeofence ? (
-                        <><span className="w-2 h-2 rounded-full bg-[#16a34a]" /><span className="text-[#16a34a]">You're at the venue ({distance}m away)</span></>
+                        <><span className="w-2 h-2 rounded-full bg-[#ffffff]" /><span className="text-[#ffffff]">You're at the venue ({distance}m away)</span></>
                       ) : (
                         <><span className="w-2 h-2 rounded-full bg-[#555]" /><span className="text-[#888]">{distance >= 1000 ? `${(distance / 1000).toFixed(1)}km` : `${distance}m`} from venue</span></>
                       )}
@@ -574,7 +574,7 @@ export default function MyShiftsPage() {
                     <button
                       onClick={() => handleAction(a.id, ev.id, 'check_in')}
                       disabled={!canCheckIn || actionLoading === a.id}
-                      className="w-full bg-[#16a34a] text-black rounded-lg py-3 text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                      className="w-full bg-[#ffffff] text-black rounded-lg py-3 text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
                     >
                       {actionLoading === a.id ? 'Checking in...' : !withinGeofence && ev.latitude != null ? 'Move closer to check in' : 'Check In'}
                     </button>

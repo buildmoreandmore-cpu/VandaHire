@@ -65,14 +65,14 @@ const ROLES = [
 
 const ORGANIZER_STEPS = [
   { step: '01', title: 'Submit your event', body: 'Tell us your date, location, roles needed, and whether you want labor supply or a fully managed crew. Takes under 5 minutes.' },
-  { step: '02', title: 'We staff your crew', body: 'V&A Hire selects vetted, approved workers. For managed labor, we assign a V&A Hire site supervisor to lead your crew on the ground.' },
+  { step: '02', title: 'We staff your crew', body: 'V&A Workforce selects vetted, approved workers. For managed labor, we assign a V&A Workforce site supervisor to lead your crew on the ground.' },
   { step: '03', title: 'GPS-verified arrival', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who\'s on site, in real time.' },
 ]
 
 const WHY_VANDA = [
-  { title: 'Two tiers — you choose', body: 'Need workers only? We supply pre-screened crew. Want hands-off? Our managed labor tier includes an on-site V&A Hire supervisor who handles everything.' },
+  { title: 'Two tiers — you choose', body: 'Need workers only? We supply pre-screened crew. Want hands-off? Our managed labor tier includes an on-site V&A Workforce supervisor who handles everything.' },
   { title: 'GPS check-in at every event', body: 'Workers verify their location when they arrive. No more disputed hours or ghost check-ins — every arrival is GPS-stamped.' },
-  { title: 'On-site supervisor + incident log', body: 'For managed events, your V&A Hire supervisor tracks the crew roster, logs any incidents in real time, and gives you a clean post-event report.' },
+  { title: 'On-site supervisor + incident log', body: 'For managed events, your V&A Workforce supervisor tracks the crew roster, logs any incidents in real time, and gives you a clean post-event report.' },
 ]
 
 export default function LandingScreen({ onStart }) {
@@ -110,7 +110,7 @@ export default function LandingScreen({ onStart }) {
           Show up.<br />Get paid.
         </h1>
 
-        <p className="text-[#16a34a] text-sm font-semibold tracking-wide mb-8 fade-up">
+        <p className="text-[#ffffff] text-sm font-semibold tracking-wide mb-8 fade-up">
           The People Behind What Works.
         </p>
 
@@ -122,7 +122,7 @@ export default function LandingScreen({ onStart }) {
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
           <button
             onClick={onStart}
-            className="bg-[#16a34a] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
+            className="bg-[#ffffff] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
           >
             I'm Looking for Work →
           </button>
@@ -141,12 +141,12 @@ export default function LandingScreen({ onStart }) {
 
       {/* How It Works for Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {ORGANIZER_STEPS.map(({ step, title, body }) => (
             <div key={step}>
-              <div className="text-[#16a34a] font-extrabold text-sm mb-2">{step}</div>
+              <div className="text-[#ffffff] font-extrabold text-sm mb-2">{step}</div>
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
@@ -164,26 +164,26 @@ export default function LandingScreen({ onStart }) {
 
       {/* Roles We Staff */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
+        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {ROLES.map(({ Icon, label }) => (
             <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-[#2a2a2a] transition-colors">
-              <span className="text-[#16a34a]"><Icon /></span>
+              <span className="text-[#ffffff]"><Icon /></span>
               <span className="text-sm text-[#888] text-center">{label}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Why V&A Hire */}
+      {/* Why V&A Workforce */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
-        <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Hire</div>
+        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Workforce</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Built for the job</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {WHY_VANDA.map(({ title, body }) => (
             <div key={title}>
-              <div className="w-2 h-2 rounded-full bg-[#16a34a] mb-4" />
+              <div className="w-2 h-2 rounded-full bg-[#ffffff] mb-4" />
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>

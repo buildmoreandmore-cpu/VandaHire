@@ -124,7 +124,7 @@ export default async function handler(req, res) {
           subject: `Staffing Request Received — ${title}`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0a0a0a;color:#ffffff">
-              <h2 style="color:#16a34a;border-bottom:3px solid #16a34a;padding-bottom:10px">Staffing Request Confirmed</h2>
+              <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Staffing Request Confirmed</h2>
               <p>Hi ${contact_name},</p>
               <p>We've received your staffing request and our team is reviewing it now. Here's a summary:</p>
               <table style="width:100%;border-collapse:collapse;margin:15px 0">
@@ -145,7 +145,7 @@ export default async function handler(req, res) {
                 </div>
               </div>
               <p style="color:#888;font-size:13px;text-align:center">This is an estimated quote. Final pricing will be confirmed by your coordinator.</p>` : ''}
-              <h3 style="color:#16a34a">What Happens Next?</h3>
+              <h3 style="color:#ffffff">What Happens Next?</h3>
               <ol>
                 <li>Our coordinator reviews your request and finalizes the quote</li>
                 <li>You'll receive a secure deposit payment link</li>
@@ -154,10 +154,10 @@ export default async function handler(req, res) {
               </ol>
               <p>We typically respond within a few hours. If you have questions, just reply to this email.</p>
               ${autoQuoteData ? `
-              <h3 style="color:#16a34a;margin-top:24px">Service Agreement</h3>
-              <p style="color:#888;font-size:13px">Please review the V&A Hire Service Agreement below. You will formally accept it when you pay your deposit.</p>
+              <h3 style="color:#ffffff;margin-top:24px">Service Agreement</h3>
+              <p style="color:#888;font-size:13px">Please review the V&A Workforce Service Agreement below. You will formally accept it when you pay your deposit.</p>
               ${getAgreementHtml({ deposit: autoQuoteData.deposit_amount || 0, balance: autoQuoteData.balance_amount || 0, total: autoQuoteData.total || 0 })}` : ''}
-              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
             </div>`,
         })
       } catch (e) {

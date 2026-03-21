@@ -11,7 +11,7 @@ export default function TermsOfServicePage() {
       </div>
 
       <div className="max-w-3xl mx-auto w-full px-6 py-16">
-        <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-4">Legal</div>
+        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-4">Legal</div>
         <h1 className="text-4xl font-extrabold tracking-tighter mb-3">Terms of Service</h1>
         <p className="text-[#555] text-sm mb-12">Last updated: March 2025</p>
 
@@ -19,13 +19,13 @@ export default function TermsOfServicePage() {
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">1. Acceptance of Terms</h2>
-            <p>By accessing or using the V&A Hire platform — whether as a worker applicant or an event organizer — you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the platform.</p>
+            <p>By accessing or using the V&A Workforce platform — whether as a worker applicant or an event organizer — you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the platform.</p>
           </section>
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">2. Platform Description</h2>
-            <p className="mb-3">V&A Hire is a staffing coordination platform that connects vetted workers with event organizers who need temporary staffing support. V&A Hire acts as an intermediary — we review, approve, and dispatch workers; we do not employ workers directly.</p>
-            <p>V&A Hire reserves the right to modify, suspend, or discontinue any aspect of the platform at any time without notice.</p>
+            <p className="mb-3">V&A Workforce is a staffing coordination platform that connects vetted workers with event organizers who need temporary staffing support. V&A Workforce acts as an intermediary — we review, approve, and dispatch workers; we do not employ workers directly.</p>
+            <p>V&A Workforce reserves the right to modify, suspend, or discontinue any aspect of the platform at any time without notice.</p>
           </section>
 
           <section>
@@ -35,9 +35,9 @@ export default function TermsOfServicePage() {
               <li>All information provided in your application is accurate and complete</li>
               <li>Applying does not guarantee placement. Shifts are offered based on location, availability, and fit</li>
               <li>If approved, you are responsible for showing up on time to assigned shifts in accordance with the instructions provided</li>
-              <li>You will maintain professional conduct at all events you work through V&A Hire</li>
-              <li>V&A Hire may remove you from the worker pool at any time for failure to meet standards, no-shows, or misconduct</li>
-              <li>You consent to receive SMS messages from V&A Hire related to your application and shifts. Standard rates may apply</li>
+              <li>You will maintain professional conduct at all events you work through V&A Workforce</li>
+              <li>V&A Workforce may remove you from the worker pool at any time for failure to meet standards, no-shows, or misconduct</li>
+              <li>You consent to receive SMS messages from V&A Workforce related to your application and shifts. Standard rates may apply</li>
             </ul>
           </section>
 
@@ -48,32 +48,32 @@ export default function TermsOfServicePage() {
               <li>All event details provided are accurate, including date, time, location, and staffing requirements</li>
               <li>You will communicate any changes to event details as soon as possible</li>
               <li>Payment of the service fee, once invoiced, is required to confirm staffing</li>
-              <li>V&A Hire does not guarantee a specific number of workers if insufficient approved workers are available in your area or for your dates</li>
-              <li>You are responsible for providing a safe working environment for all V&A Hire workers on site</li>
-              <li>V&A Hire workers are not your employees. You may not direct them to perform tasks outside the scope of what was submitted in your staffing request</li>
+              <li>V&A Workforce does not guarantee a specific number of workers if insufficient approved workers are available in your area or for your dates</li>
+              <li>You are responsible for providing a safe working environment for all V&A Workforce workers on site</li>
+              <li>V&A Workforce workers are not your employees. You may not direct them to perform tasks outside the scope of what was submitted in your staffing request</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">5. Payments</h2>
             <p className="mb-3">Service fees are charged to event organizers for confirmed staffing engagements. Fees are calculated based on the number of workers, hours, and roles requested.</p>
-            <p>Payments are processed securely via Stripe. V&A Hire does not store payment card information. All fees are non-refundable once workers have been dispatched unless otherwise agreed in writing.</p>
+            <p>Payments are processed securely via Stripe. V&A Workforce does not store payment card information. All fees are non-refundable once workers have been dispatched unless otherwise agreed in writing.</p>
           </section>
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">6. Limitation of Liability</h2>
-            <p className="mb-3">V&A Hire is a coordination and dispatch platform. We are not responsible for:</p>
+            <p className="mb-3">V&A Workforce is a coordination and dispatch platform. We are not responsible for:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Worker performance, conduct, or actions while on site</li>
               <li>Any damages, losses, or injuries arising from events staffed through the platform</li>
               <li>Service interruptions, data loss, or errors on the platform</li>
             </ul>
-            <p className="mt-3">To the maximum extent permitted by applicable law, V&A Hire&apos;s total liability shall not exceed the fees paid by the organizer for the specific engagement giving rise to the claim.</p>
+            <p className="mt-3">To the maximum extent permitted by applicable law, V&A Workforce&apos;s total liability shall not exceed the fees paid by the organizer for the specific engagement giving rise to the claim.</p>
           </section>
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">7. Prohibited Conduct</h2>
-            <p className="mb-3">You may not use the V&A Hire platform to:</p>
+            <p className="mb-3">You may not use the V&A Workforce platform to:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Provide false or misleading information</li>
               <li>Circumvent the platform to hire workers directly without paying the service fee</li>
@@ -85,7 +85,7 @@ export default function TermsOfServicePage() {
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">8. Intellectual Property</h2>
-            <p>All content, trademarks, and materials on the V&A Hire platform are owned by or licensed to V&A Hire. You may not reproduce, distribute, or create derivative works without our written permission.</p>
+            <p>All content, trademarks, and materials on the V&A Workforce platform are owned by or licensed to V&A Workforce. You may not reproduce, distribute, or create derivative works without our written permission.</p>
           </section>
 
           <section>
