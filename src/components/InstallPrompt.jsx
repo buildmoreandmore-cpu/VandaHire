@@ -53,7 +53,7 @@ export default function InstallPrompt() {
     <div className="bg-[#111] border border-[#2a2a2a] rounded-xl p-4 mb-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-white text-sm font-semibold mb-1">Install V&A Hire</p>
+          <p className="text-white text-sm font-semibold mb-2">Install V&A Hire App</p>
           {deferredPrompt ? (
             <>
               <p className="text-[#888] text-xs mb-3">Add to your home screen for quick access to shifts and check-in.</p>
@@ -65,11 +65,25 @@ export default function InstallPrompt() {
               </button>
             </>
           ) : (
-            <p className="text-[#888] text-xs leading-relaxed">
-              Tap <span className="inline-block align-middle">
-                <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" /></svg>
-              </span> Share, then <strong className="text-white">Add to Home Screen</strong> for quick access.
-            </p>
+            <div className="space-y-2.5">
+              <p className="text-[#888] text-xs">Get the app on your home screen in 3 steps:</p>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">1</span>
+                <span className="text-[#ccc]">
+                  Tap the <span className="inline-block align-middle mx-0.5">
+                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" /></svg>
+                  </span> <strong className="text-white">Share</strong> button at the bottom of Safari
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">2</span>
+                <span className="text-[#ccc]">Scroll down and tap <strong className="text-white">Add to Home Screen</strong></span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">3</span>
+                <span className="text-[#ccc]">Tap <strong className="text-white">Add</strong> in the top right</span>
+              </div>
+            </div>
           )}
         </div>
         <button onClick={handleDismiss} className="text-[#555] hover:text-white text-lg leading-none mt-0.5">&times;</button>
