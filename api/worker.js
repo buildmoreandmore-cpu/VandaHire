@@ -54,7 +54,7 @@ async function handleCheckin(req, res, supabase) {
     const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
-    if (worker.status !== 'approved') return res.status(403).json({ error: 'Not an approved worker' })
+    if (!['approved', 'pending', 'needs_review'].includes(worker.status)) return res.status(403).json({ error: 'Not an approved worker' })
 
     const { data: assignments, error: aErr } = await supabase
       .from('assignments')
@@ -580,36 +580,38 @@ async function handleExitReply(req, res, supabase) {
 async function handleVerifyVideo(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { phone, video_base64 } = req.body
-  if (!phone || !video_base64) return res.status(400).json({ error: 'phone and video_base64 required' })
+  const { phone, video_base64, video_url: directUrl } = req.body
+  if (!phone || (!video_base64 && !directUrl)) return res.status(400).json({ error: 'phone and video required' })
 
-  const digits = phone.replace(/\D/g, '')
-  const { data: worker, error: wErr } = await supabase
+  const digits = phone.replace(/\D/g, '').slice(-10)
+  const { data: allWorkers, error: wErr } = await supabase
     .from('applicants')
-    .select('id, first_name, email, status')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
+    .select('id, first_name, email, phone, status')
+  const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
   if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
 
-  // Upload video to Supabase storage
-  const videoBuffer = Buffer.from(video_base64, 'base64')
-  const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
+  // Get video URL — either passed directly (client-side upload) or upload from base64
+  let finalVideoUrl = directUrl
+  if (!finalVideoUrl && video_base64) {
+    const videoBuffer = Buffer.from(video_base64, 'base64')
+    const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
 
-  const { error: uploadErr } = await supabase.storage
-    .from('applicant-photos')
-    .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
+    const { error: uploadErr } = await supabase.storage
+      .from('applicant-photos')
+      .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
 
-  if (uploadErr) {
-    console.error('[verify-video] Upload error:', uploadErr)
-    return res.status(500).json({ error: 'Failed to upload video' })
+    if (uploadErr) {
+      console.error('[verify-video] Upload error:', uploadErr)
+      return res.status(500).json({ error: 'Failed to upload video' })
+    }
+
+    const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
+    finalVideoUrl = urlData.publicUrl
   }
-
-  const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
 
   // Update applicant with video URL
   await supabase.from('applicants').update({
-    video_url: urlData.publicUrl,
+    video_url: finalVideoUrl,
     video_submitted_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }).eq('id', worker.id)
@@ -632,7 +634,7 @@ async function handleVerifyVideo(req, res, supabase) {
     } catch (e) { console.error('[verify-video] Email failed:', e.message) }
   }
 
-  return res.status(200).json({ success: true, video_url: urlData.publicUrl })
+  return res.status(200).json({ success: true, video_url: finalVideoUrl })
 }
 
 // ─── GEOFENCE BACKGROUND CHECK ──────────────────────────────────────────────

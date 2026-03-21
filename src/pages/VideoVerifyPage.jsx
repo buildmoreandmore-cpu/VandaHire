@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { supabase } from '../lib/supabase.js'
 
 const QUESTIONS = [
   'Please say your full name and tell us why you want to work with V&A Hire.',
@@ -94,20 +95,23 @@ export default function VideoVerifyPage() {
     setError('')
 
     try {
-      // Convert to base64 for upload
-      const reader = new FileReader()
-      const base64Promise = new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result.split(',')[1])
-        reader.readAsDataURL(videoBlob)
-      })
-      const base64 = await base64Promise
+      // Upload directly to Supabase Storage (bypasses Vercel body size limit)
+      const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
+      const { error: uploadErr } = await supabase.storage
+        .from('applicant-photos')
+        .upload(fileName, videoBlob, { contentType: 'video/webm', upsert: true })
 
+      if (uploadErr) throw uploadErr
+
+      const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
+
+      // Notify API to update the applicant record
       const res = await fetch('/api/verify-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone,
-          video_base64: base64,
+          video_url: urlData.publicUrl,
         }),
       })
 

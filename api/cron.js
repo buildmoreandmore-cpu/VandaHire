@@ -466,22 +466,32 @@ async function autoStaffing(supabase) {
 // Auto-decide needs_review applicants after 3 days
 
 async function autoReviewTimeout(supabase) {
-  const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString()
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
 
+  // Pick up both 'pending' and 'needs_review' applicants older than 12 hours
   const { data: staleApplicants, error } = await supabase
     .from('applicants')
     .select('id, first_name, email, score_breakdown, created_at')
-    .eq('status', 'needs_review')
-    .lt('created_at', threeDaysAgo)
+    .in('status', ['pending', 'needs_review'])
+    .lt('created_at', twelveHoursAgo)
 
   if (error) throw error
   if (!staleApplicants?.length) return { processed: 0 }
 
   let approved = 0, rejected = 0
   for (const applicant of staleApplicants) {
-    // Auto-approve if AI score was borderline (score exists), auto-reject if no score
-    const hasScore = applicant.score_breakdown && Object.keys(applicant.score_breakdown).length > 0
-    const newStatus = hasScore ? 'approved' : 'rejected'
+    // Use the stored score to decide: qualified (6+) → approved, not_a_fit (0-2) → rejected
+    const score = applicant.score_breakdown?.score
+    const decision = applicant.score_breakdown?.decision
+    let newStatus
+    if (decision === 'qualified' || (typeof score === 'number' && score >= 6)) {
+      newStatus = 'approved'
+    } else if (decision === 'not_a_fit' || (typeof score === 'number' && score <= 2)) {
+      newStatus = 'rejected'
+    } else {
+      // needs_review with middling score — approve to keep pipeline moving
+      newStatus = 'approved'
+    }
 
     await supabase.from('applicants').update({
       status: newStatus,
