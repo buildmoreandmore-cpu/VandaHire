@@ -117,6 +117,50 @@ export default function ApplicantsPanel() {
                     </div>
                   </div>
 
+                  {/* Verification Video */}
+                  {a.video_url ? (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-p-muted text-xs">Verification Video</span>
+                        {a.video_verified ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">Verified</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">Pending Review</span>
+                        )}
+                        {a.video_submitted_at && (
+                          <span className="text-p-muted text-[10px]">{new Date(a.video_submitted_at).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                      <video
+                        src={a.video_url}
+                        controls
+                        playsInline
+                        className="w-full max-w-sm rounded-lg bg-black"
+                        style={{ maxHeight: 300 }}
+                      />
+                      {!a.video_verified && (
+                        <button
+                          onClick={async () => {
+                            setUpdating(a.id)
+                            try {
+                              await updateApplicant(a.id, a.status, true)
+                              setApplicants(prev => prev.map(x => x.id === a.id ? { ...x, video_verified: true } : x))
+                            } catch (err) { console.error('Verify failed:', err) }
+                            setUpdating(null)
+                          }}
+                          disabled={updating === a.id}
+                          className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          {updating === a.id ? '...' : 'Mark as Verified'}
+                        </button>
+                      )}
+                    </div>
+                  ) : a.status === 'approved' ? (
+                    <div className="mt-3 bg-black/30 rounded-lg px-3 py-2">
+                      <span className="text-p-muted text-xs">No verification video submitted yet</span>
+                    </div>
+                  ) : null}
+
                   {/* Score */}
                   {a.score_breakdown?.reasoning && (
                     <div className="mt-3 bg-black/30 rounded-lg px-3 py-2">

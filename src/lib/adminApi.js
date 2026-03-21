@@ -45,10 +45,10 @@ export const fetchStats = () => adminFetch('/api/admin/stats')
 export const fetchApplicants = (status) =>
   adminFetch(`/api/admin/applicants${status ? `?status=${status}` : ''}`)
 
-export const updateApplicant = (id, status) =>
+export const updateApplicant = (id, status, video_verified) =>
   adminFetch('/api/admin/applicants', {
     method: 'PATCH',
-    body: JSON.stringify({ id, status }),
+    body: JSON.stringify({ id, status, ...(video_verified !== undefined && { video_verified }) }),
   })
 
 // Events
