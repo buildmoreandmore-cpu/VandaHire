@@ -2,6 +2,16 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }, { "key": "Service-Worker-Allowed", "value": "/" }]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Content-Type", "value": "application/manifest+json" }]
+    }
+  ],
   "crons": [
     { "path": "/api/cron?job=all", "schedule": "0 8 * * *" }
   ],
@@ -30,6 +40,6 @@
     { "source": "/api/gps-ping", "destination": "/api/worker?route=gps-ping" },
     { "source": "/api/supervisor-dashboard", "destination": "/api/worker?route=supervisor-dashboard" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }
+    { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*).*)", "destination": "/index.html" }
   ]
 }

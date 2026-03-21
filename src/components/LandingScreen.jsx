@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '../Router.jsx'
 import VandaLogo from './VandaLogo.jsx'
 import Footer from './Footer.jsx'
+import InstallPrompt from './InstallPrompt.jsx'
 
 // SVG icons for roles
 const IconBroom = () => (
@@ -156,6 +157,11 @@ export default function LandingScreen({ onStart }) {
         )}
       </header>
 
+      {/* Install prompt */}
+      <div className="max-w-[520px] mx-auto w-full px-6 pt-4">
+        <InstallPrompt />
+      </div>
+
       {/* Hero */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
         <h1 className="font-inter text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
@@ -264,11 +270,23 @@ export default function LandingScreen({ onStart }) {
         <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
         <div className="text-[#888] text-sm leading-relaxed space-y-4 max-w-2xl">
           <p>
-            V&A Hire is the staffing arm of Varist & Associates LLC, an Atlanta-based operations company.
-            We built Vanda Hire to solve a real problem: event organizers need reliable crews, and workers need flexible, well-paying gigs.
+            V&A Hire is powered by Varist & Associates LLC — an Atlanta-based workforce operations company
+            that has deployed vetted, supervised crews across some of the Southeast's biggest stages.
           </p>
           <p>
-            Every worker is screened, ID-verified, and GPS-checked on arrival. Our managed labor tier includes an on-site V&A Hire supervisor so you can focus on your event.
+            Our teams have worked <span className="text-white font-medium">State Farm Arena, Georgia World Congress Center,
+            Truist Park, and Piedmont Park</span>. We've staffed major festivals including Lollapalooza, Bonnaroo, and EDC —
+            handling everything from stadium turnovers and venue setup to film production labor and construction cleanup.
+          </p>
+          <p>
+            With a <span className="text-white font-medium">4.9-star rating across 127+ reviews</span> and crews operating 24/7
+            across Fulton, DeKalb, Gwinnett, Cobb, Henry, and Clayton counties, V&A brings the operational depth that
+            event organizers and venue managers depend on. Every worker is background-checked, safety-trained, ID-verified,
+            and GPS-tracked on arrival.
+          </p>
+          <p>
+            We built V&A Hire to bring that same reliability to on-demand event staffing — no group texts,
+            no last-minute scrambles. Just vetted crews, dispatched by SMS, confirmed within 24 hours.
           </p>
           <p className="text-[#555] text-xs">196 Peachtree St SW, #121, Atlanta, GA 30303</p>
         </div>

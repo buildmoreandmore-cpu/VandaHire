@@ -172,6 +172,9 @@ export default function AssignmentsPanel() {
                           {a.from_bench && (
                             <span className="px-1 py-0.5 rounded text-[8px] font-bold uppercase bg-purple-500/20 text-purple-400">Bench</span>
                           )}
+                          {a.is_supervisor && (
+                            <span className="px-1 py-0.5 rounded text-[8px] font-bold uppercase bg-white/10 text-white">Supervisor</span>
+                          )}
                         </div>
                         <div className="text-p-muted text-[10px] truncate">{a.applicants?.city} · {a.applicants?.phone}</div>
                         {a.briefing_slot && (
@@ -291,7 +294,21 @@ export default function AssignmentsPanel() {
                     )}
 
                     {/* Dispatch action buttons */}
-                    <div className="flex items-center gap-2 mt-1.5 pl-11">
+                    <div className="flex items-center gap-2 mt-1.5 pl-11 flex-wrap">
+                      <button
+                        onClick={async () => {
+                          const newVal = !a.is_supervisor
+                          await updateAssignment(a.id, { is_supervisor: newVal })
+                          setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, is_supervisor: newVal } : x))
+                        }}
+                        className={`px-2.5 py-1 rounded text-[10px] border transition-colors ${
+                          a.is_supervisor
+                            ? 'border-white/30 text-white bg-white/10 hover:bg-white/5'
+                            : 'border-p-border text-p-muted hover:border-white hover:text-white'
+                        }`}
+                      >
+                        {a.is_supervisor ? '★ Supervisor' : '☆ Make Supervisor'}
+                      </button>
                       <button
                         onClick={() => handleSendShift(a.id)}
                         disabled={!!sending[a.id]}
