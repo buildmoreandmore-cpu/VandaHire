@@ -144,7 +144,7 @@ export default function LandingScreen({ onStart }) {
         </p>
 
         <p className="text-white text-sm font-semibold mb-8 fade-up-delay-1">
-          Earn $15–$25/hr at Atlanta events
+          Earn $15–$25/hr at live events
         </p>
 
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
