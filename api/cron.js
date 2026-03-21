@@ -26,60 +26,91 @@ async function shiftReminders(supabase) {
   const now = new Date()
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const in72h = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  // Get assignments for events happening in next 24-48 hours
+  const { sendSms } = await import('../_lib/sms.js').catch(() => ({ sendSms: null }))
+
+  // Get assignments for events happening in next 24-72 hours
   const { data: assignments, error } = await supabase
     .from('assignments')
-    .select('id, shift_sent_at, status, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point )')
+    .select('id, shift_sent_at, status, pay_rate, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, dress_code )')
     .in('status', ['confirmed', 'invited'])
     .is('check_in_time', null)
 
   if (error) throw error
-  if (!assignments?.length) return { sent: 0, message: 'No upcoming assignments found' }
+  if (!assignments?.length) return { sent: 0, sms_sent: 0, message: 'No upcoming assignments found' }
 
-  let sent = 0
+  let sent = 0, smsSent = 0
   for (const a of assignments) {
     const event = a.events
     const worker = a.applicants
-    if (!event?.event_date || !worker?.email) continue
+    if (!event?.event_date) continue
 
     const eventDate = event.event_date
     const isIn24h = eventDate === in24h
     const isIn48h = eventDate === in48h
+    const isIn72h = eventDate === in72h
 
-    if (!isIn24h && !isIn48h) continue
+    if (!isIn24h && !isIn48h && !isIn72h) continue
 
-    // Skip if we already sent a reminder today (using shift_sent_at as last-contact tracker)
-    // We'll track reminder sends via a simple approach — always send, workers won't mind 2 reminders max
-    const urgency = isIn24h ? 'TOMORROW' : 'in 2 days'
-    const subject = isIn24h
-      ? `Reminder: Your shift is TOMORROW — ${event.title}`
-      : `Upcoming Shift Reminder — ${event.title}`
+    // ── TEXT 1: 72h out — the offer SMS ──
+    if (isIn72h && sendSms && worker?.phone) {
+      const hours = event.start_time && event.end_time
+        ? Math.round((new Date(`2000-01-01T${event.end_time}`) - new Date(`2000-01-01T${event.start_time}`)) / 3600000)
+        : null
+      const payEst = hours && a.pay_rate ? `$${(hours * parseFloat(a.pay_rate)).toFixed(0)}` : null
+      try {
+        await sendSms(worker.phone, `Vanda Hire: Event this ${formatDate(event.event_date).split(',')[0]}${hours ? `, ${hours}hrs` : ''}${payEst ? `, ${payEst}` : ''}. ${event.title}, ${event.city}. Reply YES to confirm your spot.`)
+        smsSent++
+      } catch (e) {
+        console.error(`[cron/shift-reminders] 72h SMS failed for ${a.id}:`, e.message)
+      }
+    }
 
-    const html = `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <h2 style="color:#ffffff">Shift Reminder — ${event.title}</h2>
-        <p>Hi ${worker.first_name},</p>
-        <p>Your shift is <strong>${urgency}</strong>!</p>
-        <table style="width:100%;border-collapse:collapse;margin:15px 0">
-          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;width:120px">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr>
-          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
-          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
-          ${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}
-        </table>
-        <p>Please arrive 10 minutes early. If you can no longer make it, let us know ASAP.</p>
-        <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
-      </div>`
+    // ── TEXT 2: 24h out — the prep details SMS ──
+    if (isIn24h && sendSms && worker?.phone) {
+      const dressCode = event.dress_code || 'all black'
+      const supervisor = event.supervisor_name ? `Ask for ${event.supervisor_name}. ` : ''
+      try {
+        await sendSms(worker.phone, `Vanda Hire: Tomorrow's your shift. Arrive at ${formatTime(event.start_time)}, ${event.location}. ${supervisor}Dress code: ${dressCode}. Any questions? Reply here.`)
+        smsSent++
+      } catch (e) {
+        console.error(`[cron/shift-reminders] 24h SMS failed for ${a.id}:`, e.message)
+      }
+    }
 
-    try {
-      await sendEmail({ to: worker.email, subject, html })
-      sent++
-    } catch (e) {
-      console.error(`[cron/shift-reminders] Email failed for assignment ${a.id}:`, e.message)
+    // ── Email reminders (24h + 48h) ──
+    if ((isIn24h || isIn48h) && worker?.email) {
+      const urgency = isIn24h ? 'TOMORROW' : 'in 2 days'
+      const subject = isIn24h
+        ? `Reminder: Your shift is TOMORROW — ${event.title}`
+        : `Upcoming Shift Reminder — ${event.title}`
+
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+          <h2 style="color:#ffffff">Shift Reminder — ${event.title}</h2>
+          <p>Hi ${worker.first_name},</p>
+          <p>Your shift is <strong>${urgency}</strong>!</p>
+          <table style="width:100%;border-collapse:collapse;margin:15px 0">
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;width:120px">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
+            ${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}
+          </table>
+          <p>Please arrive 10 minutes early. If you can no longer make it, let us know ASAP.</p>
+          <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce • vandahire.com</p>
+        </div>`
+
+      try {
+        await sendEmail({ to: worker.email, subject, html })
+        sent++
+      } catch (e) {
+        console.error(`[cron/shift-reminders] Email failed for assignment ${a.id}:`, e.message)
+      }
     }
   }
 
-  return { sent, message: `Sent ${sent} shift reminder(s)` }
+  return { sent, sms_sent: smsSent, message: `Sent ${sent} email(s), ${smsSent} SMS` }
 }
 
 // ─── BALANCE REMINDERS ───────────────────────────────────────────────────────
@@ -169,6 +200,7 @@ async function balanceReminders(supabase) {
 
 async function postEvent(supabase) {
   const now = new Date()
+  const { sendSms } = await import('../_lib/sms.js').catch(() => ({ sendSms: null }))
   // Look for events that ended today or yesterday (event_date is in the past, within 2 days)
   const twoDaysAgo = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10)
   const today = now.toISOString().slice(0, 10)
@@ -231,6 +263,15 @@ async function postEvent(supabase) {
             surveysSent++
           } catch (e) {
             console.error(`[cron/post-event] Survey email failed for ${a.id}:`, e.message)
+          }
+
+          // TEXT 3: Post-shift SMS — feels human, opens feedback loop
+          if (sendSms && a.applicants?.phone) {
+            try {
+              await sendSms(a.applicants.phone, `Vanda Hire: Hope it went well tonight, ${a.applicants.first_name}. You showed up — that's everything. Reply with any feedback or just let us know how it went.`)
+            } catch (e) {
+              console.error(`[cron/post-event] Post-shift SMS failed for ${a.id}:`, e.message)
+            }
           }
         }
       }
@@ -1434,6 +1475,143 @@ async function postEventInvoice(supabase) {
   return { invoices_sent: invoicesSent }
 }
 
+// ─── MONTHLY NEWSLETTER ─────────────────────────────────────────────────────
+// Sends a monthly "What's Coming" email to all approved workers
+// Upcoming events, worker spotlight, shift tips
+
+async function monthlyNewsletter(supabase) {
+  const now = new Date()
+
+  // Only run on the 1st of each month
+  if (now.getDate() !== 1) return { sent: 0, message: 'Not the 1st — skipping newsletter' }
+
+  // Get upcoming events for the next 30 days
+  const today = now.toISOString().slice(0, 10)
+  const thirtyDaysOut = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10)
+
+  const { data: upcomingEvents } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, end_time, city, location, workers_needed, pay_rate')
+    .in('status', ['staffing', 'confirmed', 'pending'])
+    .gte('event_date', today)
+    .lte('event_date', thirtyDaysOut)
+    .order('event_date', { ascending: true })
+    .limit(5)
+
+  // Get a worker spotlight — someone who completed the most shifts last month
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10)
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10)
+
+  const { data: topWorkers } = await supabase
+    .from('assignments')
+    .select('worker_id, applicants ( first_name, last_name, city )')
+    .eq('status', 'completed')
+    .gte('created_at', lastMonthStart)
+    .lte('created_at', lastMonthEnd)
+
+  // Count shifts per worker
+  const shiftCounts = {}
+  for (const a of (topWorkers || [])) {
+    if (!a.worker_id) continue
+    if (!shiftCounts[a.worker_id]) shiftCounts[a.worker_id] = { count: 0, worker: a.applicants }
+    shiftCounts[a.worker_id].count++
+  }
+
+  const spotlight = Object.values(shiftCounts).sort((a, b) => b.count - a.count)[0] || null
+
+  // Build event list HTML
+  const eventListHtml = (upcomingEvents || []).length > 0
+    ? (upcomingEvents || []).map(e => `
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #1e1e1e;color:#fff;font-weight:bold;">${e.title}</td>
+          <td style="padding:10px;border-bottom:1px solid #1e1e1e;color:#ccc;">${formatDate(e.event_date)}</td>
+          <td style="padding:10px;border-bottom:1px solid #1e1e1e;color:#ccc;">${e.city}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="3" style="padding:16px;color:#888;text-align:center;">No events posted yet — check back soon!</td></tr>'
+
+  // Build spotlight HTML
+  const spotlightHtml = spotlight
+    ? `<div style="background:#141414;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin:24px 0;">
+        <p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Worker Spotlight</p>
+        <p style="color:#fff;font-size:16px;font-weight:bold;margin:0 0 4px;">${spotlight.worker?.first_name} ${(spotlight.worker?.last_name || '').charAt(0)}.</p>
+        <p style="color:#ccc;font-size:13px;margin:0;">${spotlight.count} shifts completed last month${spotlight.worker?.city ? ` in ${spotlight.worker.city}` : ''}. Showing up and getting it done.</p>
+      </div>`
+    : ''
+
+  // Tips — rotate monthly
+  const tips = [
+    'Complete your W-9 early to claim shifts faster. Workers with W-9s on file get first access.',
+    'Set your availability to "Short Notice" — last-minute events often pay more.',
+    'Arrive 10 minutes early to every shift. Coordinators notice, and it leads to more invites.',
+    'Fill out your post-shift survey. Workers who give feedback get prioritized for premium events.',
+    'Add multiple roles to your profile. The more roles you can fill, the more shifts you\'ll see.',
+    'Keep your phone on for event day. Supervisors may need to reach you for last-minute changes.',
+    'Dress code matters. Showing up in the right gear shows professionalism and gets you repeat shifts.',
+    'Tell a friend about Vanda Hire. When they sign up, you both move up the priority list.',
+    'Check the shifts page weekly. New events drop every week and fill up fast.',
+    'Update your city if you move. We match you to events near you, so accuracy helps.',
+    'Respond to shift invites quickly. The first workers to confirm get locked in.',
+    'Track your earnings in the app. Knowing your numbers helps you plan and stay motivated.',
+  ]
+  const tipOfMonth = tips[now.getMonth() % tips.length]
+
+  // Get all approved workers with email
+  const { data: workers, error } = await supabase
+    .from('applicants')
+    .select('id, first_name, email')
+    .eq('status', 'approved')
+    .not('email', 'is', null)
+
+  if (error) throw error
+  if (!workers?.length) return { sent: 0, message: 'No approved workers to email' }
+
+  const monthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  let sent = 0
+
+  for (const w of workers) {
+    if (!w.email) continue
+
+    try {
+      await sendEmail({
+        to: w.email,
+        subject: `What's Coming — Vanda Hire ${monthName}`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+            <h2 style="color:#ffffff;margin:0 0 4px;">What's Coming</h2>
+            <p style="color:#888;font-size:13px;margin:0 0 24px;">Vanda Hire • ${monthName}</p>
+
+            <p style="color:#ccc;line-height:1.6;">Hey ${w.first_name},</p>
+            <p style="color:#ccc;line-height:1.6;">Here's what's happening this month on Vanda Hire.</p>
+
+            <h3 style="color:#fff;font-size:14px;margin:24px 0 8px;">Upcoming Events</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <tr><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Event</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Date</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">City</th></tr>
+              ${eventListHtml}
+            </table>
+            <p style="text-align:center;margin:20px 0;">
+              <a href="https://vandahire.com/shifts" style="background:#ffffff;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Browse All Shifts →</a>
+            </p>
+
+            ${spotlightHtml}
+
+            <div style="background:#141414;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin:24px 0;">
+              <p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Shift Tip</p>
+              <p style="color:#ccc;font-size:13px;line-height:1.6;margin:0;">${tipOfMonth}</p>
+            </div>
+
+            <p style="color:#666;font-size:12px;line-height:1.6;margin-top:32px;">Questions? Call us at (404) 861-7794 or reply to this email.</p>
+            <p style="color:#444;font-size:11px;margin-top:16px;">V&A Workforce • Varist & Associates LLC • vandahire.com</p>
+          </div>`,
+      })
+      sent++
+    } catch (e) {
+      console.error(`[cron/newsletter] Email failed for ${w.id}:`, e.message)
+    }
+  }
+
+  return { sent, message: `Sent ${sent} newsletter email(s)` }
+}
+
 // ─── DISPATCHER ──────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
@@ -1483,6 +1661,8 @@ export default async function handler(req, res) {
         return res.status(200).json(await postEventOrganizerSummary(supabase))
       case 'crew-shortfall':
         return res.status(200).json(await crewShortfallEscalation(supabase))
+      case 'newsletter':
+        return res.status(200).json(await monthlyNewsletter(supabase))
       case 'all': {
         // Run all jobs — daily cron
         const results = {}
@@ -1502,6 +1682,7 @@ export default async function handler(req, res) {
         results.no_shows = await detectNoShows(supabase)
         results.organizer_summary = await postEventOrganizerSummary(supabase)
         results.crew_shortfall = await crewShortfallEscalation(supabase)
+        results.newsletter = await monthlyNewsletter(supabase)
         return res.status(200).json(results)
       }
       default:

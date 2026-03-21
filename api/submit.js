@@ -169,5 +169,17 @@ export default async function handler(req, res) {
     await Promise.allSettled(notifyTasks)
   }
 
+  // 6. Waitlist referral SMS — turn every signup into a recruiter (sent regardless of status)
+  if (sendSms && phone) {
+    // Delay 30 seconds via a separate non-blocking call so it doesn't feel robotic
+    setTimeout(async () => {
+      try {
+        await sendSms(phone, `You're on the Vanda Hire ${city || 'Atlanta'} list, ${first_name}. We'll text you when events match your role.\n\nWant to move up? Send us 2 friends who'd be great workers — just reply with their names and numbers. We'll prioritize you for the next event.`)
+      } catch (e) {
+        console.error('[submit] Referral SMS error:', e.message)
+      }
+    }, 30000)
+  }
+
   return res.status(200).json({ success: true, applicantId, decision: finalStatus })
 }
