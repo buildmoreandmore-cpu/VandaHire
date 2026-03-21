@@ -303,6 +303,61 @@ async function handleIncidents(req, res, supabase) {
       .single()
 
     if (error) return res.status(500).json({ error: 'Failed to log incident' })
+
+    // Auto-escalate: email admin + organizer
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+
+      // Get event details + organizer email
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('title, contact_email, contact_name')
+        .eq('id', event_id)
+        .single()
+
+      // Get reporter name
+      const { data: reporter } = await supabase
+        .from('applicants')
+        .select('first_name, last_name')
+        .eq('id', worker.id)
+        .single()
+
+      const reporterName = reporter ? `${reporter.first_name} ${reporter.last_name}`.trim() : 'Unknown'
+      const eventTitle = eventData?.title || 'Unknown Event'
+      const typeLabel = incident_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+      const incidentHtml = `
+        <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+          <h2 style="color:#ff4444;">Incident Report</h2>
+          <table style="width:100%;font-size:14px;margin:16px 0;">
+            <tr><td style="color:#888;padding:8px 0;">Event</td><td style="color:#fff;font-weight:bold;">${eventTitle}</td></tr>
+            <tr><td style="color:#888;padding:8px 0;">Type</td><td style="color:#fff;">${typeLabel}</td></tr>
+            <tr><td style="color:#888;padding:8px 0;">Reported by</td><td style="color:#fff;">${reporterName} (Supervisor)</td></tr>
+            <tr><td style="color:#888;padding:8px 0;">Description</td><td style="color:#ccc;">${description}</td></tr>
+            <tr><td style="color:#888;padding:8px 0;">Time</td><td style="color:#ccc;">${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</td></tr>
+          </table>
+          <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • Automated Incident Alert</p>
+        </div>`
+
+      // Email admin
+      await sendEmail({
+        to: adminEmail,
+        subject: `Incident: ${typeLabel} — ${eventTitle}`,
+        html: incidentHtml,
+      })
+
+      // Email organizer if available
+      if (eventData?.contact_email) {
+        await sendEmail({
+          to: eventData.contact_email,
+          subject: `Incident Report — ${eventTitle}`,
+          html: incidentHtml,
+        })
+      }
+    } catch (escalationErr) {
+      console.error('[incidents] Escalation email failed:', escalationErr.message)
+    }
+
     return res.status(200).json(data)
   }
 

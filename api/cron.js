@@ -931,6 +931,402 @@ async function autoChargeBalance(supabase) {
   return { charged, failed, skipped }
 }
 
+// ─── W-9 REMINDERS ──────────────────────────────────────────────────────────
+// Sends email + SMS reminders to approved workers who haven't signed their W-9
+// Day 3, Day 7, Day 14 after approval
+
+async function w9Reminders(supabase) {
+  const now = new Date()
+  const threeDaysAgo = new Date(now.getTime() - 3 * 86400000).toISOString()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString()
+
+  // Workers approved but no W-9 signed
+  const { data: workers, error } = await supabase
+    .from('applicants')
+    .select('id, first_name, email, phone, status, approved_at, updated_at, w9_signed_at, w9_reminder_count')
+    .eq('status', 'approved')
+    .is('w9_signed_at', null)
+
+  if (error) throw error
+  if (!workers?.length) return { sent: 0, sms_sent: 0, message: 'No W-9 reminders needed' }
+
+  let sent = 0, smsSent = 0
+
+  for (const w of workers) {
+    const approvedDate = new Date(w.approved_at || w.updated_at)
+    const daysSinceApproval = Math.floor((now - approvedDate) / 86400000)
+    const reminderCount = w.w9_reminder_count || 0
+
+    // Determine if we should send based on timing + previous reminders
+    let shouldSend = false
+    let urgency = ''
+
+    if (daysSinceApproval >= 14 && reminderCount < 3) {
+      shouldSend = true
+      urgency = 'final'
+    } else if (daysSinceApproval >= 7 && reminderCount < 2) {
+      shouldSend = true
+      urgency = 'second'
+    } else if (daysSinceApproval >= 3 && reminderCount < 1) {
+      shouldSend = true
+      urgency = 'first'
+    }
+
+    if (!shouldSend) continue
+
+    const w9Url = `https://vandahire.com/w9/${(w.phone || '').replace(/\D/g, '')}`
+
+    // Send email
+    if (w.email) {
+      const subject = urgency === 'final'
+        ? `Final Reminder: Complete Your W-9 — V&A Workforce`
+        : urgency === 'second'
+        ? `Reminder: Your W-9 Is Still Needed — V&A Workforce`
+        : `Complete Your W-9 to Start Claiming Shifts — V&A Workforce`
+
+      const urgencyText = urgency === 'final'
+        ? 'This is your <strong>final reminder</strong>. You will not be able to claim any shifts until your W-9 is on file.'
+        : urgency === 'second'
+        ? 'You still haven\'t completed your W-9 form. Shifts are filling up — don\'t miss out.'
+        : 'You\'re approved! One last step before you can start claiming shifts: complete your W-9 tax form.'
+
+      try {
+        await sendEmail({
+          to: w.email,
+          subject,
+          html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+              <h2 style="color:#ffffff;margin:0 0 16px;">Complete Your W-9, ${w.first_name}</h2>
+              <p style="color:#ccc;line-height:1.6;">${urgencyText}</p>
+              <p style="text-align:center;margin:24px 0;">
+                <a href="${w9Url}" style="background:#ffffff;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Complete W-9 Now →</a>
+              </p>
+              <p style="color:#666;font-size:12px;">Takes less than 2 minutes. Your information is encrypted and secure.</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • vandahire.com</p>
+            </div>`,
+        })
+        sent++
+      } catch (e) {
+        console.error(`[cron/w9-reminders] Email failed for ${w.id}:`, e.message)
+      }
+    }
+
+    // Send SMS on 7-day and 14-day reminders
+    if (w.phone && (urgency === 'second' || urgency === 'final')) {
+      try {
+        const { sendSms } = await import('../_lib/sms.js')
+        await sendSms(w.phone, `V&A Workforce: Your W-9 is still needed before you can claim shifts. Complete it here: ${w9Url}`)
+        smsSent++
+      } catch (e) {
+        console.error(`[cron/w9-reminders] SMS failed for ${w.id}:`, e.message)
+      }
+    }
+
+    // Update reminder count
+    await supabase.from('applicants').update({
+      w9_reminder_count: reminderCount + 1,
+      updated_at: now.toISOString(),
+    }).eq('id', w.id)
+  }
+
+  return { sent, sms_sent: smsSent, message: `Sent ${sent} email(s), ${smsSent} SMS` }
+}
+
+// ─── NO-SHOW AUTO-DETECTION ─────────────────────────────────────────────────
+// 30 min after event start, mark workers who haven't checked in as no-shows
+
+async function detectNoShows(supabase) {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+
+  // Find today's events
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, contact_email, contact_name')
+    .eq('event_date', today)
+    .in('status', ['confirmed', 'staffing'])
+
+  if (error) throw error
+  if (!events?.length) return { no_shows: 0 }
+
+  let noShows = 0
+  const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+
+  for (const event of events) {
+    if (!event.start_time) continue
+
+    // Check if 30 min past start time
+    const [h, m] = event.start_time.split(':')
+    const eventStart = new Date(`${today}T${event.start_time}:00`)
+    const threshold = new Date(eventStart.getTime() + 30 * 60 * 1000)
+
+    if (now < threshold) continue // Not yet 30 min past start
+
+    // Find confirmed workers who haven't checked in
+    const { data: missing } = await supabase
+      .from('assignments')
+      .select('id, worker_id, status, check_in_time, applicants ( first_name, last_name, email, phone )')
+      .eq('event_id', event.id)
+      .eq('status', 'confirmed')
+      .is('check_in_time', null)
+
+    if (!missing?.length) continue
+
+    const noShowNames = []
+    for (const a of missing) {
+      // Mark as no_show
+      await supabase.from('assignments').update({
+        status: 'no_show',
+        updated_at: now.toISOString(),
+      }).eq('id', a.id)
+
+      noShowNames.push(`${a.applicants?.first_name || ''} ${a.applicants?.last_name || ''}`.trim())
+
+      // Add strike to worker
+      const { data: worker } = await supabase
+        .from('applicants')
+        .select('id, strikes')
+        .eq('id', a.worker_id)
+        .single()
+
+      if (worker) {
+        await supabase.from('applicants').update({
+          strikes: (worker.strikes || 0) + 1,
+          updated_at: now.toISOString(),
+        }).eq('id', worker.id)
+      }
+
+      // Notify worker
+      if (a.applicants?.email) {
+        try {
+          await sendEmail({
+            to: a.applicants.email,
+            subject: `Missed Shift: ${event.title} — V&A Workforce`,
+            html: `
+              <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+                <h2 style="color:#ff4444;">Missed Shift</h2>
+                <p style="color:#ccc;">Hi ${a.applicants.first_name},</p>
+                <p style="color:#ccc;">You were confirmed for <strong>${event.title}</strong> today but did not check in. This has been recorded as a no-show.</p>
+                <p style="color:#ccc;">Repeated no-shows may affect your eligibility for future shifts.</p>
+                <p style="color:#888;font-size:12px;">If this was an error, contact us at (404) 861-7794.</p>
+                <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • vandahire.com</p>
+              </div>`,
+          })
+        } catch (e) {
+          console.error(`[cron/no-shows] Worker email failed:`, e.message)
+        }
+      }
+
+      noShows++
+    }
+
+    // Notify organizer
+    if (event.contact_email && noShowNames.length) {
+      try {
+        await sendEmail({
+          to: event.contact_email,
+          subject: `Crew Update: ${noShowNames.length} No-Show(s) — ${event.title}`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+              <h2 style="color:#ffffff;">Crew Update</h2>
+              <p style="color:#ccc;">Hi ${event.contact_name || 'there'},</p>
+              <p style="color:#ccc;">${noShowNames.length} worker(s) did not check in for <strong>${event.title}</strong>:</p>
+              <ul style="color:#ccc;">${noShowNames.map(n => `<li>${n}</li>`).join('')}</ul>
+              <p style="color:#ccc;">We're working to dispatch replacement crew from our bench pool. We'll update you shortly.</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • vandahire.com</p>
+            </div>`,
+        })
+      } catch (e) {
+        console.error(`[cron/no-shows] Organizer email failed:`, e.message)
+      }
+    }
+
+    // Alert admin
+    if (noShowNames.length) {
+      try {
+        await sendEmail({
+          to: adminEmail,
+          subject: `⚠ ${noShowNames.length} No-Show(s) — ${event.title}`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+              <h2 style="color:#ff4444;">No-Show Alert</h2>
+              <p style="color:#ccc;"><strong>${event.title}</strong> — ${noShowNames.length} worker(s) didn't check in:</p>
+              <ul style="color:#ccc;">${noShowNames.map(n => `<li>${n}</li>`).join('')}</ul>
+              <p style="color:#ccc;">Workers have been marked as no-show with a strike. Consider dispatching bench replacements.</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • vandahire.com</p>
+            </div>`,
+        })
+      } catch (e) {
+        console.error(`[cron/no-shows] Admin email failed:`, e.message)
+      }
+    }
+  }
+
+  return { no_shows: noShows }
+}
+
+// ─── POST-EVENT ORGANIZER SUMMARY ───────────────────────────────────────────
+// Day after event, email organizer with crew performance + cost breakdown
+
+async function postEventOrganizerSummary(supabase) {
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, contact_email, contact_name, location, city, workers_needed, total_bill, deposit_amount, balance_amount')
+    .eq('event_date', yesterday)
+    .in('status', ['completed', 'confirmed'])
+
+  if (error) throw error
+  if (!events?.length) return { sent: 0 }
+
+  let sent = 0
+
+  for (const event of events) {
+    if (!event.contact_email) continue
+
+    // Get assignments with worker details
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id, status, check_in_time, check_out_time, hours_worked, payout_amount, applicants ( first_name, last_name )')
+      .eq('event_id', event.id)
+
+    const completed = (assignments || []).filter(a => ['completed', 'checked_in'].includes(a.status))
+    const noShows = (assignments || []).filter(a => a.status === 'no_show')
+    const totalHours = completed.reduce((sum, a) => sum + (a.hours_worked || 0), 0)
+
+    const crewRows = completed.map(a => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#fff;">${a.applicants?.first_name || ''} ${a.applicants?.last_name || ''}</td>
+        <td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#ccc;">${(a.hours_worked || 0).toFixed(1)}h</td>
+        <td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#ccc;">${a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+        <td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#ccc;">${a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}</td>
+      </tr>
+    `).join('')
+
+    const totalBill = parseFloat(event.total_bill) || 0
+    const deposit = parseFloat(event.deposit_amount) || 0
+    const balance = parseFloat(event.balance_amount) || 0
+
+    try {
+      await sendEmail({
+        to: event.contact_email,
+        subject: `Event Summary: ${event.title} — V&A Workforce`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+            <h2 style="color:#ffffff;">Event Summary</h2>
+            <p style="color:#ccc;">Hi ${event.contact_name || 'there'},</p>
+            <p style="color:#ccc;">Here's your crew report for <strong>${event.title}</strong> on ${formatDate(event.event_date)}.</p>
+
+            <div style="background:#141414;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin:20px 0;">
+              <table style="width:100%;font-size:14px;">
+                <tr><td style="color:#888;padding:4px 0;">Workers showed up</td><td style="color:#fff;text-align:right;font-weight:bold;">${completed.length}</td></tr>
+                ${noShows.length ? `<tr><td style="color:#888;padding:4px 0;">No-shows</td><td style="color:#ff4444;text-align:right;font-weight:bold;">${noShows.length}</td></tr>` : ''}
+                <tr><td style="color:#888;padding:4px 0;">Total hours worked</td><td style="color:#fff;text-align:right;font-weight:bold;">${totalHours.toFixed(1)}</td></tr>
+                <tr><td style="color:#888;padding:4px 0;">Total bill</td><td style="color:#fff;text-align:right;font-weight:bold;">$${totalBill.toFixed(2)}</td></tr>
+              </table>
+            </div>
+
+            ${crewRows ? `
+            <h3 style="color:#fff;font-size:14px;margin:24px 0 8px;">Crew Breakdown</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <tr><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Worker</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Hours</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">In</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Out</th></tr>
+              ${crewRows}
+            </table>` : ''}
+
+            <p style="text-align:center;margin:32px 0 16px;">
+              <a href="https://vandahire.com/events" style="background:#ffffff;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Book Another Event →</a>
+            </p>
+
+            <p style="color:#888;font-size:12px;">Thank you for choosing V&A Workforce. Questions? Call (404) 861-7794.</p>
+            <p style="color:#444;font-size:11px;margin-top:16px;">V&A Workforce • vandahire.com</p>
+          </div>`,
+      })
+      sent++
+    } catch (e) {
+      console.error(`[cron/organizer-summary] Email failed for event ${event.id}:`, e.message)
+    }
+  }
+
+  return { sent, message: `Sent ${sent} organizer summary email(s)` }
+}
+
+// ─── CREW SHORTFALL ESCALATION ──────────────────────────────────────────────
+// 48h before event, if still short on workers, alert admin via email + SMS
+
+async function crewShortfallEscalation(supabase) {
+  const twoDaysOut = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, city, workers_needed, contact_name')
+    .eq('event_date', twoDaysOut)
+    .in('status', ['staffing', 'confirmed'])
+
+  if (error) throw error
+  if (!events?.length) return { escalated: 0 }
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+  let escalated = 0
+
+  for (const event of events) {
+    const needed = event.workers_needed || 0
+    if (!needed) continue
+
+    // Count confirmed workers
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id')
+      .eq('event_id', event.id)
+      .in('status', ['confirmed', 'checked_in'])
+
+    const confirmed = (assignments || []).length
+    const shortfall = needed - confirmed
+
+    if (shortfall <= 0) continue
+
+    // Email admin
+    try {
+      await sendEmail({
+        to: adminEmail,
+        subject: `⚠ Crew Shortfall: ${event.title} in 48 Hours (Need ${shortfall} More)`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+            <h2 style="color:#ff4444;">Crew Shortfall Alert</h2>
+            <table style="width:100%;font-size:14px;margin:16px 0;">
+              <tr><td style="color:#888;padding:8px 0;">Event</td><td style="color:#fff;font-weight:bold;">${event.title}</td></tr>
+              <tr><td style="color:#888;padding:8px 0;">Date</td><td style="color:#fff;">${formatDate(event.event_date)} at ${formatTime(event.start_time)}</td></tr>
+              <tr><td style="color:#888;padding:8px 0;">City</td><td style="color:#fff;">${event.city}</td></tr>
+              <tr><td style="color:#888;padding:8px 0;">Workers needed</td><td style="color:#fff;">${needed}</td></tr>
+              <tr><td style="color:#888;padding:8px 0;">Workers confirmed</td><td style="color:#fff;">${confirmed}</td></tr>
+              <tr><td style="color:#888;padding:8px 0;">Shortfall</td><td style="color:#ff4444;font-weight:bold;font-size:18px;">${shortfall}</td></tr>
+            </table>
+            <p style="color:#ccc;">Action needed: dispatch bench workers, post to open shifts, or contact approved workers in ${event.city}.</p>
+            <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • Automated Escalation</p>
+          </div>`,
+      })
+    } catch (e) {
+      console.error(`[cron/shortfall] Email failed:`, e.message)
+    }
+
+    // SMS alert to admin
+    try {
+      const adminPhone = process.env.ADMIN_PHONE
+      if (adminPhone) {
+        const { sendSms } = await import('../_lib/sms.js')
+        await sendSms(adminPhone, `V&A ALERT: ${event.title} in 48hrs — need ${shortfall} more workers (${confirmed}/${needed} confirmed). Check admin panel.`)
+      }
+    } catch (e) {
+      console.error(`[cron/shortfall] SMS failed:`, e.message)
+    }
+
+    escalated++
+  }
+
+  return { escalated, message: `${escalated} event(s) with crew shortfall` }
+}
+
 // ─── POST-EVENT INVOICE + CLIENT SURVEY ─────────────────────────────────────
 // Auto-sends invoice email with line items + client satisfaction survey after event ends
 
@@ -1079,6 +1475,14 @@ export default async function handler(req, res) {
         return res.status(200).json(await autoChargeBalance(supabase))
       case 'post-event-invoice':
         return res.status(200).json(await postEventInvoice(supabase))
+      case 'w9-reminders':
+        return res.status(200).json(await w9Reminders(supabase))
+      case 'no-shows':
+        return res.status(200).json(await detectNoShows(supabase))
+      case 'organizer-summary':
+        return res.status(200).json(await postEventOrganizerSummary(supabase))
+      case 'crew-shortfall':
+        return res.status(200).json(await crewShortfallEscalation(supabase))
       case 'all': {
         // Run all jobs — daily cron
         const results = {}
@@ -1094,6 +1498,10 @@ export default async function handler(req, res) {
         results.auto_bench = await autoBenchAssignment(supabase)
         results.briefing_reminders = await briefingReminders(supabase)
         results.auto_charge_balance = await autoChargeBalance(supabase)
+        results.w9_reminders = await w9Reminders(supabase)
+        results.no_shows = await detectNoShows(supabase)
+        results.organizer_summary = await postEventOrganizerSummary(supabase)
+        results.crew_shortfall = await crewShortfallEscalation(supabase)
         return res.status(200).json(results)
       }
       default:
