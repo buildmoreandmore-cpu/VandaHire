@@ -1,7 +1,7 @@
 const SIZE_MAP = {
-  sm: { icon: 32, vanda: 'text-lg', hire: 'text-[10px]', gap: 'gap-2' },
-  md: { icon: 48, vanda: 'text-3xl', hire: 'text-xs', gap: 'gap-3' },
-  lg: { icon: 64, vanda: 'text-5xl', hire: 'text-sm', gap: 'gap-4' },
+  sm: { icon: 28, text: 'text-base', sub: 'text-[8px]', gap: 'gap-1.5' },
+  md: { icon: 40, text: 'text-2xl', sub: 'text-[10px]', gap: 'gap-2' },
+  lg: { icon: 56, text: 'text-4xl', sub: 'text-xs', gap: 'gap-3' },
 }
 
 export default function VandaLogo({ size = 'md', onClick }) {
@@ -11,33 +11,37 @@ export default function VandaLogo({ size = 'md', onClick }) {
   return (
     <span
       onClick={onClick}
-      className={`inline-flex items-start ${s.gap} ${onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+      className={`inline-flex items-center ${s.gap} ${onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
     >
-      {/* Funnel icon — outline/stroke style */}
+      {/* X& mark */}
       <svg
         width={iconSize}
-        height={Math.round(iconSize * 1.25)}
-        viewBox="0 0 48 60"
+        height={iconSize}
+        viewBox="0 0 48 48"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        {/* Top bar */}
-        <line x1="4" y1="6" x2="44" y2="6" stroke="#3ecf8e" strokeWidth="3.5" strokeLinecap="round" />
-        {/* Left diagonal */}
-        <line x1="4" y1="6" x2="24" y2="38" stroke="#3ecf8e" strokeWidth="3.5" strokeLinecap="round" />
-        {/* Right diagonal */}
-        <line x1="44" y1="6" x2="24" y2="38" stroke="#3ecf8e" strokeWidth="3.5" strokeLinecap="round" />
-        {/* Stem */}
-        <line x1="24" y1="38" x2="24" y2="56" stroke="#3ecf8e" strokeWidth="3" strokeLinecap="round" />
+        {/* X cross — two diagonal bars */}
+        <line x1="6" y1="6" x2="42" y2="42" stroke="white" strokeWidth="5" strokeLinecap="round" />
+        <line x1="42" y1="6" x2="6" y2="42" stroke="white" strokeWidth="5" strokeLinecap="round" />
+        {/* & symbol tucked at bottom-right */}
+        <text
+          x="32"
+          y="46"
+          fill="#16a34a"
+          fontSize="20"
+          fontWeight="bold"
+          fontFamily="Arial, sans-serif"
+        >&amp;</text>
       </svg>
 
       {/* Text block */}
       <span className="flex flex-col leading-none">
-        <span className={`text-white font-extrabold tracking-tight ${s.vanda}`}>
-          Vanda
+        <span className={`text-white font-extrabold tracking-tight ${s.text}`}>
+          V&amp;A
         </span>
-        <span className={`text-[#3ecf8e] font-bold tracking-[0.25em] uppercase mt-0.5 ${s.hire}`}>
+        <span className={`text-[#16a34a] font-bold tracking-[0.25em] uppercase mt-0.5 ${s.sub}`}>
           HIRE
         </span>
       </span>

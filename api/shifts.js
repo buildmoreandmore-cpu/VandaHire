@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       const digits = phone.replace(/\D/g, '')
       const { data: workers, error: workerError } = await supabase
         .from('applicants')
-        .select('id, first_name, last_name, status, phone')
+        .select('id, first_name, last_name, status, phone, w9_signed_at')
         .ilike('phone', `%${digits.slice(-10)}%`)
         .limit(1)
 
@@ -56,6 +56,7 @@ export default async function handler(req, res) {
 
       const worker = workers[0]
       if (worker.status !== 'approved') return res.status(403).json({ error: 'not_approved', message: 'Your application is still under review.' })
+      if (!worker.w9_signed_at) return res.status(403).json({ error: 'w9_required', message: 'Please complete your W-9 form before claiming shifts.', w9_url: `/w9/${digits}` })
 
       const { data: event, error: eventError } = await supabase.from('events').select('id, workers_needed, status').eq('id', event_id).single()
       if (eventError || !event) return res.status(404).json({ error: 'Event not found' })

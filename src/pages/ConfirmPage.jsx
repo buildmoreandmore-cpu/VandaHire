@@ -60,7 +60,7 @@ export default function ConfirmPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-6">
-          <h1 className="text-white font-extrabold text-2xl tracking-tight">Vanda</h1>
+          <h1 className="text-white font-extrabold text-2xl tracking-tight">V&A Hire</h1>
           <p className="text-p-muted text-xs mt-1">Assignment Confirmation</p>
         </div>
 

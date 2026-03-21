@@ -76,7 +76,7 @@ export default function SurveyPage({ token }) {
               {survey.event?.title} · {formatDate(survey.event?.event_date)}
             </p>
             <p className="text-p-muted text-xs mt-0.5">
-              Hi {survey.worker?.first_name} — thanks for working with Vanda!
+              Hi {survey.worker?.first_name} — thanks for working with V&A Hire!
             </p>
           </div>
 

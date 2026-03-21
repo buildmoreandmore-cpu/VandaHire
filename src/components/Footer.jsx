@@ -29,7 +29,7 @@ export default function Footer() {
             <button onClick={() => navigate('/privacy')} className="hover:text-[#666] transition-colors">Privacy Policy</button>
             <button onClick={() => navigate('/terms')} className="hover:text-[#666] transition-colors">Terms of Service</button>
           </div>
-          <p>© 2026 Vanda Hire</p>
+          <p>© 2026 V&A Hire</p>
         </div>
       </div>
     </footer>

@@ -2,13 +2,29 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "crons": [
+    { "path": "/api/cron?job=all", "schedule": "0 8 * * *" }
+  ],
   "rewrites": [
     { "source": "/api/admin/:action*", "destination": "/api/admin?action=:action*" },
     { "source": "/api/events/submit", "destination": "/api/event-submit" },
     { "source": "/api/stripe/create-checkout", "destination": "/api/stripe?action=checkout" },
     { "source": "/api/stripe/webhook", "destination": "/api/stripe?action=webhook" },
+    { "source": "/api/stripe/deposit", "destination": "/api/stripe?action=deposit" },
+    { "source": "/api/stripe/balance", "destination": "/api/stripe?action=balance" },
     { "source": "/api/checkin", "destination": "/api/worker?route=checkin" },
     { "source": "/api/incidents", "destination": "/api/worker?route=incidents" },
+    { "source": "/api/release", "destination": "/api/worker?route=release" },
+    { "source": "/api/exit-reply", "destination": "/api/worker?route=exit-reply" },
+    { "source": "/api/verify-video", "destination": "/api/worker?route=verify-video" },
+    { "source": "/api/geofence-check", "destination": "/api/worker?route=geofence-check" },
+    { "source": "/api/accept-quote", "destination": "/api/worker?route=accept-quote" },
+    { "source": "/api/connect-onboard", "destination": "/api/worker?route=connect-onboard" },
+    { "source": "/api/connect-dashboard", "destination": "/api/worker?route=connect-dashboard" },
+    { "source": "/api/my-earnings", "destination": "/api/worker?route=my-earnings" },
+    { "source": "/api/client-survey", "destination": "/api/worker?route=client-survey" },
+    { "source": "/api/my-crew-status", "destination": "/api/worker?route=my-crew-status" },
+    { "source": "/api/w9", "destination": "/api/worker?route=w9" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }
   ]

@@ -23,8 +23,8 @@ const SERVICE_TIERS = [
   {
     value: 'managed_labor',
     label: 'Managed Labor',
-    desc: 'We provide workers + a Vanda supervisor. You focus on your event.',
-    features: ['On-site Vanda supervisor', 'Live crew tracking', 'Incident reporting', 'Post-event report'],
+    desc: 'We provide workers + a V&A Hire supervisor. You focus on your event.',
+    features: ['On-site V&A Hire supervisor', 'Live crew tracking', 'Incident reporting', 'Post-event report'],
   },
 ]
 
@@ -48,8 +48,10 @@ export default function EventRequestForm({ onSuccess }) {
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [touched, setTouched] = useState({})
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const markTouched = (field) => () => setTouched(prev => ({ ...prev, [field]: true }))
   const setBool = (field) => (val) => setForm(prev => ({ ...prev, [field]: val }))
 
   const toggleRole = (role) => {
@@ -83,8 +85,18 @@ export default function EventRequestForm({ onSuccess }) {
     setForm(prev => ({ ...prev, briefing_slots: prev.briefing_slots.filter((_, i) => i !== idx) }))
   }
 
+  const REQUIRED_FIELDS = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'event_date', 'start_time', 'end_time', 'location', 'city', 'workers_needed']
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setAttempted(true)
+
+    const missing = REQUIRED_FIELDS.filter(f => isEmpty(f))
+    if (missing.length > 0) {
+      setError('Please fill in all required fields.')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -114,7 +126,13 @@ export default function EventRequestForm({ onSuccess }) {
     }
   }
 
+  const [attempted, setAttempted] = useState(false)
+
+  const isEmpty = (field) => !form[field] || (typeof form[field] === 'string' && !form[field].trim())
+  const showError = (field) => (attempted || touched[field]) && isEmpty(field)
+
   const inputCls = 'w-full bg-p-surface border border-p-border rounded-lg px-4 py-3 text-white text-sm placeholder-p-muted focus:outline-none focus:border-p-green transition-colors'
+  const errorCls = 'w-full bg-p-surface border border-red-500 rounded-lg px-4 py-3 text-white text-sm placeholder-p-muted focus:outline-none focus:border-red-400 transition-colors'
   const isCustomService = form.service_type === 'ongoing' || form.service_type === 'direct_hire'
 
   return (
@@ -163,8 +181,8 @@ export default function EventRequestForm({ onSuccess }) {
             ))}
           </div>
           {form.service_tier === 'managed_labor' && (
-            <div className="bg-[#3ecf8e]/5 border border-[#3ecf8e]/20 rounded-lg px-4 py-3 text-[#3ecf8e] text-xs leading-relaxed">
-              A Vanda supervisor will be assigned to your event. They'll manage the crew on the ground — check-in, task assignments, incident handling, and client communication. You get a single point of contact and a post-event report.
+            <div className="bg-[#16a34a]/5 border border-[#16a34a]/20 rounded-lg px-4 py-3 text-[#16a34a] text-xs leading-relaxed">
+              A V&A Hire supervisor will be assigned to your event. They'll manage the crew on the ground — check-in, task assignments, incident handling, and client communication. You get a single point of contact and a post-event report.
             </div>
           )}
         </Section>
@@ -199,29 +217,46 @@ export default function EventRequestForm({ onSuccess }) {
 
         {/* Event Info */}
         <Section title="Event Details">
-          <input className={inputCls} placeholder="Event Title *" value={form.title} onChange={set('title')} required />
-          <input className={inputCls} placeholder="Organizer / Company *" value={form.organizer} onChange={set('organizer')} required />
+          <FieldLabel label="Event Title" required error={showError('title')} />
+          <input className={showError('title') ? errorCls : inputCls} placeholder="Event Title" value={form.title} onChange={set('title')} onBlur={markTouched('title')} required />
+          <FieldLabel label="Organizer / Company" required error={showError('organizer')} />
+          <input className={showError('organizer') ? errorCls : inputCls} placeholder="Organizer / Company" value={form.organizer} onChange={set('organizer')} onBlur={markTouched('organizer')} required />
           <div className="grid grid-cols-2 gap-3">
-            <input className={inputCls} type="date" value={form.event_date} onChange={set('event_date')} required />
+            <div>
+              <FieldLabel label="Event Date" required error={showError('event_date')} />
+              <input className={showError('event_date') ? errorCls : inputCls} type="date" value={form.event_date} onChange={set('event_date')} onBlur={markTouched('event_date')} required />
+            </div>
             <div className="grid grid-cols-2 gap-2">
-              <input className={inputCls} type="time" value={form.start_time} onChange={set('start_time')} required />
-              <input className={inputCls} type="time" value={form.end_time} onChange={set('end_time')} required />
+              <div>
+                <FieldLabel label="Start" required error={showError('start_time')} />
+                <input className={showError('start_time') ? errorCls : inputCls} type="time" value={form.start_time} onChange={set('start_time')} onBlur={markTouched('start_time')} required />
+              </div>
+              <div>
+                <FieldLabel label="End" required error={showError('end_time')} />
+                <input className={showError('end_time') ? errorCls : inputCls} type="time" value={form.end_time} onChange={set('end_time')} onBlur={markTouched('end_time')} required />
+              </div>
             </div>
           </div>
-          <input className={inputCls} placeholder="Venue / Address *" value={form.location} onChange={set('location')} required />
-          <input className={inputCls} placeholder="City *" value={form.city} onChange={set('city')} required />
+          <FieldLabel label="Venue / Address" required error={showError('location')} />
+          <input className={showError('location') ? errorCls : inputCls} placeholder="Venue / Address" value={form.location} onChange={set('location')} onBlur={markTouched('location')} required />
+          <FieldLabel label="City" required error={showError('city')} />
+          <input className={showError('city') ? errorCls : inputCls} placeholder="City" value={form.city} onChange={set('city')} onBlur={markTouched('city')} required />
         </Section>
 
         {/* Contact */}
         <Section title="Contact Info">
-          <input className={inputCls} placeholder="Your Name *" value={form.contact_name} onChange={set('contact_name')} required />
-          <input className={inputCls} type="email" placeholder="Email *" value={form.contact_email} onChange={set('contact_email')} required />
+          <FieldLabel label="Your Name" required error={showError('contact_name')} />
+          <input className={showError('contact_name') ? errorCls : inputCls} placeholder="Your Name" value={form.contact_name} onChange={set('contact_name')} onBlur={markTouched('contact_name')} required />
+          <FieldLabel label="Email" required error={showError('contact_email')} />
+          <input className={showError('contact_email') ? errorCls : inputCls} type="email" placeholder="Email" value={form.contact_email} onChange={set('contact_email')} onBlur={markTouched('contact_email')} required />
+          <FieldLabel label="Phone" required error={showError('contact_phone')} />
           <input
-            className={inputCls}
+            className={showError('contact_phone') ? errorCls : inputCls}
             type="tel"
-            placeholder="Phone *"
+            placeholder="Phone"
             value={form.contact_phone}
             onChange={(e) => setForm({ ...form, contact_phone: formatPhone(e.target.value) })}
+            onBlur={markTouched('contact_phone')}
             required
           />
         </Section>
@@ -229,14 +264,15 @@ export default function EventRequestForm({ onSuccess }) {
         {/* Staffing Needs */}
         <Section title="Staffing Needs">
           <div>
-            <label className="text-p-muted text-xs mb-2 block">Workers Needed *</label>
+            <FieldLabel label="Workers Needed" required error={showError('workers_needed')} />
             <input
-              className={inputCls}
+              className={showError('workers_needed') ? errorCls : inputCls}
               type="number"
               min="1"
               placeholder="Number of workers"
               value={form.workers_needed}
               onChange={set('workers_needed')}
+              onBlur={markTouched('workers_needed')}
               required
             />
           </div>
@@ -290,7 +326,7 @@ export default function EventRequestForm({ onSuccess }) {
           )}
           {form.service_tier === 'managed_labor' && (
             <div className="bg-p-surface border border-p-border rounded-lg px-4 py-3 text-p-muted text-xs">
-              A Vanda supervisor will be assigned after you submit. They'll arrive 30 min before your crew, manage check-in, and be your single point of contact on site.
+              A V&A Hire supervisor will be assigned after you submit. They'll arrive 30 min before your crew, manage check-in, and be your single point of contact on site.
             </div>
           )}
         </Section>
@@ -426,5 +462,13 @@ function Section({ title, children }) {
       <h3 className="text-white font-semibold text-sm tracking-wide">{title}</h3>
       {children}
     </div>
+  )
+}
+
+function FieldLabel({ label, required, error }) {
+  return (
+    <label className={`text-xs mb-1 block ${error ? 'text-red-400' : 'text-p-muted'}`}>
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
   )
 }

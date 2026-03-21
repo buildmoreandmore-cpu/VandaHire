@@ -1,0 +1,1106 @@
+import { createClient } from '@supabase/supabase-js'
+import { sendEmail } from '../_lib/email.js'
+
+// Single cron function — dispatches by ?job= parameter
+// Vercel cron hits: /api/cron?job=shift-reminders, /api/cron?job=balance-reminders, etc.
+
+function supabaseClient() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
+function formatDate(d) {
+  return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''
+}
+
+function formatTime(t) {
+  if (!t) return ''
+  const [h, m] = t.split(':')
+  const hour = parseInt(h, 10)
+  return `${hour % 12 || 12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+// ─── SHIFT REMINDERS ─────────────────────────────────────────────────────────
+// Sends email reminders to confirmed workers 48hrs and 24hrs before their shift
+
+async function shiftReminders(supabase) {
+  const now = new Date()
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  // Get assignments for events happening in next 24-48 hours
+  const { data: assignments, error } = await supabase
+    .from('assignments')
+    .select('id, shift_sent_at, status, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point )')
+    .in('status', ['confirmed', 'invited'])
+    .is('check_in_time', null)
+
+  if (error) throw error
+  if (!assignments?.length) return { sent: 0, message: 'No upcoming assignments found' }
+
+  let sent = 0
+  for (const a of assignments) {
+    const event = a.events
+    const worker = a.applicants
+    if (!event?.event_date || !worker?.email) continue
+
+    const eventDate = event.event_date
+    const isIn24h = eventDate === in24h
+    const isIn48h = eventDate === in48h
+
+    if (!isIn24h && !isIn48h) continue
+
+    // Skip if we already sent a reminder today (using shift_sent_at as last-contact tracker)
+    // We'll track reminder sends via a simple approach — always send, workers won't mind 2 reminders max
+    const urgency = isIn24h ? 'TOMORROW' : 'in 2 days'
+    const subject = isIn24h
+      ? `Reminder: Your shift is TOMORROW — ${event.title}`
+      : `Upcoming Shift Reminder — ${event.title}`
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+        <h2 style="color:#16a34a">Shift Reminder — ${event.title}</h2>
+        <p>Hi ${worker.first_name},</p>
+        <p>Your shift is <strong>${urgency}</strong>!</p>
+        <table style="width:100%;border-collapse:collapse;margin:15px 0">
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;width:120px">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
+          ${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}
+        </table>
+        <p>Please arrive 10 minutes early. If you can no longer make it, let us know ASAP.</p>
+        <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+      </div>`
+
+    try {
+      await sendEmail({ to: worker.email, subject, html })
+      sent++
+    } catch (e) {
+      console.error(`[cron/shift-reminders] Email failed for assignment ${a.id}:`, e.message)
+    }
+  }
+
+  return { sent, message: `Sent ${sent} shift reminder(s)` }
+}
+
+// ─── BALANCE REMINDERS ───────────────────────────────────────────────────────
+// Sends email reminders when balance is due (Net 15) — 5 days before, 2 days before, overdue
+
+async function balanceReminders(supabase) {
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Get events with unpaid balance
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status, event_date')
+    .eq('deposit_status', 'paid')
+    .neq('payment_status', 'paid')
+    .not('balance_due_date', 'is', null)
+    .not('balance_amount', 'is', null)
+
+  if (error) throw error
+  if (!events?.length) return { sent: 0, message: 'No balance reminders needed' }
+
+  const siteUrl = 'https://vandahire.com'
+  let sent = 0
+
+  for (const event of events) {
+    if (!event.contact_email || !event.balance_due_date) continue
+
+    const dueDate = new Date(event.balance_due_date + 'T00:00:00')
+    const todayDate = new Date(today + 'T00:00:00')
+    const daysUntilDue = Math.floor((dueDate - todayDate) / 86400000)
+
+    let subject, urgencyMsg
+    if (daysUntilDue === 5) {
+      subject = `Balance Due in 5 Days — ${event.title}`
+      urgencyMsg = 'Your balance payment is due in <strong>5 days</strong>.'
+    } else if (daysUntilDue === 2) {
+      subject = `Balance Due in 2 Days — ${event.title}`
+      urgencyMsg = 'Your balance payment is due in <strong>2 days</strong>. Please make your payment soon to avoid any service disruptions.'
+    } else if (daysUntilDue === 0) {
+      subject = `Balance Due TODAY — ${event.title}`
+      urgencyMsg = 'Your balance payment is <strong>due today</strong>. Please pay immediately.'
+    } else if (daysUntilDue === -1) {
+      subject = `OVERDUE: Balance Payment — ${event.title}`
+      urgencyMsg = 'Your balance payment is <strong>overdue</strong>. Please pay immediately to avoid late fees.'
+    } else if (daysUntilDue === -7) {
+      subject = `FINAL NOTICE: Overdue Balance — ${event.title}`
+      urgencyMsg = 'Your balance payment is <strong>7 days overdue</strong>. This is your final notice before escalation.'
+    } else {
+      continue // Not a reminder day
+    }
+
+    // Auto-mark as overdue
+    if (daysUntilDue < 0) {
+      await supabase.from('events').update({
+        invoice_status: 'overdue',
+        updated_at: new Date().toISOString(),
+      }).eq('id', event.id)
+    }
+
+    const balance = parseFloat(event.balance_amount) || 0
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+        <h2 style="color:#16a34a">Balance Payment ${daysUntilDue < 0 ? '— OVERDUE' : 'Reminder'}</h2>
+        <p>Hi ${event.contact_name || 'there'},</p>
+        <p>${urgencyMsg}</p>
+        <table style="width:100%;border-collapse:collapse;margin:15px 0">
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Event</td><td style="padding:8px;border-bottom:1px solid #eee">${event.title}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Balance Due</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:18px;color:#e94560"><strong>$${balance.toFixed(2)}</strong></td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Due Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.balance_due_date)}</td></tr>
+        </table>
+        <p>To make your payment, please contact us or use the payment link provided by your coordinator.</p>
+        <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+      </div>`
+
+    try {
+      await sendEmail({ to: event.contact_email, subject, html })
+      sent++
+    } catch (e) {
+      console.error(`[cron/balance-reminders] Email failed for event ${event.id}:`, e.message)
+    }
+  }
+
+  return { sent, message: `Sent ${sent} balance reminder(s)` }
+}
+
+// ─── POST-EVENT AUTOMATION ───────────────────────────────────────────────────
+// Auto-send surveys, auto-approve payouts for clean exits
+
+async function postEvent(supabase) {
+  const now = new Date()
+  // Look for events that ended today or yesterday (event_date is in the past, within 2 days)
+  const twoDaysAgo = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10)
+  const today = now.toISOString().slice(0, 10)
+
+  const { data: events, error: evErr } = await supabase
+    .from('events')
+    .select('id, title, event_date, end_time, status')
+    .in('status', ['confirmed', 'staffing'])
+    .gte('event_date', twoDaysAgo)
+    .lte('event_date', today)
+
+  if (evErr) throw evErr
+  if (!events?.length) return { surveys_sent: 0, payouts_approved: 0 }
+
+  let surveysSent = 0
+  let payoutsApproved = 0
+
+  for (const event of events) {
+    // Check if event has ended (compare end_time with current time)
+    if (event.event_date === today && event.end_time) {
+      const [h, m] = event.end_time.split(':')
+      const endTime = new Date(today + 'T00:00:00')
+      endTime.setHours(parseInt(h), parseInt(m))
+      // Add 1 hour buffer after event ends
+      if (now < new Date(endTime.getTime() + 60 * 60 * 1000)) continue
+    }
+
+    // Get completed assignments without surveys sent
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id, worker_id, event_id, status, payout_amount, payout_status, survey_sent_at, applicants ( first_name, email, phone ), events ( title )')
+      .eq('event_id', event.id)
+      .in('status', ['completed', 'checked_in'])
+
+    for (const a of (assignments || [])) {
+      // Auto-send survey if not sent yet
+      if (!a.survey_sent_at && a.applicants?.email) {
+        // Create survey record
+        const { data: survey } = await supabase.from('surveys')
+          .upsert({ assignment_id: a.id, event_id: a.event_id, worker_id: a.worker_id }, { onConflict: 'assignment_id' })
+          .select('token')
+          .single()
+
+        if (survey) {
+          const surveyUrl = `https://vandahire.com/survey/${survey.token}`
+          try {
+            await sendEmail({
+              to: a.applicants.email,
+              subject: `How was your shift? — ${event.title}`,
+              html: `
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                  <h2>Thanks for working ${event.title}!</h2>
+                  <p>Hi ${a.applicants.first_name},</p>
+                  <p>We'd love to hear about your experience. It takes less than 2 minutes.</p>
+                  <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Your Survey</a></p>
+                  <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+                </div>`,
+            })
+            await supabase.from('assignments').update({ survey_sent_at: new Date().toISOString() }).eq('id', a.id)
+            surveysSent++
+          } catch (e) {
+            console.error(`[cron/post-event] Survey email failed for ${a.id}:`, e.message)
+          }
+        }
+      }
+
+      // Auto-approve payouts for clean exits (no disputes)
+      if (a.payout_amount > 0 && a.payout_status === 'pending') {
+        // Check if there's a disputed exit record
+        const { data: exitRecord } = await supabase
+          .from('exit_records')
+          .select('disputed')
+          .eq('assignment_id', a.id)
+          .single()
+
+        if (!exitRecord?.disputed) {
+          await supabase.from('assignments').update({
+            payout_status: 'approved',
+            updated_at: new Date().toISOString(),
+          }).eq('id', a.id)
+          payoutsApproved++
+        }
+      }
+    }
+
+    // Mark event as completed if all assignments are done
+    const { data: remaining } = await supabase
+      .from('assignments')
+      .select('id')
+      .eq('event_id', event.id)
+      .in('status', ['invited', 'confirmed', 'checked_in'])
+
+    if (!remaining?.length) {
+      await supabase.from('events').update({
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+      }).eq('id', event.id)
+    }
+  }
+
+  return { surveys_sent: surveysSent, payouts_approved: payoutsApproved }
+}
+
+// ─── AUTO-STAFFING ───────────────────────────────────────────────────────────
+// Auto-assign top-scored workers when event moves to staffing and has no assignments yet
+// Also auto-sends shift details to newly confirmed workers
+
+async function autoStaffing(supabase) {
+  // Find events in "staffing" status with fewer assignments than workers_needed
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, city, role_types, event_date, start_time, end_time, workers_needed, pay_rate, location, meeting_point, supervisor_name, supervisor_phone, dress_code')
+    .eq('status', 'staffing')
+    .gte('event_date', new Date().toISOString().slice(0, 10))
+
+  if (error) throw error
+  if (!events?.length) return { events_processed: 0, auto_assigned: 0, shifts_sent: 0 }
+
+  let autoAssigned = 0
+  let shiftsSent = 0
+
+  for (const event of events) {
+    // Count current assignments
+    const { data: currentAssignments } = await supabase
+      .from('assignments')
+      .select('id, status, worker_id, shift_sent_at, applicants ( first_name, email, phone )')
+      .eq('event_id', event.id)
+      .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
+
+    const assignedCount = (currentAssignments || []).length
+    const needed = event.workers_needed || 0
+
+    if (assignedCount < needed) {
+      // Need more workers — auto-suggest and assign
+      const assignedIds = new Set((currentAssignments || []).map(a => a.worker_id))
+
+      // Also exclude bench workers
+      const { data: benchWorkers } = await supabase
+        .from('bench_assignments')
+        .select('worker_id')
+        .eq('event_id', event.id)
+      const benchIds = new Set((benchWorkers || []).map(b => b.worker_id))
+
+      const { data: workers } = await supabase
+        .from('applicants')
+        .select('id, first_name, last_name, city, roles, availability, has_transportation, short_notice, score_breakdown, email, phone')
+        .eq('status', 'approved')
+
+      const eventDay = new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+      const eventRoles = (event.role_types || []).map(r => r.toLowerCase())
+
+      const scored = (workers || [])
+        .filter(w => !assignedIds.has(w.id) && !benchIds.has(w.id))
+        .map(w => {
+          let score = 0
+          if (w.city && event.city && w.city.toLowerCase().includes(event.city.toLowerCase())) score += 30
+          const workerRoles = (w.roles || []).map(r => r.toLowerCase())
+          const roleOverlap = eventRoles.filter(r => workerRoles.some(wr => wr.includes(r) || r.includes(wr))).length
+          score += roleOverlap * 15
+          const avail = (w.availability || []).map(a => a.toLowerCase())
+          if (avail.some(a => a.includes(eventDay) || a === 'any' || a === 'flexible')) score += 10
+          if (w.has_transportation === 'Yes') score += 10
+          if (w.short_notice === 'Yes') score += 5
+          if (w.score_breakdown?.decision === 'qualified') score += 10
+          return { ...w, match_score: score }
+        })
+        .filter(w => w.match_score >= 30) // Only assign workers with decent match score
+        .sort((a, b) => b.match_score - a.match_score)
+        .slice(0, needed - assignedCount)
+
+      // Create assignments for top matches
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+      for (const w of scored) {
+        let token = ''
+        for (let i = 0; i < 24; i++) token += chars[Math.floor(Math.random() * chars.length)]
+
+        const { error: insertErr } = await supabase.from('assignments').insert({
+          event_id: event.id,
+          worker_id: w.id,
+          status: 'invited',
+          confirmation_token: token,
+        })
+        if (!insertErr) {
+          autoAssigned++
+          // Send shift invitation email
+          if (w.email) {
+            const confirmUrl = `https://vandahire.com/confirm/${token}`
+            try {
+              await sendEmail({
+                to: w.email,
+                subject: `New Shift Available — ${event.title}`,
+                html: `
+                  <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                    <h2 style="color:#16a34a">You've Been Matched to a Shift!</h2>
+                    <p>Hi ${w.first_name},</p>
+                    <p>We have a shift that matches your profile:</p>
+                    <table style="width:100%;border-collapse:collapse;margin:15px 0">
+                      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Event</td><td style="padding:8px;border-bottom:1px solid #eee">${event.title}</td></tr>
+                      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr>
+                      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
+                      <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
+                      ${event.pay_rate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Pay</td><td style="padding:8px;border-bottom:1px solid #eee">${event.pay_rate}</td></tr>` : ''}
+                    </table>
+                    <p style="text-align:center;margin:20px 0"><a href="${confirmUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Confirm This Shift</a></p>
+                    <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+                  </div>`,
+              })
+            } catch (e) {
+              console.error(`[cron/auto-staffing] Invite email failed for ${w.id}:`, e.message)
+            }
+          }
+        }
+      }
+    }
+
+    // Auto-send shift details to confirmed workers who haven't received them yet
+    for (const a of (currentAssignments || [])) {
+      if (a.status === 'confirmed' && !a.shift_sent_at && a.applicants?.email) {
+        try {
+          await sendEmail({
+            to: a.applicants.email,
+            subject: `Your Shift Details — ${event.title}`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                <h2>Your Shift Details — ${event.title}</h2>
+                <p>Hi ${a.applicants.first_name},</p>
+                <p>Here are your confirmed shift details:</p>
+                <table style="width:100%;border-collapse:collapse;margin:15px 0">
+                  <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr>
+                  <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
+                  <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>
+                  ${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}
+                  ${event.supervisor_name ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Supervisor</td><td style="padding:8px;border-bottom:1px solid #eee">${event.supervisor_name}${event.supervisor_phone ? ` • ${event.supervisor_phone}` : ''}</td></tr>` : ''}
+                  ${event.pay_rate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Pay</td><td style="padding:8px;border-bottom:1px solid #eee">${event.pay_rate}</td></tr>` : ''}
+                  ${event.dress_code ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Dress Code</td><td style="padding:8px;border-bottom:1px solid #eee">${event.dress_code}</td></tr>` : ''}
+                </table>
+                <p>Please arrive 10 minutes early.</p>
+                <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              </div>`,
+          })
+          await supabase.from('assignments').update({ shift_sent_at: new Date().toISOString() }).eq('id', a.id)
+          shiftsSent++
+        } catch (e) {
+          console.error(`[cron/auto-staffing] Shift details email failed for ${a.id}:`, e.message)
+        }
+      }
+    }
+  }
+
+  return { events_processed: events.length, auto_assigned: autoAssigned, shifts_sent: shiftsSent }
+}
+
+// ─── AUTO-REVIEW TIMEOUT ─────────────────────────────────────────────────────
+// Auto-decide needs_review applicants after 3 days
+
+async function autoReviewTimeout(supabase) {
+  const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString()
+
+  const { data: staleApplicants, error } = await supabase
+    .from('applicants')
+    .select('id, first_name, email, score_breakdown, created_at')
+    .eq('status', 'needs_review')
+    .lt('created_at', threeDaysAgo)
+
+  if (error) throw error
+  if (!staleApplicants?.length) return { processed: 0 }
+
+  let approved = 0, rejected = 0
+  for (const applicant of staleApplicants) {
+    // Auto-approve if AI score was borderline (score exists), auto-reject if no score
+    const hasScore = applicant.score_breakdown && Object.keys(applicant.score_breakdown).length > 0
+    const newStatus = hasScore ? 'approved' : 'rejected'
+
+    await supabase.from('applicants').update({
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    }).eq('id', applicant.id)
+
+    if (newStatus === 'approved') {
+      approved++
+      if (applicant.email) {
+        try {
+          await sendEmail({
+            to: applicant.email,
+            subject: 'You\'re Approved! Complete Your Verification — V&A Hire',
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2 style="color:#16a34a">Welcome to V&A Hire, ${applicant.first_name}!</h2>
+              <p>Your application has been approved! Complete your verification video to start claiming shifts:</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/verify" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></p>
+              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        } catch (e) { console.error(`[cron/auto-review] Email failed:`, e.message) }
+      }
+    } else {
+      rejected++
+      if (applicant.email) {
+        try {
+          await sendEmail({
+            to: applicant.email,
+            subject: 'Your V&A Hire Application',
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2>Thanks for applying, ${applicant.first_name}.</h2>
+              <p>We've reviewed your application and unfortunately we're not a fit at this time.</p>
+              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        } catch (e) { console.error(`[cron/auto-review] Email failed:`, e.message) }
+      }
+    }
+  }
+
+  return { processed: staleApplicants.length, approved, rejected }
+}
+
+// ─── SURVEY FOLLOW-UP ────────────────────────────────────────────────────────
+// Re-send survey to workers who haven't completed it after 24 hours
+
+async function surveyFollowUp(supabase) {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: pendingSurveys, error } = await supabase
+    .from('surveys')
+    .select('id, token, assignment_id, worker_id, event_id, submitted_at, applicants ( first_name, email ), events ( title )')
+    .is('submitted_at', null)
+    .lt('created_at', oneDayAgo)
+
+  if (error) throw error
+  if (!pendingSurveys?.length) return { sent: 0 }
+
+  let sent = 0
+  for (const survey of pendingSurveys) {
+    if (!survey.applicants?.email) continue
+    const surveyUrl = `https://vandahire.com/survey/${survey.token}`
+    try {
+      await sendEmail({
+        to: survey.applicants.email,
+        subject: `Reminder: Share your feedback — ${survey.events?.title || 'Recent Shift'}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+          <h2>We'd still love your feedback!</h2>
+          <p>Hi ${survey.applicants.first_name},</p>
+          <p>You haven't completed your survey for <strong>${survey.events?.title || 'your recent shift'}</strong> yet. It only takes 2 minutes:</p>
+          <p style="text-align:center;margin:20px 0"><a href="${surveyUrl}" style="background:#16a34a;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Complete Survey</a></p>
+          <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+        </div>`,
+      })
+      sent++
+    } catch (e) { console.error(`[cron/survey-followup] Email failed:`, e.message) }
+  }
+
+  return { sent }
+}
+
+// ─── AUTO BALANCE LINK ───────────────────────────────────────────────────────
+// Auto-generate and send Stripe balance payment link when balance is approaching due
+
+async function autoBalanceLink(supabase) {
+  const today = new Date().toISOString().slice(0, 10)
+  const fiveDaysOut = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10)
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status')
+    .eq('deposit_status', 'paid')
+    .neq('payment_status', 'paid')
+    .not('balance_due_date', 'is', null)
+    .lte('balance_due_date', fiveDaysOut)
+
+  if (error) throw error
+  if (!events?.length) return { sent: 0 }
+
+  let sent = 0
+  for (const event of events) {
+    if (!event.contact_email) continue
+
+    // Check if we already have a pending balance payment with a checkout URL
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('stripe_checkout_url')
+      .eq('event_id', event.id)
+      .eq('payment_type', 'balance')
+      .single()
+
+    if (existingPayment?.stripe_checkout_url) {
+      // Already has a link, include it in reminder
+      const balance = parseFloat(event.balance_amount) || 0
+      try {
+        await sendEmail({
+          to: event.contact_email,
+          subject: `Pay Your Balance — ${event.title}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+            <h2>Balance Payment Due</h2>
+            <p>Hi ${event.contact_name || 'there'},</p>
+            <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is due by ${formatDate(event.balance_due_date)}.</p>
+            <p style="text-align:center;margin:20px 0"><a href="${existingPayment.stripe_checkout_url}" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance Now</a></p>
+            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+          </div>`,
+        })
+        sent++
+      } catch (e) { console.error(`[cron/auto-balance-link] Email failed:`, e.message) }
+    }
+  }
+
+  return { sent }
+}
+
+// ─── LATE FEES ───────────────────────────────────────────────────────────────
+// Auto-assess late fees on overdue balances (2% per week overdue, capped at 10%)
+
+async function lateFees(supabase) {
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { data: overdueEvents, error } = await supabase
+    .from('events')
+    .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, payment_status, invoice_status')
+    .eq('deposit_status', 'paid')
+    .neq('payment_status', 'paid')
+    .not('balance_due_date', 'is', null)
+    .lt('balance_due_date', today)
+
+  if (error) throw error
+  if (!overdueEvents?.length) return { assessed: 0 }
+
+  let assessed = 0
+  for (const event of overdueEvents) {
+    const dueDate = new Date(event.balance_due_date + 'T00:00:00')
+    const todayDate = new Date(today + 'T00:00:00')
+    const daysOverdue = Math.floor((todayDate - dueDate) / 86400000)
+    const weeksOverdue = Math.floor(daysOverdue / 7)
+
+    if (weeksOverdue < 1) continue // No late fee in first week
+
+    const balance = parseFloat(event.balance_amount) || 0
+    const lateFeeRate = Math.min(weeksOverdue * 0.02, 0.10) // 2% per week, max 10%
+    const lateFeeAmount = Math.round(balance * lateFeeRate * 100) / 100
+
+    // Update event with overdue status
+    await supabase.from('events').update({
+      invoice_status: 'overdue',
+      updated_at: new Date().toISOString(),
+    }).eq('id', event.id)
+
+    // Only send late fee notice on week boundaries (7, 14, 21, 28 days)
+    if (daysOverdue % 7 === 0 && event.contact_email) {
+      try {
+        await sendEmail({
+          to: event.contact_email,
+          subject: `OVERDUE: Late Fee Notice — ${event.title}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+            <h2 style="color:#e94560">Late Fee Notice</h2>
+            <p>Hi ${event.contact_name || 'there'},</p>
+            <p>Your balance for <strong>${event.title}</strong> is now <strong>${daysOverdue} days overdue</strong>.</p>
+            <table style="width:100%;border-collapse:collapse;margin:15px 0">
+              <tr><td style="padding:8px;border-bottom:1px solid #eee">Original Balance</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">$${balance.toFixed(2)}</td></tr>
+              <tr><td style="padding:8px;border-bottom:1px solid #eee">Late Fee (${Math.round(lateFeeRate * 100)}%)</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:#e94560">$${lateFeeAmount.toFixed(2)}</td></tr>
+              <tr style="font-weight:bold"><td style="padding:10px">Total Due</td><td style="padding:10px;text-align:right">$${(balance + lateFeeAmount).toFixed(2)}</td></tr>
+            </table>
+            <p>Please pay immediately to avoid further fees. Late fees are assessed at 2% per week, capped at 10%.</p>
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+          </div>`,
+        })
+      } catch (e) { console.error(`[cron/late-fees] Email failed:`, e.message) }
+    }
+
+    assessed++
+  }
+
+  return { assessed }
+}
+
+// ─── AUTO BENCH ASSIGNMENT ───────────────────────────────────────────────────
+// Auto-populate bench pool for upcoming events that don't have bench workers yet
+
+async function autoBenchAssignment(supabase) {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, city, role_types, workers_needed, event_date, start_time, end_time, bench_pool_size')
+    .in('status', ['staffing', 'confirmed'])
+    .gte('event_date', tomorrow)
+    .lte('event_date', nextWeek)
+
+  if (error) throw error
+  if (!events?.length) return { events_processed: 0, bench_added: 0 }
+
+  let benchAdded = 0
+  for (const event of events) {
+    // Check if bench already has workers
+    const { data: existingBench } = await supabase
+      .from('bench_assignments')
+      .select('id')
+      .eq('event_id', event.id)
+
+    const benchSize = event.bench_pool_size || Math.max(1, Math.ceil((event.workers_needed || 1) * 0.2))
+    if ((existingBench || []).length >= benchSize) continue
+
+    // Get assigned worker IDs to exclude
+    const { data: assignments } = await supabase.from('assignments').select('worker_id').eq('event_id', event.id)
+    const assignedIds = new Set([
+      ...((assignments || []).map(a => a.worker_id)),
+      ...((existingBench || []).map(b => b.worker_id)),
+    ])
+
+    // Find available workers in same city
+    const { data: workers } = await supabase
+      .from('applicants')
+      .select('id, city, roles, availability_windows')
+      .eq('status', 'approved')
+      .ilike('city', `%${event.city}%`)
+
+    const available = (workers || [])
+      .filter(w => !assignedIds.has(w.id))
+      .slice(0, benchSize - (existingBench || []).length)
+
+    for (const w of available) {
+      const { error: insertErr } = await supabase.from('bench_assignments').insert({
+        event_id: event.id,
+        worker_id: w.id,
+        tier: 1,
+        standby_fee: 25,
+        status: 'standby',
+      })
+      if (!insertErr) benchAdded++
+    }
+  }
+
+  return { events_processed: events.length, bench_added: benchAdded }
+}
+
+// ─── BRIEFING REMINDERS ──────────────────────────────────────────────────────
+// Send briefing reminders to workers with upcoming briefings
+
+async function briefingReminders(supabase) {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, briefing_required, briefing_date, briefing_time, briefing_location')
+    .eq('briefing_required', true)
+    .eq('briefing_date', tomorrow)
+
+  if (error) throw error
+  if (!events?.length) return { sent: 0 }
+
+  let sent = 0
+  for (const event of events) {
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id, applicants ( first_name, email )')
+      .eq('event_id', event.id)
+      .in('status', ['invited', 'confirmed'])
+
+    for (const a of (assignments || [])) {
+      if (!a.applicants?.email) continue
+      try {
+        await sendEmail({
+          to: a.applicants.email,
+          subject: `Briefing Tomorrow — ${event.title}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+            <h2>Briefing Reminder</h2>
+            <p>Hi ${a.applicants.first_name},</p>
+            <p>You have a <strong>mandatory briefing tomorrow</strong> for ${event.title}.</p>
+            ${event.briefing_time ? `<p><strong>Time:</strong> ${formatTime(event.briefing_time)}</p>` : ''}
+            ${event.briefing_location ? `<p><strong>Location:</strong> ${event.briefing_location}</p>` : ''}
+            <p>Please be on time. This briefing covers important event details.</p>
+            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+          </div>`,
+        })
+        sent++
+      } catch (e) { console.error(`[cron/briefing] Email failed:`, e.message) }
+    }
+  }
+
+  return { sent }
+}
+
+// ─── AUTO-CHARGE BALANCE ─────────────────────────────────────────────────
+// Auto-charge saved cards for Net 15 balance on or after the due date
+
+async function autoChargeBalance(supabase) {
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Find events where deposit is paid, balance is NOT paid, card is saved, and due date has arrived
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status, stripe_customer_id')
+    .eq('deposit_status', 'paid')
+    .neq('payment_status', 'paid')
+    .not('stripe_customer_id', 'is', null)
+    .not('balance_amount', 'is', null)
+    .lte('balance_due_date', today)
+
+  if (error) throw error
+  if (!events?.length) return { charged: 0, failed: 0, skipped: 0, message: 'No balances due for auto-charge' }
+
+  const Stripe = (await import('stripe')).default
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+
+  let charged = 0, failed = 0, skipped = 0
+
+  for (const event of events) {
+    const balance = parseFloat(event.balance_amount) || 0
+    if (balance <= 0) { skipped++; continue }
+
+    // Check if we already attempted a charge for this balance today
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id, status')
+      .eq('event_id', event.id)
+      .eq('payment_type', 'balance')
+      .in('status', ['succeeded', 'processing'])
+      .limit(1)
+      .single()
+
+    if (existingPayment) { skipped++; continue }
+
+    try {
+      // Get saved payment methods for this customer
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: event.stripe_customer_id,
+        type: 'card',
+      })
+
+      if (!paymentMethods.data.length) {
+        console.error(`[cron/auto-charge] No saved card for event ${event.id} customer ${event.stripe_customer_id}`)
+        // Send manual payment link instead
+        if (event.contact_email) {
+          await sendEmail({
+            to: event.contact_email,
+            subject: `Balance Due — ${event.title}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2>Balance Payment Due</h2>
+              <p>Hi ${event.contact_name || 'there'},</p>
+              <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is now due.</p>
+              <p>We were unable to charge your card on file. Please visit your event portal to make payment:</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        }
+        failed++
+        continue
+      }
+
+      const paymentMethod = paymentMethods.data[0]
+
+      // Create and confirm PaymentIntent off-session
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(balance * 100),
+        currency: 'usd',
+        customer: event.stripe_customer_id,
+        payment_method: paymentMethod.id,
+        off_session: true,
+        confirm: true,
+        description: `Balance — ${event.title}`,
+        metadata: { event_id: event.id, event_title: event.title, payment_type: 'balance' },
+      })
+
+      if (paymentIntent.status === 'succeeded') {
+        // Update event
+        await supabase.from('events').update({
+          payment_status: 'paid',
+          invoice_status: 'paid',
+          updated_at: new Date().toISOString(),
+        }).eq('id', event.id)
+
+        // Record payment
+        await supabase.from('payments').insert({
+          event_id: event.id,
+          payment_type: 'balance',
+          amount: balance,
+          stripe_payment_intent_id: paymentIntent.id,
+          status: 'succeeded',
+          paid_at: new Date().toISOString(),
+        })
+
+        // Send receipt
+        if (event.contact_email) {
+          try {
+            await sendEmail({
+              to: event.contact_email,
+              subject: `Balance Charged — Receipt for ${event.title}`,
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                <h2 style="color:#16a34a">Balance Payment Processed</h2>
+                <p>Hi ${event.contact_name || 'there'},</p>
+                <p>Per the service agreement you signed, we've charged your card on file for the remaining balance on <strong>${event.title}</strong>.</p>
+                <table style="width:100%;border-collapse:collapse;margin:15px 0">
+                  <tr><td style="padding:10px;border-bottom:1px solid #eee">Balance Charged</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right;font-size:18px;font-weight:bold">$${balance.toFixed(2)}</td></tr>
+                  <tr><td style="padding:10px;border-bottom:1px solid #eee">Card</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">•••• ${paymentMethod.card?.last4 || '****'}</td></tr>
+                </table>
+                <p>Thank you for working with V&A Hire!</p>
+                <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+              </div>`,
+            })
+          } catch (e) { console.error(`[cron/auto-charge] Receipt email failed:`, e.message) }
+        }
+
+        charged++
+      } else {
+        // Payment requires additional action (3D Secure, etc.) — fall back to manual
+        console.error(`[cron/auto-charge] PaymentIntent ${paymentIntent.id} status: ${paymentIntent.status}`)
+        await supabase.from('payments').insert({
+          event_id: event.id,
+          payment_type: 'balance',
+          amount: balance,
+          stripe_payment_intent_id: paymentIntent.id,
+          status: 'pending',
+        })
+
+        if (event.contact_email) {
+          await sendEmail({
+            to: event.contact_email,
+            subject: `Action Required: Balance Payment — ${event.title}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2>Balance Payment Requires Action</h2>
+              <p>Hi ${event.contact_name || 'there'},</p>
+              <p>We attempted to charge your card for the balance of <strong>$${balance.toFixed(2)}</strong> on ${event.title}, but your bank requires additional verification.</p>
+              <p>Please visit the organizer portal to complete payment:</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Complete Payment</a></p>
+              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        }
+        failed++
+      }
+    } catch (stripeErr) {
+      console.error(`[cron/auto-charge] Stripe error for event ${event.id}:`, stripeErr.message)
+
+      // Record failed attempt
+      await supabase.from('payments').insert({
+        event_id: event.id,
+        payment_type: 'balance',
+        amount: balance,
+        status: 'failed',
+      }).catch(() => {})
+
+      // Notify organizer of failed charge
+      if (event.contact_email) {
+        try {
+          await sendEmail({
+            to: event.contact_email,
+            subject: `Payment Failed: Balance Due — ${event.title}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2 style="color:#e94560">Payment Failed</h2>
+              <p>Hi ${event.contact_name || 'there'},</p>
+              <p>We were unable to charge your card on file for the balance of <strong>$${balance.toFixed(2)}</strong> on ${event.title}.</p>
+              <p>Please update your payment method or pay manually to avoid late fees:</p>
+              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        } catch (e) { console.error(`[cron/auto-charge] Failure email failed:`, e.message) }
+      }
+      failed++
+    }
+  }
+
+  return { charged, failed, skipped }
+}
+
+// ─── POST-EVENT INVOICE + CLIENT SURVEY ─────────────────────────────────────
+// Auto-sends invoice email with line items + client satisfaction survey after event ends
+
+async function postEventInvoice(supabase) {
+  const now = new Date()
+  const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10)
+  const today = now.toISOString().slice(0, 10)
+
+  // Find completed events that haven't had invoice sent yet
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, end_time, location, city, contact_email, contact_name, workers_needed, deposit_amount, balance_amount, total_bill_amount, payment_status, organizer_token, invoice_status')
+    .eq('status', 'completed')
+    .eq('invoice_status', 'not_sent')
+    .gte('event_date', yesterday)
+    .lte('event_date', today)
+
+  if (error) throw error
+  if (!events?.length) return { invoices_sent: 0, surveys_sent: 0 }
+
+  let invoicesSent = 0
+  let surveysSent = 0
+  const siteUrl = 'https://vandahire.com'
+
+  for (const event of events) {
+    if (!event.contact_email) continue
+
+    // Get assignment details for invoice line items
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id, hours_worked, pay_rate, payout_amount, applicants ( first_name, last_name )')
+      .eq('event_id', event.id)
+      .eq('status', 'completed')
+
+    const workers = (assignments || []).map(a => ({
+      name: `${a.applicants?.first_name || ''} ${a.applicants?.last_name || ''}`.trim(),
+      hours: parseFloat(a.hours_worked) || 0,
+    }))
+    const totalHours = workers.reduce((sum, w) => sum + w.hours, 0)
+
+    const deposit = parseFloat(event.deposit_amount) || 0
+    const balance = parseFloat(event.balance_amount) || 0
+    const total = parseFloat(event.total_bill_amount) || 0
+    const balancePaid = event.payment_status === 'paid'
+
+    const payUrl = event.organizer_token ? `${siteUrl}/pay/${event.organizer_token}` : `${siteUrl}/organizer`
+    const surveyUrl = event.organizer_token ? `${siteUrl}/pay/${event.organizer_token}?survey=true` : '#'
+
+    // Build worker line items HTML
+    const workerRows = workers.map(w =>
+      `<tr><td style="padding:6px 8px;border-bottom:1px solid #1e1e1e;color:#ccc">${w.name}</td><td style="padding:6px 8px;border-bottom:1px solid #1e1e1e;color:#ccc;text-align:right">${w.hours.toFixed(1)}h</td></tr>`
+    ).join('')
+
+    try {
+      await sendEmail({
+        to: event.contact_email,
+        subject: `Invoice — ${event.title}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#0a0a0a;color:#ffffff">
+          <h2 style="color:#16a34a;border-bottom:3px solid #16a34a;padding-bottom:10px;font-family:'Syne',sans-serif">Event Invoice</h2>
+          <p>Hi ${event.contact_name || 'there'},</p>
+          <p>Thank you for working with V&A Hire! Here's your post-event invoice for <strong>${event.title}</strong>.</p>
+
+          <table style="width:100%;border-collapse:collapse;margin:15px 0">
+            <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Event Date</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${formatDate(event.event_date)}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Time</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Location</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${event.location}, ${event.city}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Workers</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${workers.length} crew members</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #1e1e1e;color:#888">Total Hours</td><td style="padding:8px;border-bottom:1px solid #1e1e1e">${totalHours.toFixed(1)}h</td></tr>
+          </table>
+
+          ${workerRows ? `<h3 style="color:#16a34a;font-size:14px;margin:20px 0 8px">Crew Summary</h3>
+          <table style="width:100%;border-collapse:collapse">${workerRows}</table>` : ''}
+
+          <div style="background:#141414;border:1px solid #1e1e1e;border-radius:12px;padding:20px;margin:20px 0">
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:8px;color:#888">Deposit Paid</td><td style="padding:8px;text-align:right;color:#16a34a">$${deposit.toFixed(2)}</td></tr>
+              <tr><td style="padding:8px;color:#888">Balance ${balancePaid ? 'Paid' : 'Due'}</td><td style="padding:8px;text-align:right;${balancePaid ? 'color:#ffffff' : 'font-weight:bold;color:#fff'}">${balancePaid ? '' : ''}$${balance.toFixed(2)}</td></tr>
+              <tr style="font-size:18px;font-weight:bold"><td style="padding:10px;border-top:2px solid #16a34a">Total</td><td style="padding:10px;border-top:2px solid #16a34a;text-align:right;color:#16a34a">$${total.toFixed(2)}</td></tr>
+            </table>
+          </div>
+
+          ${!balancePaid ? `<p style="text-align:center;margin:20px 0"><a href="${payUrl}" style="background:#16a34a;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance — $${balance.toFixed(2)}</a></p>` : ''}
+
+          <div style="background:#141414;border:1px solid #1e1e1e;border-radius:12px;padding:16px;margin:20px 0;text-align:center">
+            <p style="margin:0 0 8px;color:#888;font-size:14px">How was your experience?</p>
+            <p style="margin:0"><a href="${surveyUrl}" style="color:#ffffff;font-weight:bold;text-decoration:none;font-size:16px">Share Your Feedback →</a></p>
+          </div>
+
+          <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
+        </div>`,
+      })
+
+      // Mark invoice as sent
+      await supabase.from('events').update({
+        invoice_status: 'sent',
+        updated_at: new Date().toISOString(),
+      }).eq('id', event.id)
+
+      invoicesSent++
+    } catch (e) {
+      console.error(`[cron/post-event-invoice] Email failed for event ${event.id}:`, e.message)
+    }
+  }
+
+  return { invoices_sent: invoicesSent }
+}
+
+// ─── DISPATCHER ──────────────────────────────────────────────────────────────
+
+export default async function handler(req, res) {
+  // Verify cron secret (Vercel sets CRON_SECRET automatically for cron jobs)
+  const authHeader = req.headers['authorization']
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const job = req.query.job || req.query.action
+  if (!job) return res.status(400).json({ error: 'job parameter required' })
+
+  const supabase = supabaseClient()
+
+  try {
+    switch (job) {
+      case 'shift-reminders':
+        return res.status(200).json(await shiftReminders(supabase))
+      case 'balance-reminders':
+        return res.status(200).json(await balanceReminders(supabase))
+      case 'post-event':
+        return res.status(200).json(await postEvent(supabase))
+      case 'auto-staffing':
+        return res.status(200).json(await autoStaffing(supabase))
+      case 'auto-review':
+        return res.status(200).json(await autoReviewTimeout(supabase))
+      case 'survey-followup':
+        return res.status(200).json(await surveyFollowUp(supabase))
+      case 'auto-balance-link':
+        return res.status(200).json(await autoBalanceLink(supabase))
+      case 'late-fees':
+        return res.status(200).json(await lateFees(supabase))
+      case 'auto-bench':
+        return res.status(200).json(await autoBenchAssignment(supabase))
+      case 'briefing-reminders':
+        return res.status(200).json(await briefingReminders(supabase))
+      case 'auto-charge-balance':
+        return res.status(200).json(await autoChargeBalance(supabase))
+      case 'post-event-invoice':
+        return res.status(200).json(await postEventInvoice(supabase))
+      case 'all': {
+        // Run all jobs — daily cron
+        const results = {}
+        results.auto_review = await autoReviewTimeout(supabase)
+        results.shift_reminders = await shiftReminders(supabase)
+        results.balance_reminders = await balanceReminders(supabase)
+        results.auto_balance_link = await autoBalanceLink(supabase)
+        results.late_fees = await lateFees(supabase)
+        results.post_event = await postEvent(supabase)
+        results.post_event_invoice = await postEventInvoice(supabase)
+        results.survey_followup = await surveyFollowUp(supabase)
+        results.auto_staffing = await autoStaffing(supabase)
+        results.auto_bench = await autoBenchAssignment(supabase)
+        results.briefing_reminders = await briefingReminders(supabase)
+        results.auto_charge_balance = await autoChargeBalance(supabase)
+        return res.status(200).json(results)
+      }
+      default:
+        return res.status(400).json({ error: `Unknown job: ${job}` })
+    }
+  } catch (err) {
+    console.error(`[cron/${job}] Error:`, err)
+    return res.status(500).json({ error: 'Cron job failed', details: err.message })
+  }
+}

@@ -25,14 +25,14 @@ export default function SubmittedScreen({ firstName }) {
               cx="50"
               cy="50"
               r="46"
-              stroke="#3ecf8e"
+              stroke="#ffffff"
               strokeWidth="4"
               strokeLinecap="round"
             />
             <polyline
               className="check-mark"
               points="30,52 44,66 70,38"
-              stroke="#3ecf8e"
+              stroke="#ffffff"
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -54,12 +54,12 @@ export default function SubmittedScreen({ firstName }) {
         </p>
 
         <p className="text-[#555] text-sm fade-up-delay-2">
-          Questions? Email us at{' '}
+          Questions? Call us at{' '}
           <a
-            href="mailto:crew@joinvanda.co"
-            className="text-[#888] hover:text-[#3ecf8e] transition-colors duration-200"
+            href="tel:+14048617794"
+            className="text-[#888] hover:text-[#16a34a] transition-colors duration-200"
           >
-            crew@joinvanda.co
+            (404) 861-7794
           </a>
         </p>
       </div>

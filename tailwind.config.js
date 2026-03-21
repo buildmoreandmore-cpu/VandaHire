@@ -6,13 +6,16 @@ export default {
       colors: {
         'p-bg': '#0a0a0a',
         'p-surface': '#141414',
-        'p-green': '#3ecf8e',
-        'p-border': '#222222',
+        'p-green': '#16a34a',
+        'p-accent': '#16a34a',
+        'p-border': '#1e1e1e',
         'p-muted': '#888888',
         'p-disabled': '#333333',
         'p-error': '#ff4444',
       },
       fontFamily: {
+        heading: ['Syne', 'sans-serif'],
+        body: ['DM Sans', 'sans-serif'],
         inter: ['Inter', 'sans-serif'],
       },
     },

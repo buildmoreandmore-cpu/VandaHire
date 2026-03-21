@@ -105,7 +105,7 @@ function PhotoUpload({ value, onChange, error }) {
 
       {value ? (
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#3ecf8e] flex-shrink-0">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#16a34a] flex-shrink-0">
             <img src={value} alt="Selfie preview" className="w-full h-full object-cover" />
           </div>
           <button
@@ -121,7 +121,7 @@ function PhotoUpload({ value, onChange, error }) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={loading}
-          className="w-20 h-20 rounded-full border-2 border-dashed border-[#333] hover:border-[#3ecf8e] flex items-center justify-center transition-all duration-200 cursor-pointer"
+          className="w-20 h-20 rounded-full border-2 border-dashed border-[#333] hover:border-[#16a34a] flex items-center justify-center transition-all duration-200 cursor-pointer"
         >
           {loading ? (
             <svg className="w-6 h-6 animate-spin text-[#888]" fill="none" viewBox="0 0 24 24">
@@ -175,7 +175,7 @@ function PillToggle({ options, selected, onChange }) {
             onClick={() => toggle(opt.value)}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer
               ${active
-                ? 'border-[#3ecf8e] bg-[#3ecf8e]/10 text-[#3ecf8e]'
+                ? 'border-[#16a34a] bg-[#16a34a]/10 text-[#16a34a]'
                 : 'border-[#333] text-[#888] hover:border-[#555]'
               }`}
           >
@@ -199,7 +199,7 @@ function SingleSelect({ options, selected, onChange }) {
             onClick={() => onChange(opt.value)}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer
               ${active
-                ? 'border-[#3ecf8e] bg-[#3ecf8e]/10 text-[#3ecf8e]'
+                ? 'border-[#16a34a] bg-[#16a34a]/10 text-[#16a34a]'
                 : 'border-[#333] text-[#888] hover:border-[#555]'
               }`}
           >
@@ -263,7 +263,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
   }
 
   const inputClass = (field) =>
-    `w-full bg-[#141414] border rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-[#3ecf8e] placeholder-[#555] transition-all duration-200 ${
+    `w-full bg-[#141414] border rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:ring-2 focus:ring-[#16a34a] placeholder-[#555] transition-all duration-200 ${
       errors[field] ? 'border-[#ff4444]' : 'border-[#222]'
     }`
 
@@ -394,7 +394,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                 setSection(2)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="mt-4 w-full rounded-full py-4 font-semibold text-base bg-[#3ecf8e] text-black hover:opacity-90 transition-all duration-200 cursor-pointer"
+              className="mt-4 w-full rounded-full py-4 font-semibold text-base bg-[#16a34a] text-black hover:opacity-90 transition-all duration-200 cursor-pointer"
             >
               Continue →
             </button>
@@ -474,7 +474,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               className={`flex-1 rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
                 ${submitting
                   ? 'bg-[#333] text-[#666] cursor-not-allowed'
-                  : 'bg-[#3ecf8e] text-black hover:opacity-90 cursor-pointer'
+                  : 'bg-[#16a34a] text-black hover:opacity-90 cursor-pointer'
                 }`}
             >
               {submitting ? (

@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Vanda Hire',
-        short_name: 'Vanda',
+        name: 'V&A Hire',
+        short_name: 'V&A Hire',
         description: 'On-demand event staffing — show up, get paid.',
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',

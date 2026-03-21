@@ -12,8 +12,8 @@ const STATUS_MESSAGES = {
   },
   approved: {
     label: 'Approved',
-    color: 'text-[#3ecf8e]',
-    bg: 'bg-[#3ecf8e]/10 border-[#3ecf8e]/20',
+    color: 'text-[#16a34a]',
+    bg: 'bg-[#16a34a]/10 border-[#16a34a]/20',
     message: 'You\'re approved! Check available shifts at /shifts.',
   },
   rejected: {
@@ -80,7 +80,7 @@ export default function StatusPage() {
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}
               placeholder="(404) 555-0100"
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#3ecf8e] transition-colors"
+              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white placeholder-[#555] focus:outline-none focus:border-[#16a34a] transition-colors"
             />
           </div>
 
@@ -89,7 +89,7 @@ export default function StatusPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#3ecf8e] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+            className="bg-[#16a34a] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50"
           >
             {loading ? 'Looking up…' : 'Check Status →'}
           </button>
@@ -108,19 +108,19 @@ export default function StatusPage() {
                   {STATUS_MESSAGES[result.status]?.label || result.status}
                 </div>
                 <p className="text-[#aaa] leading-relaxed">
-                  {STATUS_MESSAGES[result.status]?.message || 'Status unknown — contact crew@joinvanda.co.'}
+                  {STATUS_MESSAGES[result.status]?.message || 'Status unknown — call (404) 861-7794.'}
                 </p>
                 {result.status === 'approved' && (
                   <div className="mt-5 space-y-3">
                     <button
                       onClick={() => navigate('/shifts')}
-                      className="bg-[#3ecf8e] text-black rounded-full py-3 px-8 font-semibold text-sm hover:opacity-90 transition-all w-full sm:w-auto"
+                      className="bg-[#16a34a] text-black rounded-full py-3 px-8 font-semibold text-sm hover:opacity-90 transition-all w-full sm:w-auto"
                     >
                       View Available Shifts →
                     </button>
                     <button
                       onClick={() => navigate('/my-shifts')}
-                      className="bg-[#1a1a1a] text-white border border-[#2a2a2a] rounded-full py-3 px-8 font-semibold text-sm hover:border-[#3ecf8e] transition-all w-full sm:w-auto"
+                      className="bg-[#1a1a1a] text-white border border-[#2a2a2a] rounded-full py-3 px-8 font-semibold text-sm hover:border-[#16a34a] transition-all w-full sm:w-auto"
                     >
                       My Shifts & Check-In →
                     </button>
@@ -136,9 +136,9 @@ export default function StatusPage() {
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="bg-[#3ecf8e] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
+                  className="bg-[#16a34a] text-black rounded-full py-2 px-6 font-semibold text-sm hover:opacity-90 transition-all"
                 >
-                  Apply at joinvanda.co →
+                  Apply Now →
                 </button>
               </div>
             )}

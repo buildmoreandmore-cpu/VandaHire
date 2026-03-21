@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     if (!email) return res.status(400).json({ error: 'email is required' })
     const { data, error } = await supabase
       .from('events')
-      .select('id, event_title, event_date, city, workers_needed, status')
+      .select('id, title, event_date, city, workers_needed, status, total_bill_amount, payment_status, stripe_payment_url, service_tier')
       .ilike('contact_email', email.trim())
       .order('event_date', { ascending: false })
 

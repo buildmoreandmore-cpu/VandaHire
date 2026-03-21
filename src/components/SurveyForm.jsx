@@ -119,7 +119,7 @@ export default function SurveyForm({ token, event, worker, onSubmitted }) {
 
       {/* Q5: Feedback */}
       <div>
-        <p className="text-white text-sm font-medium mb-3">Any feedback for Vanda? <span className="text-p-muted font-normal">(optional)</span></p>
+        <p className="text-white text-sm font-medium mb-3">Any feedback for V&A Hire? <span className="text-p-muted font-normal">(optional)</span></p>
         <textarea
           className={`${inputCls} resize-none h-20`}
           placeholder="Suggestions, shoutouts, anything we should know..."

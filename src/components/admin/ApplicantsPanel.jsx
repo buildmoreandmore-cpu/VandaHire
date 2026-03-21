@@ -126,6 +126,34 @@ export default function ApplicantsPanel() {
                     </div>
                   )}
 
+                  {/* Worker Rating */}
+                  <div className="mt-3 bg-black/30 rounded-lg px-3 py-2">
+                    {a.avg_rating != null ? (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div>
+                          <span className="text-p-muted text-xs">Rating: </span>
+                          <span className="text-white text-xs font-medium">{a.avg_rating}/5</span>
+                          <span className="text-p-muted text-xs"> ({a.total_shifts} shift{a.total_shifts !== 1 ? 's' : ''})</span>
+                          <span className="ml-1 text-yellow-400 text-xs">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              i < Math.round(a.avg_rating) ? '★' : '☆'
+                            )).join('')}
+                          </span>
+                        </div>
+                        {a.would_hire_again_pct != null && (
+                          <div>
+                            <span className="text-p-muted text-xs">Would hire again: </span>
+                            <span className={`text-xs font-medium ${a.would_hire_again_pct >= 75 ? 'text-green-400' : a.would_hire_again_pct >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                              {a.would_hire_again_pct}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-p-muted text-xs">No ratings yet</span>
+                    )}
+                  </div>
+
                   {/* Actions */}
                   <div className="flex gap-2 mt-4">
                     {a.status !== 'approved' && (

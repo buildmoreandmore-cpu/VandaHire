@@ -21,6 +21,8 @@ export default function OperationsPanel({ stats }) {
   }
 
   const fin = stats?.financials || {}
+  const evStats = stats?.events || {}
+  const workerStats = stats?.workers || {}
   const fmtMoney = (v) => `$${(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   // Events needing staffing (pending, approved, or staffing status)
@@ -57,6 +59,40 @@ export default function OperationsPanel({ stats }) {
             <span className="text-p-muted">Gross margin: </span>
             <span className="text-p-green font-medium">
               {fmtMoney(fin.total_billed - fin.total_payouts)} ({((1 - fin.total_payouts / fin.total_billed) * 100).toFixed(1)}%)
+            </span>
+          </div>
+        )}
+      </Section>
+
+      {/* Worker Utilization */}
+      <Section title="Worker Utilization">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <FinCard label="Approved Workers" value={workerStats.total_approved ?? '—'} />
+          <FinCard
+            label="Avg Rating"
+            value={workerStats.avg_rating != null ? `${workerStats.avg_rating}/5` : 'N/A'}
+            color={workerStats.avg_rating >= 4 ? 'text-green-400' : workerStats.avg_rating >= 3 ? 'text-yellow-400' : 'text-white'}
+          />
+        </div>
+      </Section>
+
+      {/* Event Analytics */}
+      <Section title="Event Analytics">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <FinCard label="Events This Month" value={evStats.this_month ?? '—'} />
+          <FinCard label="Events Last Month" value={evStats.last_month ?? '—'} />
+          <FinCard
+            label="Completion Rate"
+            value={evStats.completion_rate != null ? `${evStats.completion_rate}%` : '—'}
+            color={evStats.completion_rate >= 75 ? 'text-green-400' : evStats.completion_rate >= 50 ? 'text-yellow-400' : 'text-white'}
+          />
+          <FinCard label="Avg Crew Size" value={evStats.avg_crew_size != null ? evStats.avg_crew_size : '—'} />
+        </div>
+        {evStats.this_month != null && evStats.last_month != null && evStats.last_month > 0 && (
+          <div className="mt-3 bg-black/30 rounded-lg px-3 py-2 text-xs">
+            <span className="text-p-muted">Month-over-month: </span>
+            <span className={evStats.this_month >= evStats.last_month ? 'text-green-400 font-medium' : 'text-yellow-400 font-medium'}>
+              {evStats.this_month >= evStats.last_month ? '+' : ''}{evStats.this_month - evStats.last_month} events
             </span>
           </div>
         )}

@@ -112,3 +112,93 @@ export const notifyWorkers = (eventId) =>
     method: 'POST',
     body: JSON.stringify({ event_id: eventId }),
   })
+
+export const fetchSuggestedWorkers = (eventId) =>
+  adminFetch(`/api/admin/suggest-workers?event_id=${eventId}`)
+
+// Bench pool
+export const fetchBenchPool = (eventId) =>
+  adminFetch(`/api/admin/bench?event_id=${eventId}`)
+
+export const addToBench = (event_id, worker_ids, tier = 1, standby_fee = 25) =>
+  adminFetch('/api/admin/bench', {
+    method: 'POST',
+    body: JSON.stringify({ event_id, worker_ids, tier, standby_fee }),
+  })
+
+export const updateBenchAssignment = (id, fields) =>
+  adminFetch('/api/admin/bench', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, ...fields }),
+  })
+
+export const removeBenchAssignment = (id) =>
+  adminFetch('/api/admin/bench', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
+  })
+
+export const triggerBenchDispatch = (event_id, tier) =>
+  adminFetch('/api/admin/bench-dispatch', {
+    method: 'POST',
+    body: JSON.stringify({ event_id, tier }),
+  })
+
+// Quotes
+export const fetchQuote = (eventId) =>
+  adminFetch(`/api/admin/quotes?event_id=${eventId}`)
+
+export const createQuote = (data) =>
+  adminFetch('/api/admin/quotes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateQuote = (id, fields) =>
+  adminFetch('/api/admin/quotes', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, ...fields }),
+  })
+
+// Payments
+export const fetchPayments = (eventId) =>
+  adminFetch(`/api/admin/payments?event_id=${eventId}`)
+
+export const createDepositLink = (eventId) =>
+  adminFetch('/api/stripe/deposit', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })
+
+export const createBalanceLink = (eventId) =>
+  adminFetch('/api/stripe/balance', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })
+
+// Exit records
+export const fetchExitRecords = (params) =>
+  adminFetch(`/api/admin/exit-records?${new URLSearchParams(params)}`)
+
+export const updateExitRecord = (id, fields) =>
+  adminFetch('/api/admin/exit-records', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, ...fields }),
+  })
+
+// Cancellation
+export const cancelEvent = (eventId, reason) =>
+  adminFetch('/api/admin/cancellation', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId, reason }),
+  })
+
+// Payouts (Stripe Connect)
+export const fetchPayouts = (eventId) =>
+  adminFetch(`/api/admin/payouts?event_id=${eventId}`)
+
+export const processPayouts = (eventId) =>
+  adminFetch('/api/admin/payouts', {
+    method: 'POST',
+    body: JSON.stringify({ event_id: eventId }),
+  })

@@ -115,18 +115,59 @@ export default async function handler(req, res) {
     console.error('[submit] Scoring error:', err)
   }
 
-  // 4. Update Supabase with score + decision
+  // 4. Update Supabase with score + auto-decision
+  let finalStatus = decision
+  if (decision === 'qualified') finalStatus = 'approved'
+  else if (decision === 'not_a_fit') finalStatus = 'rejected'
+
   try {
     await supabase
       .from('applicants')
       .update({
         score_breakdown: scoreBreakdown,
-        status: decision,
+        status: finalStatus,
       })
       .eq('id', applicantId)
   } catch (err) {
     console.error('[submit] Supabase score update error:', err)
   }
 
-  return res.status(200).json({ success: true, applicantId, decision })
+  // 5. Send notifications based on auto-decision (non-blocking)
+  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
+  const { sendSms } = await import('../_lib/sms.js').catch(() => ({ sendSms: null }))
+  const { sendEmail } = await import('../_lib/email.js').catch(() => ({ sendEmail: null }))
+
+  if (finalStatus === 'approved') {
+    const notifyTasks = []
+    if (sendSms && phone) {
+      notifyTasks.push(
+        sendSms(phone, `Welcome to Vanda, ${first_name}! You've been approved. Browse open shifts at ${siteUrl}/shifts`)
+          .catch(e => console.error('[submit] Welcome SMS error:', e.message))
+      )
+    }
+    if (sendEmail && email) {
+      notifyTasks.push(
+        sendEmail({
+          to: email,
+          subject: 'Welcome to Vanda — You\'re Approved!',
+          html: `<h2>Welcome to Vanda, ${first_name}!</h2><p>Great news — your application has been reviewed and you're approved to start claiming shifts.</p><p><a href="${siteUrl}/shifts" style="background:#16a34a;color:#000;padding:10px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Browse Open Shifts →</a></p><p style="color:#888;font-size:14px;">We'll also text you when new events open up in your area. Welcome to the crew!</p>`,
+        }).catch(e => console.error('[submit] Welcome email error:', e.message))
+      )
+    }
+    await Promise.allSettled(notifyTasks)
+  } else if (finalStatus === 'rejected') {
+    const notifyTasks = []
+    if (sendEmail && email) {
+      notifyTasks.push(
+        sendEmail({
+          to: email,
+          subject: 'Your Vanda Application',
+          html: `<h2>Thanks for applying to Vanda, ${first_name}.</h2><p>We've reviewed your application and unfortunately we're not a fit at this time. We appreciate your interest and the time you took to apply.</p><p style="color:#888;font-size:14px;">We occasionally re-open applications, so feel free to check back in the future.</p><p>— The Vanda Team</p>`,
+        }).catch(e => console.error('[submit] Rejection email error:', e.message))
+      )
+    }
+    await Promise.allSettled(notifyTasks)
+  }
+
+  return res.status(200).json({ success: true, applicantId, decision: finalStatus })
 }

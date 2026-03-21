@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAssignments, updateAssignment, sendShiftDetails, sendSurvey } from '../../lib/adminApi.js'
+import { fetchAssignments, updateAssignment, sendShiftDetails, sendSurvey, fetchExitRecords, updateExitRecord } from '../../lib/adminApi.js'
 
 const ASSIGNMENT_COLORS = {
   invited: 'bg-yellow-500/20 text-yellow-400',
@@ -22,12 +22,20 @@ export default function AssignmentsPanel() {
   const [editingPay, setEditingPay] = useState(null)
   const [payForm, setPayForm] = useState({})
   const [sending, setSending] = useState({}) // { [id]: 'shift' | 'survey' | null }
+  const [exitRecords, setExitRecords] = useState({}) // { [assignment_id]: exit_record }
 
   const load = async () => {
     setLoading(true)
     try {
       const data = await fetchAssignments()
       setAssignments(data)
+      // Load exit records for all assignments
+      const exits = await fetchExitRecords({}).catch(() => [])
+      const exitMap = {}
+      for (const e of (exits || [])) {
+        if (e.assignment_id) exitMap[e.assignment_id] = e
+      }
+      setExitRecords(exitMap)
     } catch (err) {
       console.error('Failed to load assignments:', err)
     }
@@ -159,8 +167,11 @@ export default function AssignmentsPanel() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-white text-xs font-medium truncate">
+                        <div className="text-white text-xs font-medium truncate flex items-center gap-1.5">
                           {a.applicants?.first_name} {a.applicants?.last_name}
+                          {a.from_bench && (
+                            <span className="px-1 py-0.5 rounded text-[8px] font-bold uppercase bg-purple-500/20 text-purple-400">Bench</span>
+                          )}
                         </div>
                         <div className="text-p-muted text-[10px] truncate">{a.applicants?.city} · {a.applicants?.phone}</div>
                         {a.briefing_slot && (
@@ -240,6 +251,44 @@ export default function AssignmentsPanel() {
                         </>
                       )}
                     </div>
+
+                    {/* Exit reason + strikes */}
+                    {exitRecords[a.id] && (
+                      <div className="mt-1.5 ml-11 flex items-center gap-2 text-[10px]">
+                        <span className={`px-1.5 py-0.5 rounded font-medium ${
+                          exitRecords[a.id].exit_reason === 'completed' ? 'bg-green-500/20 text-green-400' :
+                          exitRecords[a.id].exit_reason?.startsWith('released') ? 'bg-orange-500/20 text-orange-400' :
+                          exitRecords[a.id].exit_reason === 'no_response' ? 'bg-red-500/20 text-red-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          Exit: {exitRecords[a.id].exit_reason?.replace(/_/g, ' ')}
+                        </span>
+                        {exitRecords[a.id].pay_amount != null && (
+                          <span className="text-p-muted">Pay: <span className="text-white font-medium">{fmtMoney(exitRecords[a.id].pay_amount)}</span></span>
+                        )}
+                        {exitRecords[a.id].strikes_applied > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <span className={`w-2 h-2 rounded-full ${exitRecords[a.id].strikes_applied >= 2 ? 'bg-red-400' : 'bg-yellow-400'}`} />
+                            <span className={exitRecords[a.id].strikes_applied >= 2 ? 'text-red-400 font-bold' : 'text-yellow-400 font-bold'}>
+                              +{exitRecords[a.id].strikes_applied} strike{exitRecords[a.id].strikes_applied > 1 ? 's' : ''}
+                            </span>
+                          </span>
+                        )}
+                        {exitRecords[a.id].disputed && (
+                          <span className="text-red-400 font-bold uppercase">Disputed</span>
+                        )}
+                        <button
+                          onClick={async () => {
+                            const newState = !exitRecords[a.id].disputed
+                            await updateExitRecord(exitRecords[a.id].id, { disputed: newState })
+                            setExitRecords(prev => ({ ...prev, [a.id]: { ...prev[a.id], disputed: newState } }))
+                          }}
+                          className="text-p-muted hover:text-white"
+                        >
+                          {exitRecords[a.id].disputed ? 'Resolve' : 'Dispute'}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Dispatch action buttons */}
                     <div className="flex items-center gap-2 mt-1.5 pl-11">

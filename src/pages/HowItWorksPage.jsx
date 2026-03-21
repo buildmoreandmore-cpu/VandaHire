@@ -4,7 +4,7 @@ import VandaLogo from '../components/VandaLogo.jsx'
 
 const ORGANIZER_STEPS = [
   { step: '01', title: 'Submit a request', body: 'Fill out your event details — date, location, roles, and headcount. Choose labor supply (you supervise) or managed labor (we supervise). Takes under 5 minutes.' },
-  { step: '02', title: 'We build your crew', body: 'Vanda selects vetted, approved workers. For managed labor, we assign a Vanda site supervisor who leads the crew on the ground.' },
+  { step: '02', title: 'We build your crew', body: 'V&A Hire selects vetted, approved workers. For managed labor, we assign a V&A Hire site supervisor who leads the crew on the ground.' },
   { step: '03', title: 'GPS-verified check-in', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who showed up, when, and where — no disputed hours.' },
   { step: '04', title: 'Real-time crew management', body: 'Your supervisor tracks attendance, handles issues, and logs incidents in real time. After the event, you get a clean report with hours, attendance, and any notes.' },
 ]
@@ -33,7 +33,7 @@ const SERVICE_TIERS = [
     desc: 'For organizers who want one call, one invoice, zero labor headaches.',
     features: [
       'Everything in Labor Supply, plus:',
-      'Vanda site supervisor assigned to your event',
+      'V&A Hire site supervisor assigned to your event',
       'Supervisor arrives 30 min early, manages crew',
       'Live crew roster with check-in status',
       'Real-time incident logging',
@@ -58,22 +58,22 @@ export default function HowItWorksPage() {
       <div className="px-6 py-16 text-center max-w-3xl mx-auto w-full">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 fade-up">How It Works</h1>
         <p className="text-[#888] text-lg fade-up-delay-1">
-          Vanda provides vetted event crews with GPS-verified check-in. Choose labor supply or fully managed — we handle the rest.
+          V&A Hire provides vetted event crews with GPS-verified check-in. Choose labor supply or fully managed — we handle the rest.
         </p>
       </div>
 
       {/* Service Tiers */}
       <div className="px-6 pb-16 max-w-5xl mx-auto w-full">
-        <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">Two Service Tiers</div>
+        <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">Two Service Tiers</div>
         <div className="grid md:grid-cols-2 gap-6">
           {SERVICE_TIERS.map(tier => (
-            <div key={tier.title} className={`border rounded-2xl p-6 ${tier.title === 'Managed Labor' ? 'border-[#3ecf8e]/30 bg-[#3ecf8e]/[0.02]' : 'border-[#1e1e1e]'}`}>
+            <div key={tier.title} className={`border rounded-2xl p-6 ${tier.title === 'Managed Labor' ? 'border-[#16a34a]/30 bg-[#16a34a]/[0.02]' : 'border-[#1e1e1e]'}`}>
               <h3 className="text-white text-xl font-bold mb-2">{tier.title}</h3>
               <p className="text-[#888] text-sm mb-4">{tier.desc}</p>
               <ul className="space-y-2">
                 {tier.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="text-[#3ecf8e] mt-1 text-xs">+</span>
+                    <span className="text-[#16a34a] mt-1 text-xs">+</span>
                     <span className="text-[#aaa]">{f}</span>
                   </li>
                 ))}
@@ -87,11 +87,11 @@ export default function HowItWorksPage() {
       <div className="px-6 pb-20 max-w-5xl mx-auto w-full grid md:grid-cols-2 gap-12">
         {/* For Organizers */}
         <div>
-          <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+          <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
           <div className="space-y-8">
             {ORGANIZER_STEPS.map(({ step, title, body }) => (
               <div key={step} className="flex gap-4">
-                <div className="text-[#3ecf8e] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
+                <div className="text-[#16a34a] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
                 <div>
                   <div className="text-white font-bold text-lg mb-1">{title}</div>
                   <div className="text-[#777] text-sm leading-relaxed">{body}</div>
@@ -103,11 +103,11 @@ export default function HowItWorksPage() {
 
         {/* For Workers */}
         <div>
-          <div className="text-[#3ecf8e] font-semibold text-xs tracking-widest uppercase mb-6">For Workers</div>
+          <div className="text-[#16a34a] font-semibold text-xs tracking-widest uppercase mb-6">For Workers</div>
           <div className="space-y-8">
             {WORKER_STEPS.map(({ step, title, body }) => (
               <div key={step} className="flex gap-4">
-                <div className="text-[#3ecf8e] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
+                <div className="text-[#16a34a] font-extrabold text-sm w-8 shrink-0 pt-1">{step}</div>
                 <div>
                   <div className="text-white font-bold text-lg mb-1">{title}</div>
                   <div className="text-[#777] text-sm leading-relaxed">{body}</div>
@@ -125,7 +125,7 @@ export default function HowItWorksPage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => navigate('/events')}
-            className="bg-[#3ecf8e] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
+            className="bg-[#16a34a] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200"
           >
             Request Staff →
           </button>

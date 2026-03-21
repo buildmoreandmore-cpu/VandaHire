@@ -38,6 +38,8 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
           setError({ type: 'not_found', message: body.message })
         } else if (body.error === 'not_approved') {
           setError({ type: 'not_approved', message: body.message })
+        } else if (body.error === 'w9_required') {
+          setError({ type: 'w9_required', message: body.message, w9_url: body.w9_url })
         } else {
           setError({ type: 'generic', message: body.error || 'Something went wrong' })
         }
@@ -114,7 +116,12 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
               <p className="text-red-400">{error.message}</p>
               {error.type === 'not_found' && (
                 <a href="/" className="text-p-green text-xs mt-1 block hover:opacity-80">
-                  Apply to join the Vanda crew →
+                  Apply to join the V&A crew →
+                </a>
+              )}
+              {error.type === 'w9_required' && (
+                <a href={error.w9_url} className="text-p-green text-xs mt-1 block hover:opacity-80">
+                  Complete your W-9 to start claiming shifts →
                 </a>
               )}
             </div>
