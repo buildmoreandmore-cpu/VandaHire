@@ -44,14 +44,14 @@ async function handleCheckin(req, res, supabase) {
     const { phone } = req.query
     if (!phone) return res.status(400).json({ error: 'phone required' })
 
-    const digits = phone.replace(/\D/g, '')
+    const digits = phone.replace(/\D/g, '').slice(-10)
 
-    const { data: worker, error: wErr } = await supabase
+    const { data: workers, error: wErr } = await supabase
       .from('applicants')
       .select('id, first_name, last_name, phone, status')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
+
+    // Match on last 10 digits to handle any format
+    const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
     if (worker.status !== 'approved') return res.status(403).json({ error: 'Not an approved worker' })
