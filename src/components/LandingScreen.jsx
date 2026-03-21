@@ -118,7 +118,7 @@ export default function LandingScreen({ onStart }) {
   }, [])
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div ref={containerRef} className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-body">
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
         <VandaLogo onClick={() => {}} />
@@ -130,7 +130,7 @@ export default function LandingScreen({ onStart }) {
 
       {/* Hero */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
-        <h1 className="text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
+        <h1 className="font-inter text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
           Show up.<br />Get paid.
         </h1>
 
@@ -138,7 +138,7 @@ export default function LandingScreen({ onStart }) {
           The People Behind What Works.
         </p>
 
-        <p className="text-[#888] text-base leading-relaxed mb-4 fade-up-delay-1">
+        <p className="font-body text-[#888] text-base leading-relaxed mb-4 fade-up-delay-1">
           Event staffing and managed labor for festivals, corporate events, activations, and venues.
           We show up, we manage the crew, you run your event.
         </p>
@@ -182,12 +182,12 @@ export default function LandingScreen({ onStart }) {
       {/* How It Works for Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
+        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {ORGANIZER_STEPS.map(({ step, title, body }) => (
             <div key={step}>
               <div className="text-white font-extrabold text-sm mb-2">{step}</div>
-              <div className="text-white font-bold text-lg mb-2">{title}</div>
+              <div className="font-inter text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
           ))}
@@ -205,7 +205,7 @@ export default function LandingScreen({ onStart }) {
       {/* Roles We Staff */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
+        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {ROLES.map(({ Icon, label }) => (
             <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-[#2a2a2a] transition-colors">
@@ -223,7 +223,7 @@ export default function LandingScreen({ onStart }) {
           {WHY_VANDA.map(({ title, body }) => (
             <div key={title}>
               <div className="w-2 h-2 rounded-full bg-white mb-4" />
-              <div className="text-white font-bold text-lg mb-2">{title}</div>
+              <div className="font-inter text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
           ))}
@@ -233,7 +233,7 @@ export default function LandingScreen({ onStart }) {
       {/* About / Trust Section */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">About V&A Hire</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
+        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
         <div className="text-[#888] text-sm leading-relaxed space-y-4 max-w-2xl">
           <p>
             V&A Hire is the staffing arm of Varist & Associates LLC, an Atlanta-based operations company.
@@ -249,16 +249,16 @@ export default function LandingScreen({ onStart }) {
       {/* Pricing Transparency */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-8">Clear, honest pricing</h2>
+        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-8">Clear, honest pricing</h2>
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           <div className="border border-[#1e1e1e] rounded-2xl p-6">
-            <div className="text-white font-bold text-lg mb-3">Deposit — due upfront</div>
+            <div className="font-inter text-white font-bold text-lg mb-3">Deposit — due upfront</div>
             <div className="text-[#888] text-sm leading-relaxed">
               Covers labor cost + standby/bench fees. This secures your crew and pays for backup workers in case of no-shows.
             </div>
           </div>
           <div className="border border-[#1e1e1e] rounded-2xl p-6">
-            <div className="text-white font-bold text-lg mb-3">Balance — Net 15</div>
+            <div className="font-inter text-white font-bold text-lg mb-3">Balance — Net 15</div>
             <div className="text-[#888] text-sm leading-relaxed">
               Platform fee, supervisor fee, and processing fee — billed after the event, due within 15 days.
             </div>
@@ -287,7 +287,7 @@ export default function LandingScreen({ onStart }) {
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">What Happens Next</div>
         <div className="grid md:grid-cols-2 gap-12">
           <div>
-            <h3 className="text-xl font-bold mb-6">For Organizers</h3>
+            <h3 className="font-inter text-xl font-bold mb-6">For Organizers</h3>
             <div className="space-y-6">
               {ORGANIZER_TIMELINE.map(({ step, title, time }) => (
                 <div key={step} className="flex gap-4">
@@ -301,7 +301,7 @@ export default function LandingScreen({ onStart }) {
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-6">For Workers</h3>
+            <h3 className="font-inter text-xl font-bold mb-6">For Workers</h3>
             <div className="space-y-6">
               {WORKER_TIMELINE.map(({ step, title, time }) => (
                 <div key={step} className="flex gap-4">
