@@ -10,7 +10,7 @@ export default function VandaLogo({ size = 'md', onClick }) {
   return (
     <img
       src="/logo.png"
-      alt="V&A Workforce"
+      alt="V&A Hire"
       onClick={onClick}
       style={{ height: s.height, width: 'auto' }}
       className={onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}

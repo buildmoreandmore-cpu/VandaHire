@@ -65,14 +65,35 @@ const ROLES = [
 
 const ORGANIZER_STEPS = [
   { step: '01', title: 'Submit your event', body: 'Tell us your date, location, roles needed, and whether you want labor supply or a fully managed crew. Takes under 5 minutes.' },
-  { step: '02', title: 'We staff your crew', body: 'V&A Workforce selects vetted, approved workers. For managed labor, we assign a V&A Workforce site supervisor to lead your crew on the ground.' },
+  { step: '02', title: 'We staff your crew', body: 'V&A Hire selects vetted, approved workers. For managed labor, we assign a V&A Hire site supervisor to lead your crew on the ground.' },
   { step: '03', title: 'GPS-verified arrival', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who\'s on site, in real time.' },
 ]
 
 const WHY_VANDA = [
-  { title: 'Two tiers — you choose', body: 'Need workers only? We supply pre-screened crew. Want hands-off? Our managed labor tier includes an on-site V&A Workforce supervisor who handles everything.' },
+  { title: 'Two tiers — you choose', body: 'Need workers only? We supply pre-screened crew. Want hands-off? Our managed labor tier includes an on-site V&A Hire supervisor who handles everything.' },
   { title: 'GPS check-in at every event', body: 'Workers verify their location when they arrive. No more disputed hours or ghost check-ins — every arrival is GPS-stamped.' },
-  { title: 'On-site supervisor + incident log', body: 'For managed events, your V&A Workforce supervisor tracks the crew roster, logs any incidents in real time, and gives you a clean post-event report.' },
+  { title: 'On-site supervisor + incident log', body: 'For managed events, your V&A Hire supervisor tracks the crew roster, logs any incidents in real time, and gives you a clean post-event report.' },
+]
+
+const STATS = [
+  { number: '500+', label: 'Crew Members' },
+  { number: '120+', label: 'Events Staffed' },
+  { number: '98%', label: 'Show-Up Rate' },
+  { number: '50+', label: 'Venue Partners' },
+]
+
+const ORGANIZER_TIMELINE = [
+  { step: '1', title: 'We review your event details', time: 'Same day' },
+  { step: '2', title: 'Receive a custom quote', time: 'Within 24 hours' },
+  { step: '3', title: 'Approve & pay deposit', time: 'Secure your crew' },
+  { step: '4', title: 'Crew confirmed & briefed', time: 'Before event day' },
+]
+
+const WORKER_TIMELINE = [
+  { step: '1', title: 'Submit your application', time: '2 min' },
+  { step: '2', title: 'Application review', time: '24–48 hrs' },
+  { step: '3', title: 'Upload ID & complete W-9', time: 'Once approved' },
+  { step: '4', title: 'Receive shifts via text & claim', time: 'Start earning' },
 ]
 
 export default function LandingScreen({ onStart }) {
@@ -101,7 +122,10 @@ export default function LandingScreen({ onStart }) {
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
         <VandaLogo onClick={() => {}} />
-        <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
+        <div className="flex items-center gap-4">
+          <a href="tel:+14048617794" className="text-[#999] text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
+          <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
+        </div>
       </div>
 
       {/* Hero */}
@@ -110,19 +134,23 @@ export default function LandingScreen({ onStart }) {
           Show up.<br />Get paid.
         </h1>
 
-        <p className="text-[#ffffff] text-sm font-semibold tracking-wide mb-8 fade-up">
+        <p className="text-p-green text-sm font-semibold tracking-wide mb-4 fade-up">
           The People Behind What Works.
         </p>
 
-        <p className="text-[#888] text-base leading-relaxed mb-10 fade-up-delay-1">
+        <p className="text-[#888] text-base leading-relaxed mb-4 fade-up-delay-1">
           Event staffing and managed labor for festivals, corporate events, activations, and venues.
           We show up, we manage the crew, you run your event.
+        </p>
+
+        <p className="text-white text-sm font-semibold mb-8 fade-up-delay-1">
+          Earn $15–$25/hr at Atlanta events
         </p>
 
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
           <button
             onClick={onStart}
-            className="bg-[#ffffff] text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
+            className="bg-p-green text-black rounded-full py-4 px-10 font-semibold text-base hover:opacity-90 transition-all duration-200 w-full"
           >
             I'm Looking for Work →
           </button>
@@ -139,14 +167,26 @@ export default function LandingScreen({ onStart }) {
         </p>
       </div>
 
+      {/* Stats Bar */}
+      <section className="reveal bg-[#111] border-y border-[#1a1a1a] py-12 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {STATS.map(({ number, label }) => (
+            <div key={label}>
+              <div className="text-4xl md:text-5xl font-bold italic text-white" style={{ fontFamily: 'Syne, sans-serif' }}>{number}</div>
+              <div className="text-[#666] text-xs tracking-widest uppercase mt-2">{label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* How It Works for Organizers */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {ORGANIZER_STEPS.map(({ step, title, body }) => (
             <div key={step}>
-              <div className="text-[#ffffff] font-extrabold text-sm mb-2">{step}</div>
+              <div className="text-p-green font-extrabold text-sm mb-2">{step}</div>
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
@@ -164,30 +204,116 @@ export default function LandingScreen({ onStart }) {
 
       {/* Roles We Staff */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
-        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">Roles</div>
         <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Roles we staff</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {ROLES.map(({ Icon, label }) => (
             <div key={label} className="border border-[#1e1e1e] rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-[#2a2a2a] transition-colors">
-              <span className="text-[#ffffff]"><Icon /></span>
+              <span className="text-p-green"><Icon /></span>
               <span className="text-sm text-[#888] text-center">{label}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Why V&A Workforce */}
+      {/* Why V&A Hire */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
-        <div className="text-[#ffffff] font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Workforce</div>
-        <h2 className="text-3xl font-extrabold tracking-tighter mb-10">Built for the job</h2>
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">Why V&A Hire</div>
         <div className="grid md:grid-cols-3 gap-8">
           {WHY_VANDA.map(({ title, body }) => (
             <div key={title}>
-              <div className="w-2 h-2 rounded-full bg-[#ffffff] mb-4" />
+              <div className="w-2 h-2 rounded-full bg-p-green mb-4" />
               <div className="text-white font-bold text-lg mb-2">{title}</div>
               <div className="text-[#777] text-sm leading-relaxed">{body}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* About / Trust Section */}
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">About V&A Hire</div>
+        <h2 className="text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
+        <div className="text-[#888] text-sm leading-relaxed space-y-4 max-w-2xl">
+          <p>
+            V&A Hire is the staffing arm of Varist & Associates LLC, an Atlanta-based operations company.
+            We built Vanda Hire to solve a real problem: event organizers need reliable crews, and workers need flexible, well-paying gigs.
+          </p>
+          <p>
+            Every worker is screened, ID-verified, and GPS-checked on arrival. Our managed labor tier includes an on-site V&A Hire supervisor so you can focus on your event.
+          </p>
+          <p className="text-[#555] text-xs">196 Peachtree St SW, #121, Atlanta, GA 30303</p>
+        </div>
+      </section>
+
+      {/* Pricing Transparency */}
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] bg-[#0d0d0d] max-w-5xl mx-auto w-full">
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">For Organizers</div>
+        <h2 className="text-3xl font-extrabold tracking-tighter mb-8">Clear, honest pricing</h2>
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+          <div className="border border-[#1e1e1e] rounded-2xl p-6">
+            <div className="text-white font-bold text-lg mb-3">Deposit — due upfront</div>
+            <div className="text-[#888] text-sm leading-relaxed">
+              Covers labor cost + standby/bench fees. This secures your crew and pays for backup workers in case of no-shows.
+            </div>
+          </div>
+          <div className="border border-[#1e1e1e] rounded-2xl p-6">
+            <div className="text-white font-bold text-lg mb-3">Balance — Net 15</div>
+            <div className="text-[#888] text-sm leading-relaxed">
+              Platform fee, supervisor fee, and processing fee — billed after the event, due within 15 days.
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3 text-[#888] text-sm">
+          <div className="flex items-start gap-2">
+            <span className="text-white mt-0.5">✓</span>
+            <span>You only pay for the hours worked</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-white mt-0.5">✓</span>
+            <span>No hidden fees — full quote provided before you commit</span>
+          </div>
+        </div>
+        <div className="mt-8 border border-[#1e1e1e] rounded-2xl p-6 bg-[#0a0a0a]">
+          <div className="text-white font-bold text-sm mb-3">How it works</div>
+          <div className="text-[#777] text-sm leading-relaxed">
+            Submit your event → Receive an itemized quote → Approve & pay deposit → We handle the rest.
+          </div>
+        </div>
+      </section>
+
+      {/* What Happens Next — Organizers */}
+      <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
+        <div className="text-p-green font-semibold text-xs tracking-widest uppercase mb-6">What Happens Next</div>
+        <div className="grid md:grid-cols-2 gap-12">
+          <div>
+            <h3 className="text-xl font-bold mb-6">For Organizers</h3>
+            <div className="space-y-6">
+              {ORGANIZER_TIMELINE.map(({ step, title, time }) => (
+                <div key={step} className="flex gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full border border-[#333] flex items-center justify-center text-sm font-bold text-white">{step}</div>
+                  <div>
+                    <div className="text-white font-medium text-sm">{title}</div>
+                    <div className="text-[#666] text-xs mt-0.5">{time}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold mb-6">For Workers</h3>
+            <div className="space-y-6">
+              {WORKER_TIMELINE.map(({ step, title, time }) => (
+                <div key={step} className="flex gap-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full border border-[#333] flex items-center justify-center text-sm font-bold text-white">{step}</div>
+                  <div>
+                    <div className="text-white font-medium text-sm">{title}</div>
+                    <div className="text-[#666] text-xs mt-0.5">{time}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

@@ -337,7 +337,7 @@ async function handleIncidents(req, res, supabase) {
             <tr><td style="color:#888;padding:8px 0;">Description</td><td style="color:#ccc;">${description}</td></tr>
             <tr><td style="color:#888;padding:8px 0;">Time</td><td style="color:#ccc;">${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</td></tr>
           </table>
-          <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • Automated Incident Alert</p>
+          <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire • Automated Incident Alert</p>
         </div>`
 
       // Email admin
@@ -620,13 +620,13 @@ async function handleVerifyVideo(req, res, supabase) {
     try {
       await sendEmail({
         to: worker.email,
-        subject: 'Verification Video Received — V&A Workforce',
+        subject: 'Verification Video Received — V&A Hire',
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
           <h2>Video Received!</h2>
           <p>Hi ${worker.first_name},</p>
           <p>We've received your verification video. Our team will review it shortly.</p>
           <p>Once verified, you'll be able to start claiming shifts. We'll send you an email when you're all set.</p>
-          <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+          <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
         </div>`,
       })
     } catch (e) { console.error('[verify-video] Email failed:', e.message) }
@@ -733,7 +733,7 @@ async function handleGeofenceCheck(req, res, supabase) {
               <li><strong>Emergency?</strong> — Take care of yourself, we understand</li>
             </ul>
             <p>Please reply to this email or contact your supervisor.</p>
-            <p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error('[geofence-check] Email failed:', e.message) }
@@ -1192,7 +1192,7 @@ async function handleIdUpload(req, res, supabase) {
               <p style="color:#ccc;">Phone: ${digits}</p>
               <p style="color:#ccc;">Worker ID: ${worker.id}</p>
               <p style="color:#ccc;">View in admin panel to verify.</p>
-              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • Auto-Notification</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire • Auto-Notification</p>
             </div>`,
         })
       } catch (e) {
@@ -1304,7 +1304,7 @@ async function handleW9(req, res, supabase) {
               <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Signed At</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${now}</td></tr>
               <tr><td style="color:#888;padding:8px 12px 8px 0;">IP Address</td><td style="color:#fff;padding:8px 0;">${typeof clientIp === 'string' ? clientIp.split(',')[0].trim() : 'unknown'}</td></tr>
             </table>
-            <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce — W-9 Auto-Notification</p>
+            <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire — W-9 Auto-Notification</p>
           </div>
         `,
       })

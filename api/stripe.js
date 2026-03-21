@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
     if (!event_id) return res.status(400).json({ error: 'event_id is required' })
 
-    const appUrl = process.env.VITE_APP_URL || 'https://joinvanda.co'
+    const appUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
 
     const { data: event, error: fetchErr } = await supabase.from('events').select('*').eq('id', event_id).single()
     if (fetchErr || !event) return res.status(404).json({ error: 'Event not found' })
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: 'usd', unit_amount: Math.round(parseFloat(amount) * 100), product_data: { name: `V&A Workforce Service Fee — ${event.title}`, description: `Event: ${event.title} on ${event.event_date}.` } }, quantity: 1 }],
+      line_items: [{ price_data: { currency: 'usd', unit_amount: Math.round(parseFloat(amount) * 100), product_data: { name: `V&A Hire Service Fee — ${event.title}`, description: `Event: ${event.title} on ${event.event_date}.` } }, quantity: 1 }],
       metadata: { event_id: event.id, event_title: event.title },
       success_url: `${appUrl}/admin?payment=success&event=${event.id}`,
       cancel_url: `${appUrl}/admin?payment=cancelled&event=${event.id}`,
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     const { event_id } = body
     if (!event_id) return res.status(400).json({ error: 'event_id required' })
 
-    const appUrl = process.env.VITE_APP_URL || 'https://joinvanda.co'
+    const appUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
     const { data: event, error: fetchErr } = await supabase.from('events').select('*').eq('id', event_id).single()
     if (fetchErr || !event) return res.status(404).json({ error: 'Event not found' })
 
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
     const { event_id } = body
     if (!event_id) return res.status(400).json({ error: 'event_id required' })
 
-    const appUrl = process.env.VITE_APP_URL || 'https://joinvanda.co'
+    const appUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
     const { data: event, error: fetchErr } = await supabase.from('events').select('*').eq('id', event_id).single()
     if (fetchErr || !event) return res.status(404).json({ error: 'Event not found' })
 
@@ -297,7 +297,7 @@ export default async function handler(req, res) {
               <p style="color:#888;font-size:13px">Below is a copy of the Service Agreement you accepted for your records.</p>
               ${signedFooter}
               ${agreementHtml}
-              <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Workforce Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error('[stripe/webhook] Deposit email failed:', e.message) }
@@ -339,8 +339,8 @@ export default async function handler(req, res) {
                 <tr><td style="padding:10px;border-bottom:1px solid #eee">Balance Paid</td><td style="padding:10px;border-bottom:1px solid #eee;text-align:right">$${bal.toFixed(2)}</td></tr>
                 <tr style="font-size:18px;font-weight:bold"><td style="padding:12px;border-top:2px solid #333">Total Paid</td><td style="padding:12px;border-top:2px solid #333;text-align:right;color:#ffffff">$${total.toFixed(2)}</td></tr>
               </table>
-              <p>Thank you for working with V&A Workforce! We hope your event was a success.</p>
-              <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+              <p>Thank you for working with V&A Hire! We hope your event was a success.</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error('[stripe/webhook] Receipt email failed:', e.message) }

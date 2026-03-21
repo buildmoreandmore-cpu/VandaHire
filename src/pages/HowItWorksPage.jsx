@@ -4,7 +4,7 @@ import VandaLogo from '../components/VandaLogo.jsx'
 
 const ORGANIZER_STEPS = [
   { step: '01', title: 'Submit a request', body: 'Fill out your event details — date, location, roles, and headcount. Choose labor supply (you supervise) or managed labor (we supervise). Takes under 5 minutes.' },
-  { step: '02', title: 'We build your crew', body: 'V&A Workforce selects vetted, approved workers. For managed labor, we assign a V&A Workforce site supervisor who leads the crew on the ground.' },
+  { step: '02', title: 'We build your crew', body: 'V&A Hire selects vetted, approved workers. For managed labor, we assign a V&A Hire site supervisor who leads the crew on the ground.' },
   { step: '03', title: 'GPS-verified check-in', body: 'Every worker checks in via geofence when they arrive at your venue. You know exactly who showed up, when, and where — no disputed hours.' },
   { step: '04', title: 'Real-time crew management', body: 'Your supervisor tracks attendance, handles issues, and logs incidents in real time. After the event, you get a clean report with hours, attendance, and any notes.' },
 ]
@@ -33,7 +33,7 @@ const SERVICE_TIERS = [
     desc: 'For organizers who want one call, one invoice, zero labor headaches.',
     features: [
       'Everything in Labor Supply, plus:',
-      'V&A Workforce site supervisor assigned to your event',
+      'V&A Hire site supervisor assigned to your event',
       'Supervisor arrives 30 min early, manages crew',
       'Live crew roster with check-in status',
       'Real-time incident logging',
@@ -58,7 +58,7 @@ export default function HowItWorksPage() {
       <div className="px-6 py-16 text-center max-w-3xl mx-auto w-full">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 fade-up">How It Works</h1>
         <p className="text-[#888] text-lg fade-up-delay-1">
-          V&A Workforce provides vetted event crews with GPS-verified check-in. Choose labor supply or fully managed — we handle the rest.
+          V&A Hire provides vetted event crews with GPS-verified check-in. Choose labor supply or fully managed — we handle the rest.
         </p>
       </div>
 

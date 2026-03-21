@@ -155,9 +155,9 @@ export default async function handler(req, res) {
               <p>We typically respond within a few hours. If you have questions, just reply to this email.</p>
               ${autoQuoteData ? `
               <h3 style="color:#ffffff;margin-top:24px">Service Agreement</h3>
-              <p style="color:#888;font-size:13px">Please review the V&A Workforce Service Agreement below. You will formally accept it when you pay your deposit.</p>
+              <p style="color:#888;font-size:13px">Please review the V&A Hire Service Agreement below. You will formally accept it when you pay your deposit.</p>
               ${getAgreementHtml({ deposit: autoQuoteData.deposit_amount || 0, balance: autoQuoteData.balance_amount || 0, total: autoQuoteData.total || 0 })}` : ''}
-              <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
         })
       } catch (e) {

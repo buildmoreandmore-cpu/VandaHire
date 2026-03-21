@@ -21,7 +21,7 @@ export default function ShiftCard({ event, onClaim }) {
           <p className="text-p-muted text-xs mt-1">{event.city}</p>
         </div>
         {event.pay_rate && (
-          <span className="text-p-green font-semibold text-sm flex-shrink-0">{event.pay_rate}</span>
+          <span className="text-p-green font-semibold text-sm flex-shrink-0">{event.pay_rate}{!/\/hr/i.test(event.pay_rate) && '/hr'}</span>
         )}
       </div>
 

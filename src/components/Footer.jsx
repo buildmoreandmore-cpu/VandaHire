@@ -22,6 +22,14 @@ export default function Footer() {
           <button onClick={() => navigate('/w9')} className="hover:text-white transition-colors">W-9 Form</button>
         </div>
 
+        {/* Phone */}
+        <div className="text-center mb-6">
+          <a href="tel:+14048617794" className="text-[#888] text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
+        </div>
+
+        {/* Address */}
+        <p className="text-center text-[#444] text-xs mb-6">196 Peachtree St SW, #121, Atlanta, GA 30303</p>
+
         {/* Divider */}
         <div className="w-full h-px bg-[#1a1a1a] mb-6" />
 
@@ -31,7 +39,7 @@ export default function Footer() {
             <button onClick={() => navigate('/privacy')} className="hover:text-[#666] transition-colors">Privacy Policy</button>
             <button onClick={() => navigate('/terms')} className="hover:text-[#666] transition-colors">Terms of Service</button>
           </div>
-          <p>© 2026 V&A Workforce</p>
+          <p>© 2026 V&A Hire · Varist & Associates LLC</p>
         </div>
       </div>
     </footer>

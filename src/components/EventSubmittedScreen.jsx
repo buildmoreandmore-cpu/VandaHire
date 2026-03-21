@@ -33,7 +33,7 @@ export default function EventSubmittedScreen({ title }) {
         onClick={() => navigate('/')}
         className="text-p-green text-sm font-medium hover:opacity-80 transition-opacity fade-up-delay-2 cursor-pointer"
       >
-        ← Back to V&A Workforce
+        ← Back to V&A Hire
       </button>
     </div>
   )

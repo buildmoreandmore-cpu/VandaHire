@@ -9,7 +9,7 @@ export default function BlogIndexPage() {
 
   useEffect(() => {
     const prevTitle = document.title
-    document.title = 'Event Staffing Blog — Atlanta Tips & Guides | V&A Workforce'
+    document.title = 'Event Staffing Blog — Atlanta Tips & Guides | V&A Hire'
 
     let metaDesc = document.querySelector('meta[name="description"]')
     if (!metaDesc) {

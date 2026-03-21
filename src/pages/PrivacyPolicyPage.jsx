@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">1. Information We Collect</h2>
-            <p className="mb-3">When you apply for work through V&A Workforce, we collect the information you provide in the application form, including your name, phone number, email address, location, availability, and any other details you submit.</p>
+            <p className="mb-3">When you apply for work through V&A Hire, we collect the information you provide in the application form, including your name, phone number, email address, location, availability, and any other details you submit.</p>
             <p className="mb-3">When event organizers submit a staffing request, we collect contact information, event details, and scheduling information provided in the request form.</p>
             <p>We may also collect limited technical data such as browser type and IP address when you access our platform, solely for security and operational purposes.</p>
           </section>
@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">3. SMS Communications</h2>
-            <p className="mb-3">If you apply to work with V&A Workforce, you may receive SMS messages regarding your application status, available shifts, shift details, and briefing reminders. Message frequency varies based on shift activity.</p>
+            <p className="mb-3">If you apply to work with V&A Hire, you may receive SMS messages regarding your application status, available shifts, shift details, and briefing reminders. Message frequency varies based on shift activity.</p>
             <p>Standard message and data rates may apply. You may opt out of SMS messages at any time by replying STOP to any message we send.</p>
           </section>
 
@@ -50,7 +50,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li><strong className="text-white">Event organizers:</strong> Worker names and shift-relevant details may be shared with the organizer or on-site supervisor for events you are assigned to</li>
               <li><strong className="text-white">Service providers:</strong> We use third-party services including Supabase (database), Twilio (SMS), Resend (email), and Stripe (payments). Each provider processes data per their own privacy policies</li>
-              <li><strong className="text-white">Legal compliance:</strong> We may disclose information if required by law or to protect the rights, property, or safety of V&A Workforce, our workers, or the public</li>
+              <li><strong className="text-white">Legal compliance:</strong> We may disclose information if required by law or to protect the rights, property, or safety of V&A Hire, our workers, or the public</li>
             </ul>
           </section>
 

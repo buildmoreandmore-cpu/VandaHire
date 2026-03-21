@@ -159,20 +159,20 @@ async function handleApplicants(req, res, supabase) {
         const verifyUrl = 'https://vandahire.com/verify'
         await sendEmail({
           to: data.email,
-          subject: 'You\'re Approved! Complete Your Verification — V&A Workforce',
+          subject: 'You\'re Approved! Complete Your Verification — V&A Hire',
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-            <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Welcome to V&A Workforce, ${data.first_name}!</h2>
+            <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Welcome to V&A Hire, ${data.first_name}!</h2>
             <p>Great news — your application has been approved!</p>
             <p>To complete your profile and start claiming shifts, you need to <strong>record a short verification video</strong>. This ensures the safety of our team and clients.</p>
             <h3>What you'll do:</h3>
             <ol>
-              <li>Say your full name and tell us why you want to work with V&A Workforce</li>
+              <li>Say your full name and tell us why you want to work with V&A Hire</li>
               <li>Describe a recent work experience where you solved a problem</li>
             </ol>
             <p>It takes less than 2 minutes:</p>
             <p style="text-align:center;margin:20px 0"><a href="${verifyUrl}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Record Verification Video</a></p>
             <p style="color:#888;font-size:14px">Once your video is reviewed, you'll receive a confirmation email and can start claiming shifts immediately.</p>
-            <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error('[admin/applicants] Approval email failed:', e.message) }
@@ -180,12 +180,12 @@ async function handleApplicants(req, res, supabase) {
       try {
         await sendEmail({
           to: data.email,
-          subject: 'Your V&A Workforce Application',
+          subject: 'Your V&A Hire Application',
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2>Thanks for applying, ${data.first_name}.</h2>
             <p>We've reviewed your application and unfortunately we're not a fit at this time.</p>
             <p>We appreciate your interest and the time you took to apply. We occasionally re-open applications, so feel free to check back in the future.</p>
-            <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error('[admin/applicants] Rejection email failed:', e.message) }
@@ -193,7 +193,7 @@ async function handleApplicants(req, res, supabase) {
       try {
         await sendEmail({
           to: data.email,
-          subject: 'You\'re Verified! Start Claiming Shifts — V&A Workforce',
+          subject: 'You\'re Verified! Start Claiming Shifts — V&A Hire',
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2 style="color:#ffffff">You're Verified!</h2>
             <p>Hi ${data.first_name},</p>
@@ -345,7 +345,7 @@ async function handleAssignments(req, res, supabase) {
           await sendEmail({
             to: worker.email,
             subject: `Shift Confirmed — ${event.title}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>Shift Confirmed — ${event.title}</h2><p>Hi ${worker.first_name},</p><p>Your shift has been confirmed! Here are your details:</p><table style="width:100%;border-collapse:collapse;margin:15px 0"><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}${event.supervisor_name ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Supervisor</td><td style="padding:8px;border-bottom:1px solid #eee">${event.supervisor_name}${event.supervisor_phone ? ` • ${event.supervisor_phone}` : ''}</td></tr>` : ''}${event.dress_code ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Dress Code</td><td style="padding:8px;border-bottom:1px solid #eee">${event.dress_code}</td></tr>` : ''}</table><p>Please arrive 10 minutes early.</p><p style="color:#888;font-size:12px">V&A Workforce Staffing • vandahire.com</p></div>`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>Shift Confirmed — ${event.title}</h2><p>Hi ${worker.first_name},</p><p>Your shift has been confirmed! Here are your details:</p><table style="width:100%;border-collapse:collapse;margin:15px 0"><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Date</td><td style="padding:8px;border-bottom:1px solid #eee">${formatDate(event.event_date)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border-bottom:1px solid #eee">${formatTime(event.start_time)} – ${formatTime(event.end_time)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Location</td><td style="padding:8px;border-bottom:1px solid #eee">${event.location}, ${event.city}</td></tr>${event.meeting_point ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Meeting Point</td><td style="padding:8px;border-bottom:1px solid #eee">${event.meeting_point}</td></tr>` : ''}${event.supervisor_name ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Supervisor</td><td style="padding:8px;border-bottom:1px solid #eee">${event.supervisor_name}${event.supervisor_phone ? ` • ${event.supervisor_phone}` : ''}</td></tr>` : ''}${event.dress_code ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold">Dress Code</td><td style="padding:8px;border-bottom:1px solid #eee">${event.dress_code}</td></tr>` : ''}</table><p>Please arrive 10 minutes early.</p><p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p></div>`,
           })
           await supabase.from('assignments').update({ shift_sent_at: new Date().toISOString() }).eq('id', id)
         } catch (e) { console.error(`[admin/assignments] Auto shift email failed:`, e.message) }
@@ -416,7 +416,7 @@ async function handleSendSurvey(req, res, supabase) {
   const { data: survey, error: surveyError } = await supabase.from('surveys').upsert({ assignment_id, event_id: assignment.event_id, worker_id: assignment.worker_id }, { onConflict: 'assignment_id' }).select('token').single()
   if (surveyError) throw surveyError
 
-  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://joinvanda.co'
+  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
   const surveyUrl = `${baseUrl}/survey/${survey.token}`
   const worker = assignment.applicants
   const eventTitle = assignment.events?.title
@@ -442,7 +442,7 @@ async function handleNotifyWorkers(req, res, supabase) {
   if (workerError) throw workerError
   if (!workers || workers.length === 0) return res.status(200).json({ success: true, sent: 0, message: 'No approved workers found in that city' })
 
-  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://joinvanda.co'
+  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
   const shortDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
 
   let sent = 0
@@ -877,7 +877,7 @@ async function handleQuotes(req, res, supabase) {
             <p style="text-align:center;margin:24px 0"><a href="${payUrl}" style="background:#ffffff;color:#000;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Review & Pay Deposit</a></p>
             <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px">Please review the Service Agreement below. You will formally accept it when you pay your deposit.</p>
             ${agreementHtml}
-            <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Workforce Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
         // Auto-mark quote as sent
@@ -1080,7 +1080,7 @@ async function handleCancellation(req, res, supabase) {
             ${reason ? `<p>Reason: ${reason}</p>` : ''}
             <p>We apologize for the inconvenience. Check for other available shifts:</p>
             <p><a href="https://vandahire.com/shifts" style="background:#ffffff;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Browse Shifts</a></p>
-            <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
       } catch (e) { console.error(`[cancellation] Worker email failed for ${a.id}:`, e.message) }
@@ -1143,7 +1143,7 @@ async function autoConfirmIfFullyStaffed(supabase, eventId) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>Great news — your event <strong>${event.title}</strong> is now fully staffed with ${count} crew members.</p>
               <p>Your team has been notified with their shift details. A supervisor will be assigned to oversee the crew on event day.</p>
-              <p style="color:#888;font-size:12px;margin-top:30px">V&A Workforce Staffing • vandahire.com</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error('[auto-confirm] Email failed:', e.message) }

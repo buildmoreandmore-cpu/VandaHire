@@ -53,7 +53,7 @@ export default function InstallPrompt() {
     <div className="bg-[#111] border border-[#2a2a2a] rounded-xl p-4 mb-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-white text-sm font-semibold mb-1">Install V&A Workforce</p>
+          <p className="text-white text-sm font-semibold mb-1">Install V&A Hire</p>
           {deferredPrompt ? (
             <>
               <p className="text-[#888] text-xs mb-3">Add to your home screen for quick access to shifts and check-in.</p>

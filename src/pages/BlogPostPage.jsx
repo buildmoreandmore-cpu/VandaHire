@@ -27,7 +27,7 @@ export default function BlogPostPage({ slug }) {
     if (!post) return
 
     const prevTitle = document.title
-    document.title = `${post.title} | V&A Workforce`
+    document.title = `${post.title} | V&A Hire`
 
     let metaDesc = document.querySelector('meta[name="description"]')
     if (!metaDesc) {
