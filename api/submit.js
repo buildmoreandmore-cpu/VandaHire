@@ -130,7 +130,7 @@ export default async function handler(req, res) {
   }
 
   // 5. Send confirmation to applicant (non-blocking)
-  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
+  const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
   const { sendSms } = await import('../_lib/sms.js').catch(() => ({ sendSms: null }))
   const { sendEmail } = await import('../_lib/email.js').catch(() => ({ sendEmail: null }))
 

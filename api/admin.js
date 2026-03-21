@@ -275,7 +275,7 @@ async function handleEvents(req, res, supabase) {
           .select('id, first_name, phone')
           .eq('status', 'approved')
           .ilike('city', `%${data.city}%`)
-        const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
+        const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
         const shortDate = data.event_date ? new Date(data.event_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
         let notified = 0
         for (const w of (workers || [])) {
@@ -416,7 +416,7 @@ async function handleSendSurvey(req, res, supabase) {
   const { data: survey, error: surveyError } = await supabase.from('surveys').upsert({ assignment_id, event_id: assignment.event_id, worker_id: assignment.worker_id }, { onConflict: 'assignment_id' }).select('token').single()
   if (surveyError) throw surveyError
 
-  const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
+  const baseUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
   const surveyUrl = `${baseUrl}/survey/${survey.token}`
   const worker = assignment.applicants
   const eventTitle = assignment.events?.title
@@ -442,7 +442,7 @@ async function handleNotifyWorkers(req, res, supabase) {
   if (workerError) throw workerError
   if (!workers || workers.length === 0) return res.status(200).json({ success: true, sent: 0, message: 'No approved workers found in that city' })
 
-  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vandahire.com'
+  const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
   const shortDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
 
   let sent = 0
