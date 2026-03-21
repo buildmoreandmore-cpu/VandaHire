@@ -416,6 +416,16 @@ export default function ApplicantsPanel() {
                               onClick={() => handleStatusChange(a.id, 'pending')}
                             />
                           )}
+                          <ActionBtn
+                            label="Remove from Pool"
+                            cls="bg-red-900/50 hover:bg-red-900 border border-red-800/50"
+                            loading={updating === a.id}
+                            onClick={() => {
+                              if (confirm(`Remove ${a.first_name} ${a.last_name} from the worker pool? This will reject them permanently.`)) {
+                                handleStatusChange(a.id, 'rejected')
+                              }
+                            }}
+                          />
                           {a.status !== 'needs_review' && a.status !== 'approved' && a.status !== 'rejected' && (
                             <ActionBtn
                               label="Flag for Review"
