@@ -38,6 +38,8 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
           setError({ type: 'not_found', message: body.message })
         } else if (body.error === 'not_approved') {
           setError({ type: 'not_approved', message: body.message })
+        } else if (body.error === 'id_required') {
+          setError({ type: 'id_required', message: body.message, id_url: body.id_url })
         } else if (body.error === 'w9_required') {
           setError({ type: 'w9_required', message: body.message, w9_url: body.w9_url })
         } else {
@@ -119,8 +121,13 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
                   Apply to join the V&A crew →
                 </a>
               )}
+              {error.type === 'id_required' && (
+                <a href={error.id_url} className="text-white text-xs mt-1 block hover:opacity-80">
+                  Upload your ID to start claiming shifts →
+                </a>
+              )}
               {error.type === 'w9_required' && (
-                <a href={error.w9_url} className="text-p-green text-xs mt-1 block hover:opacity-80">
+                <a href={error.w9_url} className="text-white text-xs mt-1 block hover:opacity-80">
                   Complete your W-9 to start claiming shifts →
                 </a>
               )}

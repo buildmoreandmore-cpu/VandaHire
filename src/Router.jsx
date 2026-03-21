@@ -16,6 +16,7 @@ import BlogIndexPage from './pages/BlogIndexPage.jsx'
 import BlogPostPage from './pages/BlogPostPage.jsx'
 import VideoVerifyPage from './pages/VideoVerifyPage.jsx'
 import W9FormPage from './pages/W9FormPage.jsx'
+import IdUploadPage from './pages/IdUploadPage.jsx'
 
 const RouterContext = createContext()
 
@@ -300,6 +301,11 @@ export default function Router() {
     page = <W9FormPage phone={phoneParam} />
   } else if (path === '/w9') {
     page = <W9FormPage />
+  } else if (path.startsWith('/id-upload/')) {
+    const phoneParam = path.replace('/id-upload/', '')
+    page = <IdUploadPage phone={phoneParam} />
+  } else if (path === '/id-upload') {
+    page = <IdUploadPage />
   } else if (path === '/verify') {
     page = <VideoVerifyPage />
   } else if (path === '/how-it-works') {

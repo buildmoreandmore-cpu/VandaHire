@@ -18,6 +18,7 @@ export default function Footer() {
           <button onClick={() => { navigate('/'); window.scrollTo(0, 0) }} className="hover:text-white transition-colors">Apply for Work</button>
           <button onClick={() => navigate('/organizer')} className="hover:text-white transition-colors">Check Event Status</button>
           <button onClick={() => navigate('/blog')} className="hover:text-white transition-colors">Blog</button>
+          <button onClick={() => navigate('/id-upload')} className="hover:text-white transition-colors">Upload ID</button>
           <button onClick={() => navigate('/w9')} className="hover:text-white transition-colors">W-9 Form</button>
         </div>
 

@@ -198,9 +198,24 @@ async function handleApplicants(req, res, supabase) {
             <h2 style="color:#ffffff">You're Verified!</h2>
             <p>Hi ${data.first_name},</p>
             <p>Your verification video has been reviewed and approved.</p>
-            <p style="font-weight:bold;margin:20px 0 8px">One more step before you claim shifts:</p>
-            <p>Please complete your W-9 tax form so we can process your payments.</p>
-            <p style="text-align:center;margin:16px 0"><a href="https://vandahire.com/w9/${encodeURIComponent(data.phone)}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete W-9 Form</a></p>
+            <p style="font-weight:bold;margin:20px 0 8px">Two quick steps before you can claim shifts:</p>
+            <table style="width:100%;margin:16px 0;" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:8px 0;text-align:center;">
+                <span style="display:inline-block;background:#333;color:#fff;width:28px;height:28px;line-height:28px;border-radius:50%;font-weight:bold;font-size:14px;text-align:center;">1</span>
+                <span style="color:#ccc;font-size:14px;margin-left:8px;">Upload your government-issued ID</span>
+              </td></tr>
+              <tr><td style="padding:4px 0 16px;text-align:center;">
+                <a href="https://vandahire.com/id-upload/${encodeURIComponent(data.phone)}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Upload ID →</a>
+              </td></tr>
+              <tr><td style="padding:8px 0;text-align:center;">
+                <span style="display:inline-block;background:#333;color:#fff;width:28px;height:28px;line-height:28px;border-radius:50%;font-weight:bold;font-size:14px;text-align:center;">2</span>
+                <span style="color:#ccc;font-size:14px;margin-left:8px;">Complete your W-9 tax form</span>
+              </td></tr>
+              <tr><td style="padding:4px 0 16px;text-align:center;">
+                <a href="https://vandahire.com/w9/${encodeURIComponent(data.phone)}" style="background:#141414;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;border:1px solid #333;">Complete W-9 →</a>
+              </td></tr>
+            </table>
+            <p style="color:#888;font-size:13px;">Both steps take less than 2 minutes total. Once complete, you can start claiming shifts immediately.</p>
             <p style="text-align:center;margin:12px 0"><a href="https://vandahire.com/shifts" style="color:#ffffff;text-decoration:none;font-weight:600;font-size:14px">Browse Available Shifts →</a></p>
             <p style="color:#888;font-size:12px;margin-top:30px">V&amp;A Workforce Staffing • vandahire.com</p>
           </div>`,

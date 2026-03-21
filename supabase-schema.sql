@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS public.applicants (
   -- Approval tracking
   approved_at          timestamptz,
 
+  -- ID verification
+  id_photo_url         text,
+
   -- W-9 tax form
   w9_legal_name        text,
   w9_business_name     text,

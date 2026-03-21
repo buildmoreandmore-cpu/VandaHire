@@ -28,6 +28,7 @@ export default async function handler(req, res) {
     if (route === 'client-survey') return await handleClientSurvey(req, res, supabase)
     if (route === 'my-crew-status') return await handleMyCrewStatus(req, res, supabase)
     if (route === 'w9') return await handleW9(req, res, supabase)
+    if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
     return await handleCheckin(req, res, supabase)
   } catch (err) {
     console.error(`[worker/${route}] Error:`, err)
@@ -1115,6 +1116,97 @@ function encryptTin(tin) {
   encrypted += cipher.final('hex')
   const tag = cipher.getAuthTag().toString('hex')
   return `${iv.toString('hex')}:${tag}:${encrypted}`
+}
+
+// ─── ID PHOTO UPLOAD ────────────────────────────────────────────────────────
+
+async function handleIdUpload(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { phone } = req.query
+    if (!phone) return res.status(400).json({ error: 'phone required' })
+
+    const digits = phone.replace(/\D/g, '')
+    const { data: worker } = await supabase
+      .from('applicants')
+      .select('id, id_photo_url')
+      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
+      .limit(1)
+      .single()
+
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+    return res.status(200).json({
+      has_id_photo: !!worker.id_photo_url,
+    })
+  }
+
+  if (req.method === 'POST') {
+    const { phone, photo_base64 } = req.body
+    if (!phone || !photo_base64) return res.status(400).json({ error: 'phone and photo_base64 required' })
+
+    const digits = phone.replace(/\D/g, '')
+    const { data: worker } = await supabase
+      .from('applicants')
+      .select('id, id_photo_url')
+      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
+      .limit(1)
+      .single()
+
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+    // Upload to Supabase Storage
+    try {
+      const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const filePath = `id-photos/${worker.id}.jpg`
+
+      const { error: uploadError } = await supabase.storage
+        .from('applicant-photos')
+        .upload(filePath, buffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('applicant-photos')
+        .getPublicUrl(filePath)
+
+      const idPhotoUrl = urlData.publicUrl
+
+      await supabase.from('applicants').update({
+        id_photo_url: idPhotoUrl,
+        updated_at: new Date().toISOString(),
+      }).eq('id', worker.id)
+
+      // Notify admin
+      const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+      try {
+        await sendEmail({
+          to: adminEmail,
+          subject: `ID Uploaded: Worker ${worker.id}`,
+          html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+              <h2 style="color:#ffffff;">ID Photo Uploaded</h2>
+              <p style="color:#ccc;">Phone: ${digits}</p>
+              <p style="color:#ccc;">Worker ID: ${worker.id}</p>
+              <p style="color:#ccc;">View in admin panel to verify.</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce • Auto-Notification</p>
+            </div>`,
+        })
+      } catch (e) {
+        console.error('[id-upload] Admin notification failed:', e.message)
+      }
+
+      return res.status(200).json({ success: true, id_photo_url: idPhotoUrl })
+    } catch (err) {
+      console.error('[id-upload] Upload error:', err)
+      return res.status(500).json({ error: 'Upload failed. Please try again.' })
+    }
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
 }
 
 async function handleW9(req, res, supabase) {

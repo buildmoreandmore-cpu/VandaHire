@@ -25,6 +25,7 @@
     { "source": "/api/client-survey", "destination": "/api/worker?route=client-survey" },
     { "source": "/api/my-crew-status", "destination": "/api/worker?route=my-crew-status" },
     { "source": "/api/w9", "destination": "/api/worker?route=w9" },
+    { "source": "/api/id-upload", "destination": "/api/worker?route=id-upload" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }
   ]
