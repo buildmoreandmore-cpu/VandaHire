@@ -146,9 +146,16 @@ export default function W9FormPage({ phone: phoneParam }) {
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ maxWidth: 500, margin: '0 auto', padding: '40px 20px' }}>
         <h1 style={{ fontSize: 24, marginBottom: 4, textAlign: 'center' }}>W-9 Tax Form</h1>
-        <p style={{ color: '#888', textAlign: 'center', marginBottom: 32, fontSize: 14 }}>
-          Required before you can claim shifts
+        <p style={{ color: '#888', textAlign: 'center', marginBottom: 8, fontSize: 14 }}>
+          Required before you can be assigned shifts
         </p>
+        {/* Progress indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+        </div>
+        <p style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 24 }}>Step 3 of 3</p>
 
         {error && (
           <div style={{ background: '#331111', border: '1px solid #552222', color: '#ff6666', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>
@@ -301,20 +308,25 @@ export default function W9FormPage({ phone: phoneParam }) {
               </div>
 
               {/* Certification */}
-              <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 8, padding: 16 }}>
-                <label style={{ display: 'flex', gap: 12, cursor: 'pointer', fontSize: 13, color: '#ccc', lineHeight: 1.6 }}>
-                  <input
-                    type="checkbox"
-                    checked={certified}
-                    onChange={e => setCertified(e.target.checked)}
-                    style={{ marginTop: 3, accentColor: '#ffffff', flexShrink: 0 }}
-                  />
+              <div
+                onClick={() => setCertified(!certified)}
+                style={{ background: '#141414', border: `1px solid ${certified ? '#ffffff' : '#1e1e1e'}`, borderRadius: 8, padding: 16, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div style={{ display: 'flex', gap: 12, fontSize: 13, color: '#ccc', lineHeight: 1.6 }}>
+                  <div style={{
+                    width: 24, height: 24, minWidth: 24, borderRadius: 4, marginTop: 2,
+                    border: certified ? 'none' : '2px solid #555',
+                    background: certified ? '#ffffff' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {certified && <span style={{ color: '#000', fontSize: 16, fontWeight: 700 }}>✓</span>}
+                  </div>
                   <span>
                     Under penalties of perjury, I certify that the number shown on this form is my correct
                     taxpayer identification number (or I am waiting for a number to be issued to me), I am
                     a U.S. person, and I am not subject to backup withholding.
                   </span>
-                </label>
+                </div>
               </div>
 
               {/* Signature */}
@@ -341,11 +353,15 @@ export default function W9FormPage({ phone: phoneParam }) {
               >
                 {submitting ? 'Submitting...' : 'Submit W-9'}
               </button>
+
+              <a href="/" style={{ display: 'block', textAlign: 'center', padding: '12px', color: '#666', fontSize: 14, textDecoration: 'none', marginTop: 4 }}>
+                Skip for now — I'll come back later
+              </a>
             </div>
           </form>
         )}
 
-        {/* Step: Done */}
+        {/* Step: Done — onboarding complete */}
         {step === 'done' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32, color: '#000' }}>
@@ -360,8 +376,24 @@ export default function W9FormPage({ phone: phoneParam }) {
                 TIN ending in <strong style={{ color: '#fff' }}>***-**-{w9Data.w9_tin_last4}</strong>
               </p>
             )}
-            <a href="/shifts" style={{ display: 'inline-block', marginTop: 24, padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
-              Browse Available Shifts →
+
+            {/* Progress indicator */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '24px 0' }}>
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+            </div>
+            <p style={{ color: '#666', fontSize: 12, marginBottom: 24 }}>Onboarding complete</p>
+
+            <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 12, padding: 20, marginBottom: 24, textAlign: 'left' }}>
+              <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 12 }}>You're all set!</p>
+              <p style={{ color: '#aaa', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                Your profile is complete. You'll receive shift notifications via text message. Once assigned to an event, you'll get all the details you need.
+              </p>
+            </div>
+
+            <a href="/" style={{ display: 'inline-block', padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+              Back to Home
             </a>
           </div>
         )}

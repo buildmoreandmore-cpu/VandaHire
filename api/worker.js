@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
+import webPush from 'web-push'
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
@@ -20,6 +21,8 @@ export default async function handler(req, res) {
     if (route === 'release') return await handleRelease(req, res, supabase)
     if (route === 'exit-reply') return await handleExitReply(req, res, supabase)
     if (route === 'verify-video') return await handleVerifyVideo(req, res, supabase)
+    if (route === 'gps-ping') return await handleGpsPing(req, res, supabase)
+    if (route === 'supervisor-dashboard') return await handleSupervisorDashboard(req, res, supabase)
     if (route === 'geofence-check') return await handleGeofenceCheck(req, res, supabase)
     if (route === 'accept-quote') return await handleAcceptQuote(req, res, supabase)
     if (route === 'connect-onboard') return await handleConnectOnboard(req, res, supabase)
@@ -29,6 +32,10 @@ export default async function handler(req, res) {
     if (route === 'my-crew-status') return await handleMyCrewStatus(req, res, supabase)
     if (route === 'w9') return await handleW9(req, res, supabase)
     if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
+    if (route === 'push-subscribe') return await handlePushSubscribe(req, res, supabase)
+    if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
+    if (route === 'push-send') return await handlePushSend(req, res, supabase)
+    if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
     return await handleCheckin(req, res, supabase)
   } catch (err) {
     console.error(`[worker/${route}] Error:`, err)
@@ -48,7 +55,7 @@ async function handleCheckin(req, res, supabase) {
 
     const { data: workers, error: wErr } = await supabase
       .from('applicants')
-      .select('id, first_name, last_name, phone, status')
+      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at')
 
     // Match on last 10 digits to handle any format
     const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
@@ -81,7 +88,7 @@ async function handleCheckin(req, res, supabase) {
     }
 
     return res.status(200).json({
-      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name },
+      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name, video_url: worker.video_url || null, id_photo_url: worker.id_photo_url || null, w9_signed_at: worker.w9_signed_at || null },
       assignments: enriched,
     })
   }
@@ -592,10 +599,21 @@ async function handleVerifyVideo(req, res, supabase) {
 
   // Upload video to Supabase Storage
   const videoBuffer = Buffer.from(video_base64, 'base64')
+  const bucketName = 'applicant-photos'
   const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
 
+  // Ensure bucket exists (create if missing)
+  const { data: buckets } = await supabase.storage.listBuckets()
+  if (!(buckets || []).find(b => b.name === bucketName)) {
+    const { error: createErr } = await supabase.storage.createBucket(bucketName, { public: true })
+    if (createErr) {
+      console.error('[verify-video] Create bucket error:', createErr)
+      return res.status(500).json({ error: 'Failed to create storage bucket' })
+    }
+  }
+
   const { error: uploadErr } = await supabase.storage
-    .from('applicant-photos')
+    .from(bucketName)
     .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
 
   if (uploadErr) {
@@ -603,7 +621,7 @@ async function handleVerifyVideo(req, res, supabase) {
     return res.status(500).json({ error: 'Failed to upload video' })
   }
 
-  const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(fileName)
   const finalVideoUrl = urlData.publicUrl
 
   // Update applicant with video URL
@@ -613,18 +631,50 @@ async function handleVerifyVideo(req, res, supabase) {
     updated_at: new Date().toISOString(),
   }).eq('id', worker.id)
 
-  // Send confirmation email
+  // Send onboarding follow-up email with remaining steps
   if (worker.email) {
     const { sendEmail } = await import('../_lib/email.js')
     try {
+      // Check what's already completed
+      const { data: fullWorker } = await supabase
+        .from('applicants')
+        .select('id_photo_url, w9_signed_at')
+        .eq('id', worker.id)
+        .single()
+
+      const hasId = !!fullWorker?.id_photo_url
+      const hasW9 = !!fullWorker?.w9_signed_at
+      const phoneDigits = phone.replace(/\D/g, '').slice(-10)
+
+      const stepsHtml = `
+        <div style="margin:20px 0">
+          <p style="font-weight:600;margin-bottom:12px">Your onboarding checklist:</p>
+          <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
+            ✅ Verification Video — Complete
+          </div>
+          <div style="margin-bottom:8px;padding:12px 16px;background:${hasId ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+            ${hasId ? '✅' : '⬜'} ID Photo Upload — ${hasId ? 'Complete' : '<a href="https://vandahire.com/id-upload/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+          </div>
+          <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+            ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+          </div>
+        </div>`
+
+      const allComplete = hasId && hasW9
+      const incompleteMsg = allComplete
+        ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
+        : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>
+           <p style="color:#666">Please complete the remaining steps as soon as possible so we can get you on the schedule.</p>`
+
       await sendEmail({
         to: worker.email,
-        subject: 'Verification Video Received — V&A Hire',
+        subject: allComplete ? 'Onboarding Complete — V&A Hire' : 'Action Required: Complete Your Onboarding — V&A Hire',
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-          <h2>Video Received!</h2>
+          <h2 style="margin-bottom:4px">Video Received!</h2>
           <p>Hi ${worker.first_name},</p>
           <p>We've received your verification video. Our team will review it shortly.</p>
-          <p>Once verified, you'll be able to start claiming shifts. We'll send you an email when you're all set.</p>
+          ${stepsHtml}
+          ${incompleteMsg}
           <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
         </div>`,
       })
@@ -674,23 +724,23 @@ async function handleGeofenceCheck(req, res, supabase) {
 
   if (inside) return res.status(200).json({ status: 'inside_geofence' })
 
-  // Worker is outside geofence — check if we already have an open exit record
-  const { data: existingExit } = await supabase
+  // Worker is outside geofence — check how many exit records exist (for escalation)
+  const { data: exitRecords } = await supabase
     .from('exit_records')
-    .select('id')
+    .select('id, worker_reply')
     .eq('assignment_id', assignment.id)
-    .is('worker_reply', null)
-    .limit(1)
-    .single()
+    .order('created_at', { ascending: false })
 
-  if (existingExit) return res.status(200).json({ status: 'exit_already_recorded', exit_record_id: existingExit.id })
+  const openExit = (exitRecords || []).find(e => !e.worker_reply)
+  if (openExit) return res.status(200).json({ status: 'exit_already_recorded', exit_record_id: openExit.id })
 
-  // Create exit record and send notification
+  const warningCount = (exitRecords || []).length // previous exits = warnings issued
+
+  // Create exit record
   const now = new Date()
   const checkInTime = assignment.check_in_time ? new Date(assignment.check_in_time) : now
   const hoursWorked = Math.round(((now - checkInTime) / 3600000) * 100) / 100
 
-  // Calculate scheduled hours
   let scheduledHours = 8
   if (event.start_time && event.end_time) {
     const [sh, sm] = event.start_time.split(':').map(Number)
@@ -713,36 +763,105 @@ async function handleGeofenceCheck(req, res, supabase) {
     exit_lng: longitude,
   }).select('id').single()
 
-  // Send exit notification email (SMS when Twilio is set up)
-  if (worker.phone) {
-    const { sendEmail } = await import('../_lib/email.js')
-    const { data: workerEmail } = await supabase.from('applicants').select('email').eq('id', worker.id).single()
-    if (workerEmail?.email) {
+  // Send push notification to worker
+  try {
+    await sendPushToWorker(
+      supabase, worker.id,
+      warningCount === 0 ? 'Geofence Warning' : 'Final Warning — Return Now',
+      warningCount === 0
+        ? `You've left the ${event.title} venue. Please return to the event area.`
+        : `This is your final warning. You are outside the event area for ${event.title}. Return immediately or your supervisor will be notified.`,
+      '/my-shifts',
+      'geofence-warning'
+    )
+  } catch (e) { console.error('[geofence-check] Push failed:', e.message) }
+
+  // Send email to worker
+  const { sendEmail } = await import('../_lib/email.js')
+  const { data: workerEmail } = await supabase.from('applicants').select('email').eq('id', worker.id).single()
+  if (workerEmail?.email) {
+    try {
+      await sendEmail({
+        to: workerEmail.email,
+        subject: warningCount === 0 ? `Warning: You've left the venue — ${event.title}` : `FINAL WARNING: Return to venue — ${event.title}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+          <h2>${warningCount === 0 ? 'Geofence Warning' : '⚠️ Final Warning'} — ${event.title}</h2>
+          <p>Hi ${worker.first_name},</p>
+          <p>It looks like you've left the event venue at ${event.location}.</p>
+          ${warningCount > 0 ? '<p style="color:#ef4444;font-weight:600">This is your final warning. Your supervisor has been notified. Please return to the venue immediately.</p>' : ''}
+          <ul>
+            <li><strong>On a break?</strong> — Head back to the venue when ready</li>
+            <li><strong>Done for the day?</strong> — Contact your supervisor</li>
+            <li><strong>Emergency?</strong> — Take care of yourself, we understand</li>
+          </ul>
+          <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+        </div>`,
+      })
+    } catch (e) { console.error('[geofence-check] Email failed:', e.message) }
+  }
+
+  // After first warning (warningCount >= 1), escalate to supervisor
+  if (warningCount >= 1) {
+    // Find supervisor for this event
+    const { data: supAssignment } = await supabase
+      .from('assignments')
+      .select('worker_id, applicants ( id, first_name, email, phone )')
+      .eq('event_id', event.id)
+      .eq('is_supervisor', true)
+      .in('status', ['confirmed', 'checked_in'])
+      .limit(1)
+      .single()
+
+    if (supAssignment?.applicants) {
+      const sup = supAssignment.applicants
+
+      // Push notification to supervisor
       try {
-        await sendEmail({
-          to: workerEmail.email,
-          subject: `Did you leave? — ${event.title}`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-            <h2 style="color:#ffffff">Geofence Alert — ${event.title}</h2>
-            <p>Hi ${worker.first_name},</p>
-            <p>It looks like you've left the event venue at ${event.location}. Please let us know what happened:</p>
-            <ul>
-              <li><strong>On a break?</strong> — Head back to the venue when ready</li>
-              <li><strong>Done for the day?</strong> — Contact your supervisor</li>
-              <li><strong>Emergency?</strong> — Take care of yourself, we understand</li>
-            </ul>
-            <p>Please reply to this email or contact your supervisor.</p>
-            <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
-          </div>`,
-        })
-      } catch (e) { console.error('[geofence-check] Email failed:', e.message) }
+        const { sendPushToWorker } = await import('./push.js')
+        await sendPushToWorker(
+          supabase, sup.id,
+          'Crew Alert: Worker Left Venue',
+          `${worker.first_name} has left the geofence for ${event.title} after multiple warnings. Action needed.`,
+          '/supervisor',
+          'supervisor-alert'
+        )
+      } catch (e) { console.error('[geofence-check] Supervisor push failed:', e.message) }
+
+      // Email supervisor
+      if (sup.email) {
+        try {
+          await sendEmail({
+            to: sup.email,
+            subject: `🚨 Crew Alert: ${worker.first_name} left venue — ${event.title}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2 style="color:#ef4444">Crew Member Left Venue</h2>
+              <p>Hi ${sup.first_name},</p>
+              <p><strong>${worker.first_name}</strong> has left the geofence for <strong>${event.title}</strong> after receiving ${warningCount + 1} warning(s).</p>
+              <p>Worker phone: <a href="tel:${worker.phone}">${worker.phone}</a></p>
+              <p>Hours worked so far: ${hoursWorked}h</p>
+              <p>Please take action — you can call the worker or release them from the Supervisor Portal.</p>
+              <a href="https://vandahire.com/supervisor" style="display:inline-block;padding:12px 24px;background:#fff;color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px">Open Supervisor Portal</a>
+              <p style="color:#888;font-size:12px;margin-top:24px">V&A Hire • Auto-Alert</p>
+            </div>`,
+          })
+        } catch (e) { console.error('[geofence-check] Supervisor email failed:', e.message) }
+      }
+
+      // SMS to supervisor
+      try {
+        await sendSms(sup.phone, `🚨 V&A Hire Alert: ${worker.first_name} has left the venue for ${event.title} after ${warningCount + 1} warnings. Call them: ${worker.phone}`)
+      } catch (e) { console.error('[geofence-check] Supervisor SMS failed:', e.message) }
     }
   }
 
   return res.status(200).json({
     status: 'outside_geofence',
     exit_record_id: exitRecord?.id,
-    message: 'Worker has left the geofence. Notification sent.',
+    warning_number: warningCount + 1,
+    escalated_to_supervisor: warningCount >= 1,
+    message: warningCount >= 1
+      ? 'Final warning issued. Supervisor has been notified.'
+      : 'First warning issued. Please return to the venue.',
   })
 }
 
@@ -1143,13 +1262,11 @@ async function handleIdUpload(req, res, supabase) {
     const { phone, photo_base64 } = req.body
     if (!phone || !photo_base64) return res.status(400).json({ error: 'phone and photo_base64 required' })
 
-    const digits = phone.replace(/\D/g, '')
-    const { data: worker } = await supabase
+    const digits = phone.replace(/\D/g, '').slice(-10)
+    const { data: allWorkers } = await supabase
       .from('applicants')
-      .select('id, id_photo_url')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
+      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at')
+    const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
@@ -1157,10 +1274,17 @@ async function handleIdUpload(req, res, supabase) {
     try {
       const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
+      const bucketName = 'applicant-photos'
       const filePath = `id-photos/${worker.id}.jpg`
 
+      // Ensure bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets()
+      if (!(buckets || []).find(b => b.name === bucketName)) {
+        await supabase.storage.createBucket(bucketName, { public: true })
+      }
+
       const { error: uploadError } = await supabase.storage
-        .from('applicant-photos')
+        .from(bucketName)
         .upload(filePath, buffer, {
           contentType: 'image/jpeg',
           upsert: true,
@@ -1169,7 +1293,7 @@ async function handleIdUpload(req, res, supabase) {
       if (uploadError) throw uploadError
 
       const { data: urlData } = supabase.storage
-        .from('applicant-photos')
+        .from(bucketName)
         .getPublicUrl(filePath)
 
       const idPhotoUrl = urlData.publicUrl
@@ -1196,6 +1320,46 @@ async function handleIdUpload(req, res, supabase) {
         })
       } catch (e) {
         console.error('[id-upload] Admin notification failed:', e.message)
+      }
+
+      // Send onboarding checklist email to worker
+      if (worker.email) {
+        try {
+          const hasVideo = !!worker.video_url
+          const hasW9 = !!worker.w9_signed_at
+          const allComplete = hasVideo && hasW9
+
+          const stepsHtml = `
+            <div style="margin:20px 0">
+              <p style="font-weight:600;margin-bottom:12px">Your onboarding checklist:</p>
+              <div style="margin-bottom:8px;padding:12px 16px;background:${hasVideo ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+                ${hasVideo ? '✅' : '⬜'} Verification Video — ${hasVideo ? 'Complete' : '<a href="https://vandahire.com/verify" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+              </div>
+              <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
+                ✅ ID Photo Upload — Complete
+              </div>
+              <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+                ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+              </div>
+            </div>`
+
+          const incompleteMsg = allComplete
+            ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
+            : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>`
+
+          await sendEmail({
+            to: worker.email,
+            subject: allComplete ? 'Onboarding Complete — V&A Hire' : 'Action Required: Complete Your Onboarding — V&A Hire',
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+              <h2>ID Photo Received!</h2>
+              <p>Hi ${worker.first_name},</p>
+              <p>We've received your ID photo.</p>
+              ${stepsHtml}
+              ${incompleteMsg}
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+            </div>`,
+          })
+        } catch (e) { console.error('[id-upload] Onboarding email failed:', e.message) }
       }
 
       return res.status(200).json({ success: true, id_photo_url: idPhotoUrl })
@@ -1244,13 +1408,11 @@ async function handleW9(req, res, supabase) {
     if (tinDigits.length !== 9) return res.status(400).json({ error: 'TIN must be exactly 9 digits' })
     if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'ZIP must be 5 digits' })
 
-    const digits = phone.replace(/\D/g, '')
-    const { data: worker } = await supabase
+    const digits = phone.replace(/\D/g, '').slice(-10)
+    const { data: allW } = await supabase
       .from('applicants')
-      .select('id, w9_signed_at')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
+      .select('id, first_name, email, phone, w9_signed_at, video_url, id_photo_url')
+    const worker = (allW || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
     if (worker.w9_signed_at) return res.status(400).json({ error: 'W-9 already on file' })
@@ -1311,8 +1473,271 @@ async function handleW9(req, res, supabase) {
       console.error('[w9] Email notification failed:', emailErr)
     }
 
+    // Send onboarding checklist email to worker
+    if (worker.email) {
+      try {
+        const hasVideo = !!worker.video_url
+        const hasId = !!worker.id_photo_url
+        const allComplete = hasVideo && hasId
+
+        const stepsHtml = `
+          <div style="margin:20px 0">
+            <p style="font-weight:600;margin-bottom:12px">Your onboarding checklist:</p>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasVideo ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasVideo ? '✅' : '⬜'} Verification Video — ${hasVideo ? 'Complete' : '<a href="https://vandahire.com/verify" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasId ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasId ? '✅' : '⬜'} ID Photo Upload — ${hasId ? 'Complete' : '<a href="https://vandahire.com/id-upload/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
+              ✅ W-9 Tax Form — Complete
+            </div>
+          </div>`
+
+        const incompleteMsg = allComplete
+          ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
+          : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>`
+
+        await sendEmail({
+          to: worker.email,
+          subject: allComplete ? 'Onboarding Complete — V&A Hire' : 'Action Required: Complete Your Onboarding — V&A Hire',
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+            <h2>W-9 Received!</h2>
+            <p>Hi ${worker.first_name},</p>
+            <p>Your W-9 tax form has been securely submitted.</p>
+            ${stepsHtml}
+            ${incompleteMsg}
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+          </div>`,
+        })
+      } catch (e) { console.error('[w9] Onboarding email failed:', e.message) }
+    }
+
     return res.status(200).json({ success: true, w9_signed_at: now })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── GPS PING — Workers send location every 30s while checked in ─────────────
+async function handleGpsPing(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone, latitude, longitude } = req.body
+  if (!phone || latitude == null || longitude == null) {
+    return res.status(400).json({ error: 'phone, latitude, longitude required' })
+  }
+
+  const digits = phone.replace(/\D/g, '').slice(-10)
+  const { data: allWorkers } = await supabase.from('applicants').select('id, phone')
+  const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits)
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+  // Find active checked-in assignment
+  const { data: assignment } = await supabase
+    .from('assignments')
+    .select('id, event_id')
+    .eq('worker_id', worker.id)
+    .eq('status', 'checked_in')
+    .limit(1)
+    .single()
+
+  if (!assignment) return res.status(200).json({ status: 'no_active_shift' })
+
+  // Update last known location on the assignment
+  await supabase.from('assignments').update({
+    last_ping_lat: latitude,
+    last_ping_lng: longitude,
+    last_ping_at: new Date().toISOString(),
+  }).eq('id', assignment.id)
+
+  return res.status(200).json({ status: 'ok' })
+}
+
+// ─── SUPERVISOR DASHBOARD — Get event, crew GPS, bench for supervisor ────────
+async function handleSupervisorDashboard(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone } = req.query
+  if (!phone) return res.status(400).json({ error: 'phone required' })
+
+  const digits = phone.replace(/\D/g, '').slice(-10)
+  const { data: allWorkers } = await supabase.from('applicants').select('id, first_name, last_name, phone')
+  const supervisor = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits)
+  if (!supervisor) return res.status(404).json({ error: 'Worker not found' })
+
+  // Find supervisor assignment
+  const { data: supAssignment } = await supabase
+    .from('assignments')
+    .select('id, event_id, status, events ( id, title, event_date, start_time, end_time, location, city, latitude, longitude, geofence_radius_meters, workers_needed, pay_rate, service_tier )')
+    .eq('worker_id', supervisor.id)
+    .eq('is_supervisor', true)
+    .in('status', ['confirmed', 'checked_in', 'completed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!supAssignment) return res.status(404).json({ error: 'No supervisor assignment found. You must be assigned as a supervisor to access this portal.' })
+
+  const event = supAssignment.events
+
+  // Get all crew for this event
+  const { data: crew } = await supabase
+    .from('assignments')
+    .select('id, status, is_supervisor, check_in_time, check_out_time, hours_tracked, last_ping_lat, last_ping_lng, last_ping_at, check_in_lat, check_in_lng, worker_id, applicants ( id, first_name, last_name, phone, photo_url )')
+    .eq('event_id', event.id)
+    .in('status', ['confirmed', 'checked_in', 'completed'])
+    .order('is_supervisor', { ascending: false })
+
+  // Get bench pool
+  const { data: bench } = await supabase
+    .from('bench_assignments')
+    .select('id, status, tier, standby_fee, called_in_at, worker_id, applicants ( id, first_name, last_name, phone )')
+    .eq('event_id', event.id)
+    .in('status', ['standby', 'called_in'])
+    .order('tier', { ascending: true })
+
+  // Get incidents
+  const { data: incidents } = await supabase
+    .from('incidents')
+    .select('*')
+    .eq('event_id', event.id)
+    .order('created_at', { ascending: false })
+
+  return res.status(200).json({
+    event,
+    supervisor: { id: supervisor.id, first_name: supervisor.first_name, last_name: supervisor.last_name },
+    crew: crew || [],
+    bench: bench || [],
+    incidents: incidents || [],
+  })
+}
+
+// ─── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
+
+function setupVapid() {
+  webPush.setVapidDetails(
+    'mailto:crew@vandahire.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+}
+
+async function sendPushToWorker(supabase, workerId, title, body, url, tag) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
+  setupVapid()
+  const { data: sub } = await supabase
+    .from('push_subscriptions')
+    .select('subscription')
+    .eq('worker_id', workerId)
+    .single()
+  if (!sub) return
+  try {
+    await webPush.sendNotification(
+      JSON.parse(sub.subscription),
+      JSON.stringify({ title, body: body || '', url: url || '/', tag: tag || 'general' })
+    )
+  } catch (err) {
+    if (err.statusCode === 410 || err.statusCode === 404) {
+      await supabase.from('push_subscriptions').delete().eq('worker_id', workerId)
+    }
+  }
+}
+
+async function handlePushVapidKey(req, res) {
+  return res.status(200).json({ publicKey: process.env.VAPID_PUBLIC_KEY })
+}
+
+async function handlePushSubscribe(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { phone, subscription } = req.body
+  if (!phone || !subscription) return res.status(400).json({ error: 'phone and subscription required' })
+
+  const digits = phone.replace(/\D/g, '').slice(-10)
+  const { data: allWorkers } = await supabase.from('applicants').select('id, phone')
+  const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits)
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    worker_id: worker.id,
+    subscription: JSON.stringify(subscription),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'worker_id' })
+
+  if (error) {
+    console.error('[push] Subscribe error:', error)
+    return res.status(500).json({ error: 'Failed to save subscription' })
+  }
+  return res.status(200).json({ success: true })
+}
+
+async function handlePushSend(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { worker_id, title, body, url, tag } = req.body
+  if (!worker_id || !title) return res.status(400).json({ error: 'worker_id and title required' })
+  setupVapid()
+  const { data: sub } = await supabase
+    .from('push_subscriptions')
+    .select('subscription')
+    .eq('worker_id', worker_id)
+    .single()
+  if (!sub) return res.status(404).json({ error: 'No push subscription for this worker' })
+  try {
+    await webPush.sendNotification(
+      JSON.parse(sub.subscription),
+      JSON.stringify({ title, body: body || '', url: url || '/', tag: tag || 'general' })
+    )
+    return res.status(200).json({ success: true })
+  } catch (err) {
+    if (err.statusCode === 410 || err.statusCode === 404) {
+      await supabase.from('push_subscriptions').delete().eq('worker_id', worker_id)
+      return res.status(410).json({ error: 'Subscription expired' })
+    }
+    console.error('[push] Send error:', err)
+    return res.status(500).json({ error: 'Failed to send push' })
+  }
+}
+
+async function handlePushNotifyShift(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const auth = req.headers.authorization?.replace('Bearer ', '')
+  if (auth !== process.env.VANDA_ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' })
+
+  const { event_title, event_date, city } = req.body
+  if (!event_title) return res.status(400).json({ error: 'event_title required' })
+  setupVapid()
+
+  const { data: subs } = await supabase.from('push_subscriptions').select('worker_id, subscription')
+  if (!subs || subs.length === 0) return res.status(200).json({ sent: 0, message: 'No subscriptions found' })
+
+  const workerIds = subs.map(s => s.worker_id)
+  const { data: workers } = await supabase
+    .from('applicants')
+    .select('id, status, city')
+    .in('id', workerIds)
+    .eq('status', 'approved')
+  const approvedIds = new Set((workers || []).map(w => w.id))
+
+  let sent = 0, failed = 0
+  for (const sub of subs) {
+    if (!approvedIds.has(sub.worker_id)) continue
+    try {
+      await webPush.sendNotification(
+        JSON.parse(sub.subscription),
+        JSON.stringify({
+          title: 'New Shift Available!',
+          body: `${event_title}${event_date ? ` — ${event_date}` : ''}${city ? ` in ${city}` : ''}. Claim it now!`,
+          url: '/shifts',
+          tag: 'new-shift',
+        })
+      )
+      sent++
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from('push_subscriptions').delete().eq('worker_id', sub.worker_id)
+      }
+      failed++
+    }
+  }
+  return res.status(200).json({ sent, failed })
 }

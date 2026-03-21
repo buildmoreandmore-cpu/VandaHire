@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from '../Router.jsx'
 import VandaLogo from '../components/VandaLogo.jsx'
 import Footer from '../components/Footer.jsx'
+import PushOptIn from '../components/PushOptIn.jsx'
 import useGeolocation from '../lib/useGeolocation.js'
 import { calculateDistance } from '../lib/geo.js'
 
@@ -348,7 +349,9 @@ export default function MyShiftsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(null)
-  const geo = useGeolocation()
+  const [gpsEnabled, setGpsEnabled] = useState(false)
+  const [checkoutMessage, setCheckoutMessage] = useState(null)
+  const geo = useGeolocation(gpsEnabled)
 
   const fetchShifts = async (phoneDigits) => {
     setLoading(true)
@@ -370,6 +373,27 @@ export default function MyShiftsPage() {
     if (saved) fetchShifts(saved)
   }, [])
 
+  // GPS ping — send location to server every 30s while checked in
+  const isCheckedIn = assignments.some(a => a.status === 'checked_in')
+  useEffect(() => {
+    if (!isCheckedIn || !gpsEnabled || !geo.latitude) return
+    const phone = localStorage.getItem(PHONE_KEY)
+    if (!phone) return
+
+    const ping = () => {
+      if (geo.latitude && geo.longitude) {
+        fetch('/api/worker?route=gps-ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, latitude: geo.latitude, longitude: geo.longitude }),
+        }).catch(() => {})
+      }
+    }
+    ping() // Send immediately
+    const id = setInterval(ping, 30000) // Then every 30s
+    return () => clearInterval(id)
+  }, [isCheckedIn, gpsEnabled, geo.latitude, geo.longitude])
+
   const handleVerify = (e) => {
     e.preventDefault()
     const digits = phone.replace(/\D/g, '')
@@ -380,12 +404,21 @@ export default function MyShiftsPage() {
   }
 
   const handleAction = async (assignmentId, eventId, action) => {
+    setError('')
+    setCheckoutMessage(null)
+
+    // If GPS isn't active yet, enable it and wait for coordinates
     if (!geo.latitude || !geo.longitude) {
-      setError('Waiting for GPS location...')
+      if (!gpsEnabled) {
+        setGpsEnabled(true)
+        setError('Requesting your location... Tap the button again once GPS is ready.')
+        return
+      }
+      setError('Acquiring your GPS location — please wait a moment and try again.')
       return
     }
+
     setActionLoading(assignmentId)
-    setError('')
     try {
       const res = await fetch('/api/checkin', {
         method: 'POST',
@@ -406,8 +439,19 @@ export default function MyShiftsPage() {
           throw new Error(data.error || 'Action failed')
         }
       } else {
-        fetchShifts(localStorage.getItem(PHONE_KEY))
         if (navigator.vibrate) navigator.vibrate([80, 50, 80])
+
+        if (action === 'check_out') {
+          // Stop GPS tracking after check-out
+          setGpsEnabled(false)
+          const hours = data.hours_tracked || null
+          setCheckoutMessage({
+            title: 'Checked Out!',
+            hours,
+          })
+        }
+
+        fetchShifts(localStorage.getItem(PHONE_KEY))
       }
     } catch (err) {
       setError(err.message)
@@ -481,16 +525,33 @@ export default function MyShiftsPage() {
           <button onClick={() => fetchShifts(localStorage.getItem(PHONE_KEY))} className="text-[#ffffff] text-xs hover:opacity-80">Refresh</button>
         </div>
 
-        {/* GPS status */}
-        <div className="flex items-center gap-2 mb-4 text-xs">
-          {geo.loading ? (
-            <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /><span className="text-yellow-400">Acquiring GPS...</span></>
-          ) : geo.error ? (
-            <><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">GPS: {geo.error}</span></>
-          ) : (
-            <><span className="w-2 h-2 rounded-full bg-[#ffffff]" /><span className="text-[#888]">GPS active ({'\u00B1'}{Math.round(geo.accuracy)}m)</span></>
-          )}
-        </div>
+        {/* GPS status — only show when GPS is enabled */}
+        {gpsEnabled && (
+          <div className="flex items-center gap-2 mb-4 text-xs">
+            {geo.loading ? (
+              <><span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" /><span className="text-yellow-400">Acquiring GPS...</span></>
+            ) : geo.error ? (
+              <><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">Location access denied. Please allow location in your browser settings and try again.</span></>
+            ) : (
+              <><span className="w-2 h-2 rounded-full bg-[#ffffff]" /><span className="text-[#888]">GPS active ({'\u00B1'}{Math.round(geo.accuracy)}m)</span></>
+            )}
+          </div>
+        )}
+
+        <PushOptIn phone={localStorage.getItem(PHONE_KEY) || ''} />
+
+        {/* Checkout confirmation message */}
+        {checkoutMessage && (
+          <div className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-5 mb-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center mx-auto mb-3 text-black text-xl font-bold">✓</div>
+            <h3 className="text-white font-semibold text-lg mb-1">{checkoutMessage.title}</h3>
+            {checkoutMessage.hours && (
+              <p className="text-[#888] text-sm">Hours tracked: <span className="text-white font-medium">{checkoutMessage.hours}h</span></p>
+            )}
+            <p className="text-[#666] text-xs mt-2">GPS tracking has been stopped. Great work today!</p>
+            <button onClick={() => setCheckoutMessage(null)} className="text-[#888] text-xs mt-3 hover:text-white transition-colors">Dismiss</button>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
@@ -511,7 +572,9 @@ export default function MyShiftsPage() {
               const ev = a.events
               const distance = getDistanceToEvent(ev)
               const withinGeofence = distance != null && distance <= (ev.geofence_radius_meters || 200)
-              const canCheckIn = a.status === 'confirmed' && withinGeofence
+              // Allow click if GPS not enabled yet (will trigger permission), block only if GPS is active and outside geofence
+              const gpsBlocksCheckIn = gpsEnabled && geo.latitude && ev.latitude != null && !withinGeofence
+              const canCheckIn = a.status === 'confirmed' && !gpsBlocksCheckIn
               const isSupervisor = a.is_supervisor
 
               return (
@@ -543,8 +606,8 @@ export default function MyShiftsPage() {
                     <p className="text-[#888] text-xs mb-2">Pay: {ev.pay_rate}</p>
                   )}
 
-                  {/* Geofence status */}
-                  {ev.latitude != null && ev.longitude != null && (
+                  {/* Geofence status — only show when GPS is active */}
+                  {gpsEnabled && ev.latitude != null && ev.longitude != null && (
                     <div className="flex items-center gap-2 mb-3 text-xs">
                       {distance == null ? (
                         <span className="text-[#555]">Calculating distance...</span>
@@ -576,7 +639,7 @@ export default function MyShiftsPage() {
                       disabled={!canCheckIn || actionLoading === a.id}
                       className="w-full bg-[#ffffff] text-black rounded-lg py-3 text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
                     >
-                      {actionLoading === a.id ? 'Checking in...' : !withinGeofence && ev.latitude != null ? 'Move closer to check in' : 'Check In'}
+                      {actionLoading === a.id ? 'Checking in...' : !gpsEnabled ? 'Check In' : geo.loading ? 'Acquiring GPS...' : gpsBlocksCheckIn ? 'Move closer to check in' : 'Check In'}
                     </button>
                   )}
                   {a.status === 'checked_in' && (

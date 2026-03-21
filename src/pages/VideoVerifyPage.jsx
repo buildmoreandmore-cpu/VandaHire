@@ -30,7 +30,12 @@ export default function VideoVerifyPage() {
         setError(data.error || 'Worker not found. Please make sure you have applied first.')
         return
       }
-      setWorker(data.worker || data)
+      const w = data.worker || data
+      setWorker(w)
+      if (w.video_url) {
+        setStep('already-done')
+        return
+      }
       setStep('record')
       await startCamera()
     } catch (err) {
@@ -144,9 +149,16 @@ export default function VideoVerifyPage() {
     <div style={{ minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ maxWidth: 500, margin: '0 auto', padding: '40px 20px' }}>
         <h1 style={{ fontSize: 24, marginBottom: 8, textAlign: 'center' }}>V&A Hire Verification</h1>
-        <p style={{ color: '#aaa', textAlign: 'center', marginBottom: 32, fontSize: 14 }}>
+        <p style={{ color: '#aaa', textAlign: 'center', marginBottom: 8, fontSize: 14 }}>
           Record a short video to complete your profile verification
         </p>
+        {/* Progress indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+        </div>
+        <p style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 24 }}>Step 1 of 3</p>
 
         {error && (
           <div style={{ background: '#ff4444', color: '#fff', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>
@@ -271,19 +283,54 @@ export default function VideoVerifyPage() {
           </div>
         )}
 
-        {/* Step 5: Done */}
+        {/* Step 5: Done — navigate to ID upload */}
         {step === 'done' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>
               ✓
             </div>
-            <h2 style={{ marginBottom: 8 }}>Verification Submitted!</h2>
+            <h2 style={{ marginBottom: 8 }}>Video Submitted!</h2>
             <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6 }}>
-              Your video has been submitted for review. Once verified, you'll receive an email confirming you're ready to start claiming shifts.
+              Great job! Next, upload your government-issued ID to continue your onboarding.
             </p>
-            <a href="/shifts" style={{ display: 'inline-block', marginTop: 20, padding: '12px 24px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
-              Browse Available Shifts
-            </a>
+
+            {/* Progress indicator */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '24px 0' }}>
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+            </div>
+            <p style={{ color: '#666', fontSize: 12, marginBottom: 24 }}>Step 1 of 3 complete</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <a href={`/id-upload/${phone.replace(/\D/g, '')}`} style={{ display: 'inline-block', padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+                Upload ID Photo →
+              </a>
+              <a href="/" style={{ display: 'inline-block', padding: '14px 28px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: 8, textDecoration: 'none', fontSize: 14 }}>
+                Skip for now
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Already completed */}
+        {step === 'already-done' && (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>
+              ✓
+            </div>
+            <h2 style={{ marginBottom: 8 }}>Video Already Submitted</h2>
+            <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+              You've already recorded your verification video. No need to do it again!
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <a href={`/id-upload/${phone.replace(/\D/g, '')}`} style={{ display: 'inline-block', padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+                Next: Upload ID →
+              </a>
+              <a href="/" style={{ display: 'inline-block', padding: '14px 28px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: 8, textDecoration: 'none', fontSize: 14 }}>
+                Back to Home
+              </a>
+            </div>
           </div>
         )}
 

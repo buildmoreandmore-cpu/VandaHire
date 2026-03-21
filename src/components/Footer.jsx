@@ -17,9 +17,13 @@ export default function Footer() {
           <button onClick={() => navigate('/events')} className="hover:text-white transition-colors">Request Staff</button>
           <button onClick={() => { navigate('/'); window.scrollTo(0, 0) }} className="hover:text-white transition-colors">Apply for Work</button>
           <button onClick={() => navigate('/organizer')} className="hover:text-white transition-colors">Check Event Status</button>
+          <a href="/shifts" className="hover:text-white transition-colors">Worker Portal</a>
           <button onClick={() => navigate('/blog')} className="hover:text-white transition-colors">Blog</button>
+          <button onClick={() => navigate('/verify')} className="hover:text-white transition-colors">Record Verification Video</button>
           <button onClick={() => navigate('/id-upload')} className="hover:text-white transition-colors">Upload ID</button>
           <button onClick={() => navigate('/w9')} className="hover:text-white transition-colors">W-9 Form</button>
+          <button onClick={() => navigate('/supervisor')} className="hover:text-white transition-colors">Supervisor Portal</button>
+          <a href="/admin" className="hover:text-white transition-colors">Coordinator Login</a>
         </div>
 
         {/* Phone */}

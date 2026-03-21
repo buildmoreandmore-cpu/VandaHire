@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react'
 
-export default function useGeolocation() {
+export default function useGeolocation(enabled = true) {
   const [state, setState] = useState({
     latitude: null,
     longitude: null,
     accuracy: null,
     error: null,
-    loading: true,
+    loading: false,
   })
 
   useEffect(() => {
+    if (!enabled) return
+
     if (!navigator.geolocation) {
       setState(s => ({ ...s, error: 'Geolocation not supported', loading: false }))
       return
     }
+
+    setState(s => ({ ...s, loading: true }))
 
     const id = navigator.geolocation.watchPosition(
       (pos) => {
@@ -32,7 +36,7 @@ export default function useGeolocation() {
     )
 
     return () => navigator.geolocation.clearWatch(id)
-  }, [])
+  }, [enabled])
 
   return state
 }

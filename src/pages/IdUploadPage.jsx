@@ -104,9 +104,16 @@ export default function IdUploadPage({ phone: phoneParam }) {
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ maxWidth: 500, margin: '0 auto', padding: '40px 20px' }}>
         <h1 style={{ fontSize: 24, marginBottom: 4, textAlign: 'center' }}>ID Verification</h1>
-        <p style={{ color: '#888', textAlign: 'center', marginBottom: 32, fontSize: 14 }}>
+        <p style={{ color: '#888', textAlign: 'center', marginBottom: 8, fontSize: 14 }}>
           Upload a photo of your government-issued ID
         </p>
+        {/* Progress indicator */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+        </div>
+        <p style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 24 }}>Step 2 of 3</p>
 
         {error && (
           <div style={{ background: '#331111', border: '1px solid #552222', color: '#ff6666', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>
@@ -207,25 +214,38 @@ export default function IdUploadPage({ phone: phoneParam }) {
             <p style={{ color: '#555', fontSize: 11, marginTop: 12, textAlign: 'center' }}>
               Your ID is stored securely and only used for identity verification.
             </p>
+
+            <a href="/" style={{ display: 'block', textAlign: 'center', padding: '12px', color: '#666', fontSize: 14, textDecoration: 'none', marginTop: 4 }}>
+              Skip for now — I'll come back later
+            </a>
           </div>
         )}
 
-        {/* Done */}
+        {/* Done — navigate to W-9 */}
         {step === 'done' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32, color: '#000' }}>
               ✓
             </div>
             <h2 style={{ marginBottom: 8 }}>ID On File</h2>
-            <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-              Your ID has been uploaded and verified.
+            <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6 }}>
+              Almost done! Complete your W-9 tax form to finish onboarding.
             </p>
+
+            {/* Progress indicator */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '24px 0' }}>
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#ffffff' }} />
+              <div style={{ width: 32, height: 4, borderRadius: 2, background: '#333' }} />
+            </div>
+            <p style={{ color: '#666', fontSize: 12, marginBottom: 24 }}>Step 2 of 3 complete</p>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <a href={`/w9/${phone.replace(/\D/g, '')}`} style={{ display: 'inline-block', padding: '14px 28px', background: '#fff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
                 Complete W-9 Form →
               </a>
-              <a href="/shifts" style={{ display: 'inline-block', padding: '14px 28px', background: '#141414', color: '#fff', border: '1px solid #333', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
-                Browse Shifts →
+              <a href="/" style={{ display: 'inline-block', padding: '14px 28px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: 8, textDecoration: 'none', fontSize: 14 }}>
+                Skip for now
               </a>
             </div>
           </div>

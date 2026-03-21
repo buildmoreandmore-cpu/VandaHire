@@ -72,7 +72,7 @@ export default function App() {
         />
       )}
       {screen === SCREENS.SUBMITTED && (
-        <SubmittedScreen firstName={formData.first_name} />
+        <SubmittedScreen firstName={formData.first_name} phone={formData.phone} />
       )}
     </div>
   )

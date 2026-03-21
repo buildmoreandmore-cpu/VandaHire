@@ -161,6 +161,11 @@ CREATE TABLE IF NOT EXISTS public.assignments (
   check_out_lng        double precision,
   hours_tracked        numeric(6,2),   -- calculated from check-in → check-out
 
+  -- Live GPS ping (updated every 30s while checked in)
+  last_ping_lat        double precision,
+  last_ping_lng        double precision,
+  last_ping_at         timestamptz,
+
   -- Supervisor flag
   is_supervisor        boolean     NOT NULL DEFAULT false,
 
@@ -416,6 +421,16 @@ ALTER TABLE public.events ADD COLUMN IF NOT EXISTS client_survey_at timestamptz;
 -- ============================================================
 ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS surge_multiplier numeric(4,2) DEFAULT 1.00;
 ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS surge_reasons text[] DEFAULT '{}';
+
+-- ============================================================
+-- PUSH NOTIFICATION SUBSCRIPTIONS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  worker_id      uuid        NOT NULL UNIQUE REFERENCES public.applicants(id) ON DELETE CASCADE,
+  subscription   text        NOT NULL,  -- JSON stringified PushSubscription
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
 
 -- ============================================================
 -- NOTES

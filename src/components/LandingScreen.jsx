@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '../Router.jsx'
 import VandaLogo from './VandaLogo.jsx'
 import Footer from './Footer.jsx'
@@ -99,6 +99,7 @@ const WORKER_TIMELINE = [
 export default function LandingScreen({ onStart }) {
   const navigate = useNavigate()
   const containerRef = useRef(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -119,14 +120,41 @@ export default function LandingScreen({ onStart }) {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-[#0a0a0a] text-white flex flex-col font-body">
-      {/* Nav */}
-      <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <VandaLogo onClick={() => {}} />
-        <div className="flex items-center gap-4">
-          <a href="tel:+14048617794" className="text-[#999] text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
-          <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
+      {/* Header */}
+      <header className="border-b border-[#1a1a1a] px-6 py-4 relative z-50">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <VandaLogo onClick={() => {}} />
+
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-6">
+            <button onClick={() => navigate('/events')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Request Staff</button>
+            <button onClick={() => navigate('/organizer')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Event Status</button>
+            <a href="/shifts" className="text-[#999] text-sm hover:text-white transition-colors font-medium">Worker Portal</a>
+            <a href="tel:+14048617794" className="text-[#666] text-sm hover:text-white transition-colors">(404) 861-7794</a>
+          </nav>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-[5px]"
+            aria-label="Menu"
+          >
+            <span className={`block w-5 h-[2px] bg-white transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+            <span className={`block w-5 h-[2px] bg-white transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
+            <span className={`block w-5 h-[2px] bg-white transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+          </button>
         </div>
-      </div>
+
+        {/* Mobile menu dropdown */}
+        {menuOpen && (
+          <div className="md:hidden absolute top-full left-0 right-0 bg-[#0a0a0a] border-b border-[#1a1a1a] px-6 py-4 flex flex-col gap-4 z-50">
+            <button onClick={() => { navigate('/events'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Request Staff</button>
+            <button onClick={() => { navigate('/organizer'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Event Status</button>
+            <a href="/shifts" onClick={() => setMenuOpen(false)} className="text-[#ccc] text-sm font-medium py-2 hover:text-white transition-colors">Worker Portal</a>
+            <a href="tel:+14048617794" className="text-[#888] text-sm py-2">(404) 861-7794</a>
+          </div>
+        )}
+      </header>
 
       {/* Hero */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
@@ -172,7 +200,7 @@ export default function LandingScreen({ onStart }) {
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map(({ number, label }) => (
             <div key={label}>
-              <div className="text-4xl md:text-5xl font-bold italic text-white" style={{ fontFamily: 'Syne, sans-serif' }}>{number}</div>
+              <div className="text-4xl md:text-5xl font-extrabold text-white font-inter tracking-tight">{number}</div>
               <div className="text-[#666] text-xs tracking-widest uppercase mt-2">{label}</div>
             </div>
           ))}

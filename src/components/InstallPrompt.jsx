@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 const DISMISS_KEY = 'vanda_install_dismissed'
-const DISMISS_DAYS = 7
+const DISMISS_HOURS = 24
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
@@ -15,7 +15,7 @@ export default function InstallPrompt() {
 
     // Check dismiss timestamp
     const ts = localStorage.getItem(DISMISS_KEY)
-    if (ts && Date.now() - parseInt(ts, 10) < DISMISS_DAYS * 86400000) return
+    if (ts && Date.now() - parseInt(ts, 10) < DISMISS_HOURS * 3600000) return
 
     setDismissed(false)
 

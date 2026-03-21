@@ -4,6 +4,7 @@ import ShiftCard from '../components/ShiftCard.jsx'
 import ClaimModal from '../components/ClaimModal.jsx'
 import VandaLogo from '../components/VandaLogo.jsx'
 import InstallPrompt from '../components/InstallPrompt.jsx'
+import PushOptIn from '../components/PushOptIn.jsx'
 
 export default function ShiftsPage() {
   const navigate = useNavigate()
@@ -63,17 +64,18 @@ export default function ShiftsPage() {
       <div className="border-b border-p-border px-5 py-4 flex items-center justify-between">
         <VandaLogo onClick={() => navigate('/')} />
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/my-shifts')} className="text-p-green text-xs font-medium hover:opacity-80 transition-opacity">My Shifts</button>
-          <span className="text-p-muted text-xs">Available Shifts</span>
+          <button onClick={() => navigate('/my-shifts')} className="text-[#999] text-xs font-medium hover:text-white transition-colors">My Shifts</button>
+          <span className="text-white text-xs font-semibold border-b border-white pb-0.5">Available Shifts</span>
         </div>
       </div>
 
       <div className="max-w-[600px] mx-auto px-5 py-8">
         <InstallPrompt />
+        <PushOptIn phone="" />
         <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Open Shifts</h1>
         <p className="text-p-muted text-sm mb-6">
           Approved V&A Hire workers can claim shifts below. Not in our pool yet?{' '}
-          <button onClick={() => navigate('/')} className="text-p-green hover:opacity-80 transition-opacity">Apply here →</button>
+          <button onClick={() => navigate('/')} className="text-white underline hover:opacity-80 transition-opacity">Apply here →</button>
         </p>
 
         {loading && (
