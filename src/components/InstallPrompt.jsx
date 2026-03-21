@@ -29,7 +29,9 @@ export default function InstallPrompt() {
     // iOS Safari detection
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
     const isSafari = /safari/i.test(navigator.userAgent) && !/crios|fxios|chrome/i.test(navigator.userAgent)
-    if (isIos && isSafari) setShowIosTip(true)
+    const isAndroid = /android/i.test(navigator.userAgent)
+    if (isIos && isSafari) setShowIosTip('ios')
+    else if (isAndroid) setShowIosTip('android')
 
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
@@ -64,6 +66,26 @@ export default function InstallPrompt() {
                 Install App
               </button>
             </>
+          ) : showIosTip === 'android' ? (
+            <div className="space-y-2.5">
+              <p className="text-[#888] text-xs">Get the app on your home screen in 3 steps:</p>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">1</span>
+                <span className="text-[#ccc]">
+                  Tap the <span className="inline-block align-middle mx-0.5">
+                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                  </span> <strong className="text-white">menu</strong> (3 dots) in the top right of Chrome
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">2</span>
+                <span className="text-[#ccc]">Tap <strong className="text-white">Add to Home screen</strong></span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">3</span>
+                <span className="text-[#ccc]">Tap <strong className="text-white">Add</strong> to confirm</span>
+              </div>
+            </div>
           ) : (
             <div className="space-y-2.5">
               <p className="text-[#888] text-xs">Get the app on your home screen in 3 steps:</p>
