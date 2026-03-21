@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     })
   }
 
-  const prompt = `You are an applicant screener for Vanda, an event staffing company. Workers do janitorial, cleanup, setup/breakdown, brand activation, and general labor at events.
+  const prompt = `You are an applicant screener for Vanda Hire, an event staffing company. Workers do janitorial, cleanup, setup/breakdown, brand activation, and general labor at events.
 
 Evaluate this applicant and decide: qualified, needs_review, or not_a_fit.
 

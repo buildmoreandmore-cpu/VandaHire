@@ -1,4 +1,4 @@
--- VandaHire staffing platform — complete schema
+-- Vanda Hire staffing platform — complete schema
 -- Reflects the live database as of 2026-03-19
 -- Run in Supabase SQL editor on a fresh project (uses CREATE TABLE IF NOT EXISTS throughout)
 
@@ -38,6 +38,23 @@ CREATE TABLE IF NOT EXISTS public.applicants (
   -- Status lifecycle: pending → approved | rejected
   status               text        NOT NULL DEFAULT 'pending',
   email_sent_at        timestamptz,
+
+  -- Approval tracking
+  approved_at          timestamptz,
+
+  -- W-9 tax form
+  w9_legal_name        text,
+  w9_business_name     text,
+  w9_tax_class         text,
+  w9_address           text,
+  w9_city              text,
+  w9_state             text        CHECK (length(w9_state) = 2),
+  w9_zip               text        CHECK (w9_zip ~ '^\d{5}$'),
+  w9_tin_encrypted     text,
+  w9_tin_last4         text        CHECK (length(w9_tin_last4) = 4),
+  w9_signed_at         timestamptz,
+  w9_ip                text,
+  w9_reminder_count    integer     NOT NULL DEFAULT 0,
 
   -- Bench system
   strikes              integer     NOT NULL DEFAULT 0
@@ -92,12 +109,12 @@ CREATE TABLE IF NOT EXISTS public.events (
   geofence_radius_meters      integer     NOT NULL DEFAULT 200,
 
   -- Billing / client payment tracking
-  bill_rate                   numeric(10,2),          -- what VandaHire charges client per worker/hr
+  bill_rate                   numeric(10,2),          -- what Vanda Hire charges client per worker/hr
   total_bill_amount           numeric(10,2),          -- total service-fee invoice amount
   invoice_status              text        NOT NULL DEFAULT 'not_sent',   -- not_sent | sent | paid | overdue
   payment_status              text        NOT NULL DEFAULT 'unpaid',     -- unpaid | partial | paid
 
-  -- Stripe integration (VandaHire service-fee collection)
+  -- Stripe integration (Vanda Hire service-fee collection)
   stripe_checkout_session_id  text,
   stripe_payment_url          text,
   stripe_payment_id           text,

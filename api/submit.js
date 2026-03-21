@@ -141,7 +141,7 @@ export default async function handler(req, res) {
     const notifyTasks = []
     if (sendSms && phone) {
       notifyTasks.push(
-        sendSms(phone, `Welcome to Vanda, ${first_name}! You've been approved. Browse open shifts at ${siteUrl}/shifts`)
+        sendSms(phone, `Welcome to Vanda Hire, ${first_name}! You've been approved. Browse open shifts at ${siteUrl}/shifts`)
           .catch(e => console.error('[submit] Welcome SMS error:', e.message))
       )
     }
@@ -149,8 +149,8 @@ export default async function handler(req, res) {
       notifyTasks.push(
         sendEmail({
           to: email,
-          subject: 'Welcome to Vanda — You\'re Approved!',
-          html: `<h2>Welcome to Vanda, ${first_name}!</h2><p>Great news — your application has been reviewed and you're approved to start claiming shifts.</p><p><a href="${siteUrl}/shifts" style="background:#ffffff;color:#000;padding:10px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Browse Open Shifts →</a></p><p style="color:#888;font-size:14px;">We'll also text you when new events open up in your area. Welcome to the crew!</p>`,
+          subject: 'Welcome to Vanda Hire — You\'re Approved!',
+          html: `<h2>Welcome to Vanda Hire, ${first_name}!</h2><p>Great news — your application has been reviewed and you're approved to start claiming shifts.</p><p><a href="${siteUrl}/shifts" style="background:#ffffff;color:#000;padding:10px 24px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Browse Open Shifts →</a></p><p style="color:#888;font-size:14px;">We'll also text you when new events open up in your area. Welcome to the crew!</p>`,
         }).catch(e => console.error('[submit] Welcome email error:', e.message))
       )
     }
@@ -161,8 +161,8 @@ export default async function handler(req, res) {
       notifyTasks.push(
         sendEmail({
           to: email,
-          subject: 'Your Vanda Application',
-          html: `<h2>Thanks for applying to Vanda, ${first_name}.</h2><p>We've reviewed your application and unfortunately we're not a fit at this time. We appreciate your interest and the time you took to apply.</p><p style="color:#888;font-size:14px;">We occasionally re-open applications, so feel free to check back in the future.</p><p>— The Vanda Team</p>`,
+          subject: 'Your Vanda Hire Application',
+          html: `<h2>Thanks for applying to Vanda Hire, ${first_name}.</h2><p>We've reviewed your application and unfortunately we're not a fit at this time. We appreciate your interest and the time you took to apply.</p><p style="color:#888;font-size:14px;">We occasionally re-open applications, so feel free to check back in the future.</p><p>— The Vanda Hire Team</p>`,
         }).catch(e => console.error('[submit] Rejection email error:', e.message))
       )
     }
