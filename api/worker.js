@@ -580,8 +580,8 @@ async function handleExitReply(req, res, supabase) {
 async function handleVerifyVideo(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { phone, video_base64, video_url: directUrl } = req.body
-  if (!phone || (!video_base64 && !directUrl)) return res.status(400).json({ error: 'phone and video required' })
+  const { phone, video_base64 } = req.body || {}
+  if (!phone || !video_base64) return res.status(400).json({ error: 'phone and video_base64 required' })
 
   const digits = phone.replace(/\D/g, '').slice(-10)
   const { data: allWorkers, error: wErr } = await supabase
@@ -590,24 +590,21 @@ async function handleVerifyVideo(req, res, supabase) {
   const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
   if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
 
-  // Get video URL — either passed directly (client-side upload) or upload from base64
-  let finalVideoUrl = directUrl
-  if (!finalVideoUrl && video_base64) {
-    const videoBuffer = Buffer.from(video_base64, 'base64')
-    const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
+  // Upload video to Supabase Storage
+  const videoBuffer = Buffer.from(video_base64, 'base64')
+  const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
 
-    const { error: uploadErr } = await supabase.storage
-      .from('applicant-photos')
-      .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
+  const { error: uploadErr } = await supabase.storage
+    .from('applicant-photos')
+    .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
 
-    if (uploadErr) {
-      console.error('[verify-video] Upload error:', uploadErr)
-      return res.status(500).json({ error: 'Failed to upload video' })
-    }
-
-    const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
-    finalVideoUrl = urlData.publicUrl
+  if (uploadErr) {
+    console.error('[verify-video] Upload error:', uploadErr)
+    return res.status(500).json({ error: 'Failed to upload video' })
   }
+
+  const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
+  const finalVideoUrl = urlData.publicUrl
 
   // Update applicant with video URL
   await supabase.from('applicants').update({

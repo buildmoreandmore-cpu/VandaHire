@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { supabase } from '../lib/supabase.js'
 
 const QUESTIONS = [
   'Please say your full name and tell us why you want to work with V&A Hire.',
@@ -60,7 +59,7 @@ export default function VideoVerifyPage() {
   function startRecording() {
     if (!streamRef.current) return
     chunksRef.current = []
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm;codecs=vp8,opus' })
+    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 500000 })
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' })
@@ -95,24 +94,28 @@ export default function VideoVerifyPage() {
     setError('')
 
     try {
-      // Upload directly to Supabase Storage (bypasses Vercel body size limit)
-      const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
-      const { error: uploadErr } = await supabase.storage
-        .from('applicant-photos')
-        .upload(fileName, videoBlob, { contentType: 'video/webm', upsert: true })
+      // Split video into chunks if needed (Vercel 4.5MB limit)
+      // Convert to base64 and send in chunks, or send small videos directly
+      const MAX_SIZE = 4 * 1024 * 1024 // 4MB to be safe
 
-      if (uploadErr) throw uploadErr
+      if (videoBlob.size > MAX_SIZE) {
+        // Too large — re-encode at lower quality
+        setError(`Video too large (${(videoBlob.size / 1024 / 1024).toFixed(1)}MB). Please record a shorter video (under 30 seconds).`)
+        setStep('review')
+        return
+      }
 
-      const { data: urlData } = supabase.storage.from('applicant-photos').getPublicUrl(fileName)
+      // Convert to base64 for JSON upload
+      const reader = new FileReader()
+      const base64 = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result.split(',')[1])
+        reader.readAsDataURL(videoBlob)
+      })
 
-      // Notify API to update the applicant record
       const res = await fetch('/api/verify-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone,
-          video_url: urlData.publicUrl,
-        }),
+        body: JSON.stringify({ phone, video_base64: base64 }),
       })
 
       const data = await res.json()

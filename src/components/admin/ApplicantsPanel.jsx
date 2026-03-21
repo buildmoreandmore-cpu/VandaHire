@@ -392,7 +392,7 @@ export default function ApplicantsPanel() {
 
                         {/* Actions */}
                         <div className="flex gap-2 mt-4">
-                          {a.status !== 'approved' && (
+                          {a.status !== 'approved' && a.status !== 'rejected' && (
                             <ActionBtn
                               label="Approve"
                               cls="bg-green-600 hover:bg-green-700"
@@ -400,12 +400,20 @@ export default function ApplicantsPanel() {
                               onClick={() => handleStatusChange(a.id, 'approved')}
                             />
                           )}
-                          {a.status !== 'rejected' && (
+                          {a.status !== 'approved' && a.status !== 'rejected' && (
                             <ActionBtn
                               label="Reject"
                               cls="bg-red-600 hover:bg-red-700"
                               loading={updating === a.id}
                               onClick={() => handleStatusChange(a.id, 'rejected')}
+                            />
+                          )}
+                          {(a.status === 'approved' || a.status === 'rejected') && (
+                            <ActionBtn
+                              label={a.status === 'approved' ? 'Revoke Approval' : 'Undo Rejection'}
+                              cls="bg-p-border hover:bg-[#333]"
+                              loading={updating === a.id}
+                              onClick={() => handleStatusChange(a.id, 'pending')}
                             />
                           )}
                           {a.status !== 'needs_review' && a.status !== 'approved' && a.status !== 'rejected' && (
