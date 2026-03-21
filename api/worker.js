@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
+import { sendEmail } from '../_lib/email.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -1134,6 +1135,34 @@ async function handleW9(req, res, supabase) {
     if (updateErr) {
       console.error('[w9] Update failed:', updateErr)
       return res.status(500).json({ error: 'Failed to save W-9' })
+    }
+
+    // Email W-9 details to admin
+    const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+    try {
+      await sendEmail({
+        to: adminEmail,
+        subject: `W-9 Submitted: ${legal_name}`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;padding:32px;">
+            <h2 style="color:#ffffff;margin:0 0 20px;">New W-9 Submission</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Legal Name</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;"><strong>${legal_name}</strong></td></tr>
+              ${business_name ? `<tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Business Name</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${business_name}</td></tr>` : ''}
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Tax Classification</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${tax_class}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Address</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${address}, ${city}, ${state} ${zip}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">TIN (last 4)</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">***-**-${tinDigits.slice(-4)}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Phone</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${digits}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Signature</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;font-style:italic;">${signature_name}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Signed At</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${now}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;">IP Address</td><td style="color:#fff;padding:8px 0;">${typeof clientIp === 'string' ? clientIp.split(',')[0].trim() : 'unknown'}</td></tr>
+            </table>
+            <p style="color:#444;font-size:11px;margin-top:24px;">V&A Workforce — W-9 Auto-Notification</p>
+          </div>
+        `,
+      })
+    } catch (emailErr) {
+      console.error('[w9] Email notification failed:', emailErr)
     }
 
     return res.status(200).json({ success: true, w9_signed_at: now })
