@@ -131,7 +131,6 @@ export default function LandingScreen({ onStart }) {
             <button onClick={() => navigate('/events')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Request Staff</button>
             <button onClick={() => navigate('/organizer')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Event Status</button>
             <a href="/shifts" className="text-[#999] text-sm hover:text-white transition-colors font-medium">Worker Portal</a>
-            <a href="tel:+14048617794" className="text-[#666] text-sm hover:text-white transition-colors">(404) 861-7794</a>
           </nav>
 
           {/* Mobile hamburger */}
@@ -152,7 +151,6 @@ export default function LandingScreen({ onStart }) {
             <button onClick={() => { navigate('/events'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Request Staff</button>
             <button onClick={() => { navigate('/organizer'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Event Status</button>
             <a href="/shifts" onClick={() => setMenuOpen(false)} className="text-[#ccc] text-sm font-medium py-2 hover:text-white transition-colors">Worker Portal</a>
-            <a href="tel:+14048617794" className="text-[#888] text-sm py-2">(404) 861-7794</a>
           </div>
         )}
       </header>
