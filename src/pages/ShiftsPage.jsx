@@ -48,7 +48,7 @@ export default function ShiftsPage() {
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3 fade-up">Request Received!</h2>
         <p className="text-[#888] text-sm mb-8 max-w-xs fade-up-delay-1">
-          Thanks, {claimed.first_name}! Your shift request is pending approval. We'll confirm your assignment via text.
+          Thanks, {claimed.first_name}! Your shift request is pending approval. You'll receive a text once you've been approved.
         </p>
         <button
           onClick={() => { setClaimed(null); setShifts([]); setLoading(true); fetch('/api/shifts').then(r => r.json()).then(d => { setShifts(Array.isArray(d) ? d : []); setLoading(false) }) }}
