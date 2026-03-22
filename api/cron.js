@@ -397,7 +397,7 @@ async function autoStaffing(supabase) {
           autoAssigned++
           // Send shift invitation email
           if (w.email) {
-            const confirmUrl = `https://vandahire.com/confirm/${token}`
+            const confirmUrl = `${process.env.VITE_APP_URL || 'https://vandahire.com'}/confirm?token=${token}`
             try {
               await sendEmail({
                 to: w.email,

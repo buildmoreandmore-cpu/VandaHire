@@ -7,7 +7,9 @@ export default function ConfirmPage() {
   const [responding, setResponding] = useState(false)
   const [responded, setResponded] = useState(null)
 
+  // Support both /confirm/TOKEN (path) and /confirm?token=TOKEN (query)
   const token = new URLSearchParams(window.location.search).get('token')
+    || window.location.pathname.replace('/confirm/', '').replace('/confirm', '') || null
 
   useEffect(() => {
     if (!token) {
