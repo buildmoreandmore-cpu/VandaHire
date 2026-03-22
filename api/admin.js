@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { checkAdmin } from '../_lib/auth.js'
+import { findByPhone } from '../_lib/phone.js'
 import { sendSms } from '../_lib/sms.js'
 import { sendEmail } from '../_lib/email.js'
 import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
@@ -593,16 +594,9 @@ async function handleRelease(req, res, supabase) {
     return res.status(400).json({ error: 'event_id, assignment_id, release_reason, phone required' })
   }
 
-  const digits = phone.replace(/\D/g, '')
-
   // 1. Verify the caller is the event supervisor
-  const { data: supervisor, error: supErr } = await supabase
-    .from('applicants')
-    .select('id')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
-  if (supErr || !supervisor) return res.status(404).json({ error: 'Supervisor not found' })
+  const supervisor = await findByPhone(supabase, phone, 'id')
+  if (!supervisor) return res.status(404).json({ error: 'Supervisor not found' })
 
   const { data: supAssignment, error: supAErr } = await supabase
     .from('assignments')

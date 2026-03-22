@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { findByPhone } from '../_lib/phone.js'
 
 // GET → list available shifts
 // POST { event_id, phone, briefing_slot? } → claim a shift
@@ -45,20 +46,8 @@ export default async function handler(req, res) {
 
     try {
       const digits = phone.replace(/\D/g, '').slice(-10)
-      // Phone may be stored formatted — match area code + prefix + line separately
-      const area = digits.slice(0, 3)
-      const prefix = digits.slice(3, 6)
-      const line = digits.slice(6)
-      const { data: workers, error: workerError } = await supabase
-        .from('applicants')
-        .select('id, first_name, last_name, status, phone, w9_signed_at, id_photo_url')
-        .ilike('phone', `%${area}%${prefix}%${line}%`)
-        .limit(1)
-
-      if (workerError) throw workerError
-      if (!workers || workers.length === 0) return res.status(404).json({ error: 'not_found', message: 'No worker found with that phone number. Please apply first.' })
-
-      const worker = workers[0]
+      const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, status, phone, w9_signed_at, id_photo_url')
+      if (!worker) return res.status(404).json({ error: 'not_found', message: 'No worker found with that phone number. Please apply first.' })
       if (worker.status !== 'approved') return res.status(403).json({ error: 'not_approved', message: 'Your application is still under review.' })
       if (!worker.id_photo_url) return res.status(403).json({ error: 'id_required', message: 'Please upload your ID before claiming shifts.', id_url: `/id-upload/${digits}` })
       if (!worker.w9_signed_at) return res.status(403).json({ error: 'w9_required', message: 'Please complete your W-9 form before claiming shifts.', w9_url: `/w9/${digits}` })

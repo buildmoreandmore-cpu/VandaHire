@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { findByPhone } from '../_lib/phone.js'
 
 // GET ?type=worker&phone= → applicant status
 // GET ?type=organizer&email= → event request list
@@ -10,16 +11,14 @@ export default async function handler(req, res) {
 
   if (type === 'worker') {
     if (!phone) return res.status(400).json({ error: 'phone is required' })
-    const digits = phone.replace(/\D/g, '')
-    const { data, error } = await supabase
-      .from('applicants')
-      .select('id, status')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .maybeSingle()
-
-    if (error) { console.error('status/worker error:', error); return res.status(500).json({ error: 'Database error' }) }
-    if (!data) return res.status(200).json({ found: false })
-    return res.status(200).json({ found: true, status: data.status })
+    try {
+      const data = await findByPhone(supabase, phone, 'id, status')
+      if (!data) return res.status(200).json({ found: false })
+      return res.status(200).json({ found: true, status: data.status })
+    } catch (error) {
+      console.error('status/worker error:', error)
+      return res.status(500).json({ error: 'Database error' })
+    }
   }
 
   if (type === 'organizer') {

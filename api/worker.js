@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
+import { findByPhone } from '../_lib/phone.js'
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
@@ -104,16 +105,8 @@ async function handleCheckin(req, res, supabase) {
       return res.status(400).json({ error: 'action must be check_in or check_out' })
     }
 
-    const digits = phone.replace(/\D/g, '')
-
-    const { data: worker, error: wErr } = await supabase
-      .from('applicants')
-      .select('id')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
-
-    if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
+    const worker = await findByPhone(supabase, phone, 'id')
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     const expectedStatus = action === 'check_in' ? 'confirmed' : 'checked_in'
     const { data: assignment, error: aErr } = await supabase
@@ -271,16 +264,8 @@ async function handleIncidents(req, res, supabase) {
       return res.status(400).json({ error: 'phone, event_id, incident_type, description required' })
     }
 
-    const digits = phone.replace(/\D/g, '')
-
-    const { data: worker, error: wErr } = await supabase
-      .from('applicants')
-      .select('id')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
-
-    if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
+    const worker = await findByPhone(supabase, phone, 'id')
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     const { data: assignment, error: aErr } = await supabase
       .from('assignments')
@@ -382,16 +367,9 @@ async function handleRelease(req, res, supabase) {
     return res.status(400).json({ error: 'phone, event_id, assignment_id, release_reason required' })
   }
 
-  const digits = phone.replace(/\D/g, '')
-
   // 1. Verify the caller is the event supervisor
-  const { data: supervisor, error: supErr } = await supabase
-    .from('applicants')
-    .select('id')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
-  if (supErr || !supervisor) return res.status(404).json({ error: 'Supervisor not found' })
+  const supervisor = await findByPhone(supabase, phone, 'id')
+  if (!supervisor) return res.status(404).json({ error: 'Supervisor not found' })
 
   const { data: supAssignment, error: supAErr } = await supabase
     .from('assignments')
@@ -514,13 +492,8 @@ async function handleExitReply(req, res, supabase) {
   const digits = phone.replace(/\D/g, '')
 
   // Find worker
-  const { data: worker, error: wErr } = await supabase
-    .from('applicants')
-    .select('id')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
-  if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
+  const worker = await findByPhone(supabase, phone, 'id')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
   // Find the open exit_record for this worker/event
   const { data: exitRecord, error: exErr } = await supabase
@@ -694,12 +667,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   if (!phone || !latitude || !longitude) return res.status(400).json({ error: 'phone, latitude, longitude required' })
 
   const digits = phone.replace(/\D/g, '')
-  const { data: worker } = await supabase
-    .from('applicants')
-    .select('id, first_name, phone')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
+  const worker = await findByPhone(supabase, phone, 'id, first_name, phone')
   if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
   // Find active checked-in assignment
@@ -987,13 +955,7 @@ async function handleConnectOnboard(req, res, supabase) {
   const { phone } = req.body
   if (!phone) return res.status(400).json({ error: 'phone required' })
 
-  const digits = phone.replace(/\D/g, '')
-  const { data: worker } = await supabase
-    .from('applicants')
-    .select('id, first_name, last_name, email, stripe_connect_id')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
+  const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, email, stripe_connect_id')
 
   if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
@@ -1052,14 +1014,7 @@ async function handleConnectDashboard(req, res, supabase) {
   const { phone } = req.body
   if (!phone) return res.status(400).json({ error: 'phone required' })
 
-  const digits = phone.replace(/\D/g, '')
-  const { data: worker } = await supabase
-    .from('applicants')
-    .select('id, stripe_connect_id')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
-
+  const worker = await findByPhone(supabase, phone, 'id, stripe_connect_id')
   if (!worker) return res.status(404).json({ error: 'Worker not found' })
   if (!worker.stripe_connect_id) return res.status(400).json({ error: 'No Stripe Connect account. Set up direct deposit first.' })
 
@@ -1078,14 +1033,7 @@ async function handleMyEarnings(req, res, supabase) {
   const { phone } = req.query
   if (!phone) return res.status(400).json({ error: 'phone required' })
 
-  const digits = phone.replace(/\D/g, '')
-  const { data: worker } = await supabase
-    .from('applicants')
-    .select('id, first_name, last_name, stripe_connect_id, total_earnings, shifts_completed, reliability_score')
-    .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-    .limit(1)
-    .single()
-
+  const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, stripe_connect_id, total_earnings, shifts_completed, reliability_score')
   if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
   // Get payouts
@@ -1243,14 +1191,7 @@ async function handleIdUpload(req, res, supabase) {
     const { phone } = req.query
     if (!phone) return res.status(400).json({ error: 'phone required' })
 
-    const digits = phone.replace(/\D/g, '')
-    const { data: worker } = await supabase
-      .from('applicants')
-      .select('id, id_photo_url')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
-
+    const worker = await findByPhone(supabase, phone, 'id, id_photo_url')
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     return res.status(200).json({
@@ -1378,14 +1319,7 @@ async function handleW9(req, res, supabase) {
     const { phone } = req.query
     if (!phone) return res.status(400).json({ error: 'phone required' })
 
-    const digits = phone.replace(/\D/g, '')
-    const { data: worker } = await supabase
-      .from('applicants')
-      .select('id, w9_signed_at, w9_legal_name, w9_tin_last4')
-      .or(`phone.eq.${digits},phone.eq.+1${digits}`)
-      .limit(1)
-      .single()
-
+    const worker = await findByPhone(supabase, phone, 'id, w9_signed_at, w9_legal_name, w9_tin_last4')
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     return res.status(200).json({
