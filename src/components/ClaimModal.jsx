@@ -45,7 +45,7 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
         } else if (body.error === 'w9_required') {
           setError({ type: 'w9_required', message: body.message, w9_url: body.w9_url })
         } else {
-          setError({ type: 'generic', message: body.error || 'Something went wrong' })
+          setError({ type: 'generic', message: body.message || body.error || 'Something went wrong' })
         }
         return
       }
