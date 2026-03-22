@@ -6,7 +6,7 @@ import { findByPhone } from '../_lib/phone.js'
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-  // GET — list events open for claiming
+  // GET — list events open for claiming (optionally filter out already-claimed by phone)
   if (req.method === 'GET') {
     try {
       const { data: events, error } = await supabase
@@ -32,7 +32,24 @@ export default async function handler(req, res) {
       const countMap = {}
       for (const a of assignmentCounts) countMap[a.event_id] = (countMap[a.event_id] || 0) + 1
 
-      return res.status(200).json(events.filter(e => (countMap[e.id] || 0) < e.workers_needed))
+      let available = events.filter(e => (countMap[e.id] || 0) < e.workers_needed)
+
+      // If phone provided, exclude shifts worker already claimed
+      const { phone } = req.query
+      if (phone) {
+        const worker = await findByPhone(supabase, phone, 'id')
+        if (worker) {
+          const { data: myAssignments } = await supabase
+            .from('assignments')
+            .select('event_id')
+            .eq('worker_id', worker.id)
+            .in('status', ['invited', 'confirmed', 'checked_in'])
+          const myEventIds = new Set((myAssignments || []).map(a => a.event_id))
+          available = available.filter(e => !myEventIds.has(e.id))
+        }
+      }
+
+      return res.status(200).json(available)
     } catch (err) {
       console.error('[shifts GET] Error:', err)
       return res.status(500).json({ error: 'Failed to load shifts' })

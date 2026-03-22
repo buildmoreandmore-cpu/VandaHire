@@ -7,7 +7,7 @@ const formatPhone = (val) => {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
 }
 
-export default function ClaimModal({ event, onClose, onSuccess }) {
+export default function ClaimModal({ event, onClose, onSuccess, onAlreadyClaimed }) {
   const [phone, setPhone] = useState('')
   const [briefingSlot, setBriefingSlot] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -40,6 +40,7 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
           setError({ type: 'not_approved', message: body.message })
         } else if (body.error === 'already_claimed') {
           setError({ type: 'already_claimed', message: body.message })
+          if (onAlreadyClaimed) onAlreadyClaimed()
         } else if (body.error === 'id_required') {
           setError({ type: 'id_required', message: body.message, id_url: body.id_url })
         } else if (body.error === 'w9_required') {

@@ -15,7 +15,9 @@ export default function ShiftsPage() {
   const [claimed, setClaimed] = useState(null) // { first_name, last_name }
 
   useEffect(() => {
-    fetch('/api/shifts')
+    const savedPhone = localStorage.getItem('vanda_worker_phone') || ''
+    const url = savedPhone ? `/api/shifts?phone=${encodeURIComponent(savedPhone)}` : '/api/shifts'
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) setShifts(data)
@@ -111,6 +113,9 @@ export default function ShiftsPage() {
           event={selectedShift}
           onClose={() => setSelectedShift(null)}
           onSuccess={handleClaimSuccess}
+          onAlreadyClaimed={() => {
+            setShifts(prev => prev.filter(s => s.id !== selectedShift.id))
+          }}
         />
       )}
     </div>

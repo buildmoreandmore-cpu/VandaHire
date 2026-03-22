@@ -46,7 +46,7 @@ export default function AdminPage() {
       {/* Header */}
       <div className="border-b border-p-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <VandaLogo size="sm" onClick={() => { clearToken(); setAuthed(false); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
+          <VandaLogo size="sm" onClick={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
           <span className="text-p-muted text-xs">Coordinator</span>
         </div>
         <div className="flex items-center gap-2">
