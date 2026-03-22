@@ -58,7 +58,7 @@ export default function InstallPrompt() {
           <p className="text-white text-sm font-semibold mb-2">Install V&A Hire App</p>
           {deferredPrompt ? (
             <>
-              <p className="text-[#888] text-xs mb-3">Add to your home screen for quick access to shifts and check-in.</p>
+              <p className="text-[#888] text-xs mb-3">Install the app to get notified when your shifts are confirmed and new shifts are available.</p>
               <button
                 onClick={handleInstall}
                 className="bg-[#ffffff] text-black rounded-full px-5 py-2 text-xs font-semibold hover:opacity-90 transition-all"
@@ -68,7 +68,7 @@ export default function InstallPrompt() {
             </>
           ) : showIosTip === 'android' ? (
             <div className="space-y-2.5">
-              <p className="text-[#888] text-xs">Get the app on your home screen in 3 steps:</p>
+              <p className="text-[#888] text-xs">Install the app to get shift notifications:</p>
               <div className="flex items-center gap-3 text-xs">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">1</span>
                 <span className="text-[#ccc]">
@@ -88,7 +88,7 @@ export default function InstallPrompt() {
             </div>
           ) : (
             <div className="space-y-2.5">
-              <p className="text-[#888] text-xs">Get the app on your home screen in 3 steps:</p>
+              <p className="text-[#888] text-xs"><strong className="text-[#ccc]">Required on iPhone</strong> to receive shift notifications:</p>
               <div className="flex items-center gap-3 text-xs">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-[10px]">1</span>
                 <span className="text-[#ccc]">

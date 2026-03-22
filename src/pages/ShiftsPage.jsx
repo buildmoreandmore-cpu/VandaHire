@@ -51,6 +51,9 @@ export default function ShiftsPage() {
           Thanks, {claimed.first_name}! Your shift request is pending approval. Check back in My Shifts to see your approval status.
         </p>
         <div className="max-w-xs w-full mb-6 fade-up-delay-1">
+          <InstallPrompt />
+        </div>
+        <div className="max-w-xs w-full mb-6 fade-up-delay-1">
           <PushOptIn phone={localStorage.getItem('vanda_worker_phone')} />
         </div>
         <button

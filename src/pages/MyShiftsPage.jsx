@@ -3,6 +3,7 @@ import { useNavigate } from '../Router.jsx'
 import VandaLogo from '../components/VandaLogo.jsx'
 import Footer from '../components/Footer.jsx'
 import PushOptIn from '../components/PushOptIn.jsx'
+import InstallPrompt from '../components/InstallPrompt.jsx'
 import useGeolocation from '../lib/useGeolocation.js'
 import { calculateDistance } from '../lib/geo.js'
 
@@ -846,6 +847,7 @@ export default function MyShiftsPage() {
           </div>
         )}
 
+        <InstallPrompt />
         <PushOptIn phone={localStorage.getItem(PHONE_KEY) || ''} />
 
         {/* Checkout confirmation message */}
