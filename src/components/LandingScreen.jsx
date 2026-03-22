@@ -175,10 +175,6 @@ export default function LandingScreen({ onStart }) {
           We show up, we manage the crew, you run your event.
         </p>
 
-        <p className="text-white text-sm font-semibold mb-8 fade-up-delay-1">
-          Earn between $10 - $25/hr
-        </p>
-
         <div className="w-full max-w-sm space-y-3 fade-up-delay-2">
           <button
             onClick={onStart}
