@@ -125,6 +125,7 @@ async function balanceReminders(supabase) {
     .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status, event_date')
     .eq('deposit_status', 'paid')
     .neq('payment_status', 'paid')
+    .neq('status', 'cancelled')
     .not('balance_due_date', 'is', null)
     .not('balance_amount', 'is', null)
 
@@ -585,6 +586,7 @@ async function autoBalanceLink(supabase) {
     .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status')
     .eq('deposit_status', 'paid')
     .neq('payment_status', 'paid')
+    .neq('status', 'cancelled')
     .not('balance_due_date', 'is', null)
     .lte('balance_due_date', fiveDaysOut)
 
@@ -637,6 +639,7 @@ async function lateFees(supabase) {
     .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, payment_status, invoice_status')
     .eq('deposit_status', 'paid')
     .neq('payment_status', 'paid')
+    .neq('status', 'cancelled')
     .not('balance_due_date', 'is', null)
     .lt('balance_due_date', today)
 
@@ -810,6 +813,7 @@ async function autoChargeBalance(supabase) {
     .select('id, title, contact_email, contact_name, balance_amount, balance_due_date, deposit_status, payment_status, stripe_customer_id')
     .eq('deposit_status', 'paid')
     .neq('payment_status', 'paid')
+    .neq('status', 'cancelled')
     .not('stripe_customer_id', 'is', null)
     .not('balance_amount', 'is', null)
     .lte('balance_due_date', today)

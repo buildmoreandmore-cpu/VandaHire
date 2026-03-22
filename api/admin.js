@@ -1055,7 +1055,7 @@ async function handleCancellation(req, res, supabase) {
     }
   }
 
-  // Cancel the event
+  // Cancel the event — cron jobs skip cancelled events for billing
   await supabase.from('events').update({
     status: 'cancelled',
     updated_at: new Date().toISOString(),
