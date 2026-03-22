@@ -125,17 +125,17 @@ export default function ClaimModal({ event, onClose, onSuccess, onAlreadyClaimed
                 </a>
               )}
               {error.type === 'id_required' && (
-                <a href={error.id_url} className="text-white text-xs mt-1 block hover:opacity-80">
+                <a href={error.id_url} className="text-p-green text-xs mt-1 block hover:opacity-80">
                   Upload your ID to start claiming shifts →
                 </a>
               )}
               {error.type === 'already_claimed' && (
-                <a href="/my-shifts" className="text-white text-xs mt-1 block hover:opacity-80">
+                <a href="/my-shifts" className="text-p-green text-xs mt-1 block hover:opacity-80">
                   View My Shifts →
                 </a>
               )}
               {error.type === 'w9_required' && (
-                <a href={error.w9_url} className="text-white text-xs mt-1 block hover:opacity-80">
+                <a href={error.w9_url} className="text-p-green text-xs mt-1 block hover:opacity-80">
                   Complete your W-9 to start claiming shifts →
                 </a>
               )}

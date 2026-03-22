@@ -68,7 +68,7 @@ export default function BlogPostPage({ slug }) {
       <div className="px-6 py-16 max-w-4xl mx-auto w-full">
         <button
           onClick={() => navigate('/blog')}
-          className="text-[#555] text-sm hover:text-white transition-colors mb-8 block"
+          className="text-p-green text-sm hover:opacity-80 transition-colors mb-8 block"
         >
           ← All guides
         </button>

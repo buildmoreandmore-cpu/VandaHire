@@ -77,7 +77,7 @@ export default function ShiftsPage() {
         <h1 className="font-inter text-2xl font-extrabold text-white tracking-tight mb-1">Open Shifts</h1>
         <p className="text-p-muted text-sm mb-6">
           Approved V&A Hire workers can claim shifts below. Not in our pool yet?{' '}
-          <button onClick={() => navigate('/')} className="text-white underline hover:opacity-80 transition-opacity">Apply here →</button>
+          <button onClick={() => navigate('/')} className="text-p-green underline hover:opacity-80 transition-opacity">Apply here →</button>
         </p>
 
         {loading && (

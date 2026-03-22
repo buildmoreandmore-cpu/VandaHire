@@ -54,7 +54,7 @@ export default function BlogIndexPage() {
               </h2>
               <p className="text-[#777] text-sm leading-relaxed">{post.description}</p>
               <div className="mt-4">
-                <span className="text-[#ffffff] text-sm font-semibold">Read →</span>
+                <span className="text-p-green text-sm font-semibold">Read →</span>
               </div>
             </div>
           ))}

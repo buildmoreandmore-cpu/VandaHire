@@ -587,7 +587,7 @@ export default function MyShiftsPage() {
         ) : assignments.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-[#888] text-sm">No shifts yet.</p>
-            <button onClick={() => navigate('/shifts')} className="text-[#ffffff] text-sm mt-3 hover:opacity-80">Browse open shifts</button>
+            <button onClick={() => navigate('/shifts')} className="text-p-green text-sm mt-3 hover:opacity-80">Browse open shifts</button>
           </div>
         ) : (
           <div className="space-y-4">

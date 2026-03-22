@@ -227,7 +227,7 @@ export default function LandingScreen({ onStart }) {
         <div className="mt-10">
           <button
             onClick={() => navigate('/how-it-works')}
-            className="text-[#777] text-sm hover:text-white transition-colors underline underline-offset-4"
+            className="text-p-green text-sm hover:opacity-80 transition-colors underline underline-offset-4"
           >
             See full walkthrough
           </button>
