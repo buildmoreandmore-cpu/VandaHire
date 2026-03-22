@@ -39,6 +39,11 @@
     { "source": "/api/push", "destination": "/api/worker?route=push-subscribe" },
     { "source": "/api/gps-ping", "destination": "/api/worker?route=gps-ping" },
     { "source": "/api/respond-invite", "destination": "/api/worker?route=respond-invite" },
+    { "source": "/api/pin-setup", "destination": "/api/worker?route=pin-setup" },
+    { "source": "/api/pin-verify", "destination": "/api/worker?route=pin-verify" },
+    { "source": "/api/pin-reset-request", "destination": "/api/worker?route=pin-reset-request" },
+    { "source": "/api/pin-reset", "destination": "/api/worker?route=pin-reset" },
+    { "source": "/api/session-check", "destination": "/api/worker?route=session-check" },
     { "source": "/api/supervisor-dashboard", "destination": "/api/worker?route=supervisor-dashboard" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*).*)", "destination": "/index.html" }

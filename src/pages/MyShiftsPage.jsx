@@ -340,10 +340,17 @@ function IncidentLog({ eventId, phone }) {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
+const SESSION_KEY = 'vanda_worker_session'
+
 export default function MyShiftsPage() {
   const navigate = useNavigate()
   const [phone, setPhone] = useState(localStorage.getItem(PHONE_KEY) || '')
-  const [verified, setVerified] = useState(!!localStorage.getItem(PHONE_KEY))
+  const [pin, setPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [authStep, setAuthStep] = useState('phone') // phone | pin | setup | reset_request | reset
+  const [resetCode, setResetCode] = useState('')
+  const [verified, setVerified] = useState(false)
   const [worker, setWorker] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(false)
@@ -368,9 +375,28 @@ export default function MyShiftsPage() {
     setLoading(false)
   }
 
+  // Check existing session on load
   useEffect(() => {
-    const saved = localStorage.getItem(PHONE_KEY)
-    if (saved) fetchShifts(saved)
+    const savedPhone = localStorage.getItem(PHONE_KEY)
+    const savedSession = localStorage.getItem(SESSION_KEY)
+    if (savedPhone && savedSession) {
+      fetch('/api/session-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: savedPhone, session: savedSession }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.valid) {
+            setPhone(savedPhone)
+            setVerified(true)
+            fetchShifts(savedPhone)
+          } else {
+            localStorage.removeItem(SESSION_KEY)
+          }
+        })
+        .catch(() => {})
+    }
   }, [])
 
   // GPS ping — send location to server every 30s while checked in
@@ -394,13 +420,121 @@ export default function MyShiftsPage() {
     return () => clearInterval(id)
   }, [isCheckedIn, gpsEnabled, geo.latitude, geo.longitude])
 
-  const handleVerify = (e) => {
+  const handlePhoneSubmit = async (e) => {
     e.preventDefault()
     const digits = phone.replace(/\D/g, '')
     if (digits.length < 10) { setError('Enter a valid 10-digit phone number.'); return }
-    localStorage.setItem(PHONE_KEY, digits)
-    setVerified(true)
-    fetchShifts(digits)
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/checkin?phone=${encodeURIComponent(digits)}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Worker not found')
+      // Worker exists — check if they have a PIN set
+      if (data.worker?.has_pin) {
+        setAuthStep('pin')
+      } else {
+        setAuthStep('setup')
+      }
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  const handlePinSubmit = async (e) => {
+    e.preventDefault()
+    const digits = phone.replace(/\D/g, '')
+    if (pin.length !== 4) { setError('Enter your 4-digit PIN.'); return }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/pin-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits, pin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Invalid PIN')
+      localStorage.setItem(PHONE_KEY, digits)
+      localStorage.setItem(SESSION_KEY, data.session)
+      setVerified(true)
+      fetchShifts(digits)
+    } catch (err) {
+      setError(err.message)
+      setPin('')
+    }
+    setLoading(false)
+  }
+
+  const handlePinSetup = async (e) => {
+    e.preventDefault()
+    if (newPin.length !== 4) { setError('PIN must be 4 digits.'); return }
+    if (newPin !== confirmPin) { setError('PINs do not match.'); return }
+    const digits = phone.replace(/\D/g, '')
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/pin-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits, pin: newPin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to set PIN')
+      localStorage.setItem(PHONE_KEY, digits)
+      localStorage.setItem(SESSION_KEY, data.session)
+      setVerified(true)
+      fetchShifts(digits)
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  const handlePinReset = async (e) => {
+    e.preventDefault()
+    if (newPin.length !== 4) { setError('PIN must be 4 digits.'); return }
+    if (newPin !== confirmPin) { setError('PINs do not match.'); return }
+    const digits = phone.replace(/\D/g, '')
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/pin-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits, code: resetCode, new_pin: newPin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Reset failed')
+      localStorage.setItem(PHONE_KEY, digits)
+      localStorage.setItem(SESSION_KEY, data.session)
+      setVerified(true)
+      fetchShifts(digits)
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  const handleResetRequest = async () => {
+    const digits = phone.replace(/\D/g, '')
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/pin-reset-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset code')
+      setAuthStep('reset')
+      setError('')
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
   }
 
   const handleAction = async (assignmentId, eventId, action) => {
@@ -484,10 +618,16 @@ export default function MyShiftsPage() {
 
   const handleLogout = () => {
     localStorage.removeItem(PHONE_KEY)
+    localStorage.removeItem(SESSION_KEY)
     setVerified(false)
     setWorker(null)
     setAssignments([])
     setPhone('')
+    setPin('')
+    setNewPin('')
+    setConfirmPin('')
+    setResetCode('')
+    setAuthStep('phone')
   }
 
   const getDistanceToEvent = (event) => {
@@ -495,9 +635,9 @@ export default function MyShiftsPage() {
     return Math.round(calculateDistance(geo.latitude, geo.longitude, event.latitude, event.longitude))
   }
 
-  // Phone entry screen
+  // Auth screens
   if (!verified) {
-    return (
+    const authShell = (children) => (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
         <div className="px-6 pt-8 flex items-center justify-between max-w-2xl mx-auto w-full">
           <VandaLogo onClick={() => navigate('/')} />
@@ -505,8 +645,18 @@ export default function MyShiftsPage() {
         </div>
         <div className="flex-1 px-6 py-16 max-w-2xl mx-auto w-full">
           <h1 className="font-inter text-4xl font-extrabold tracking-tighter mb-2">My Shifts</h1>
+          {children}
+        </div>
+        <Footer />
+      </div>
+    )
+
+    // Step 1: Phone number entry
+    if (authStep === 'phone') {
+      return authShell(
+        <>
           <p className="text-[#888] mb-10">Enter your phone number to view your shifts and check in.</p>
-          <form onSubmit={handleVerify} className="space-y-4 max-w-sm">
+          <form onSubmit={handlePhoneSubmit} className="space-y-4 max-w-sm">
             <div>
               <label className="block text-sm text-[#777] mb-2">Phone Number</label>
               <input
@@ -518,14 +668,149 @@ export default function MyShiftsPage() {
               />
             </div>
             {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button type="submit" className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all">
-              View My Shifts
+            <button type="submit" disabled={loading} className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all disabled:opacity-50">
+              {loading ? 'Checking...' : 'Continue'}
             </button>
           </form>
-        </div>
-        <Footer />
-      </div>
-    )
+        </>
+      )
+    }
+
+    // Step 2: PIN entry (worker has PIN set)
+    if (authStep === 'pin') {
+      return authShell(
+        <>
+          <p className="text-[#888] mb-10">Enter your 4-digit PIN to continue.</p>
+          <form onSubmit={handlePinSubmit} className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-sm text-[#777] mb-2">PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button type="submit" disabled={loading} className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all disabled:opacity-50">
+              {loading ? 'Verifying...' : 'Unlock'}
+            </button>
+            <div className="flex items-center justify-between pt-2">
+              <button type="button" onClick={() => { setAuthStep('phone'); setError(''); setPin('') }} className="text-[#555] text-sm hover:text-white transition-colors">
+                ← Different number
+              </button>
+              <button type="button" onClick={handleResetRequest} disabled={loading} className="text-p-green text-sm hover:opacity-80 transition-colors">
+                Forgot PIN?
+              </button>
+            </div>
+          </form>
+        </>
+      )
+    }
+
+    // Step 3: PIN setup (first-time)
+    if (authStep === 'setup') {
+      return authShell(
+        <>
+          <p className="text-[#888] mb-2">Create a 4-digit PIN to secure your account.</p>
+          <p className="text-[#555] text-sm mb-10">You'll use this PIN each time you log in.</p>
+          <form onSubmit={handlePinSetup} className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-sm text-[#777] mb-2">New PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[#777] mb-2">Confirm PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+              />
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button type="submit" disabled={loading} className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all disabled:opacity-50">
+              {loading ? 'Setting up...' : 'Set PIN & Continue'}
+            </button>
+            <button type="button" onClick={() => { setAuthStep('phone'); setError(''); setNewPin(''); setConfirmPin('') }} className="text-[#555] text-sm hover:text-white transition-colors">
+              ← Different number
+            </button>
+          </form>
+        </>
+      )
+    }
+
+    // Step 4: PIN reset (enter code + new PIN)
+    if (authStep === 'reset_request' || authStep === 'reset') {
+      return authShell(
+        <>
+          <p className="text-[#888] mb-2">A reset code has been sent to your email on file.</p>
+          <p className="text-[#555] text-sm mb-10">Enter the code and choose a new PIN.</p>
+          <form onSubmit={handlePinReset} className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-sm text-[#777] mb-2">Reset Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={resetCode}
+                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-lg tracking-[0.3em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[#777] mb-2">New PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[#777] mb-2">Confirm PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="••••"
+                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-[#555] focus:outline-none focus:border-[#ffffff] transition-colors"
+              />
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button type="submit" disabled={loading} className="bg-[#ffffff] text-black rounded-full py-3 px-8 font-semibold hover:opacity-90 transition-all disabled:opacity-50">
+              {loading ? 'Resetting...' : 'Reset PIN & Continue'}
+            </button>
+            <button type="button" onClick={() => { setAuthStep('phone'); setError(''); setNewPin(''); setConfirmPin(''); setResetCode('') }} className="text-[#555] text-sm hover:text-white transition-colors">
+              ← Start over
+            </button>
+          </form>
+        </>
+      )
+    }
   }
 
   return (

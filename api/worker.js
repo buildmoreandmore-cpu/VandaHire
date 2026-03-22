@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { findByPhone } from '../_lib/phone.js'
+import { hashPin, verifyPin, isLocked, createSession, verifySession, MAX_ATTEMPTS, LOCKOUT_MINUTES } from '../_lib/pin.js'
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
@@ -38,6 +39,11 @@ export default async function handler(req, res) {
     if (route === 'push-send') return await handlePushSend(req, res, supabase)
     if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
     if (route === 'respond-invite') return await handleRespondInvite(req, res, supabase)
+    if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
+    if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
+    if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
+    if (route === 'pin-reset') return await handlePinReset(req, res, supabase)
+    if (route === 'session-check') return await handleSessionCheck(req, res, supabase)
     return await handleCheckin(req, res, supabase)
   } catch (err) {
     console.error(`[worker/${route}] Error:`, err)
@@ -57,7 +63,7 @@ async function handleCheckin(req, res, supabase) {
 
     const { data: workers, error: wErr } = await supabase
       .from('applicants')
-      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at')
+      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at, pin_hash')
 
     // Match on last 10 digits to handle any format
     const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
@@ -90,7 +96,7 @@ async function handleCheckin(req, res, supabase) {
     }
 
     return res.status(200).json({
-      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name, video_url: worker.video_url || null, id_photo_url: worker.id_photo_url || null, w9_signed_at: worker.w9_signed_at || null },
+      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name, video_url: worker.video_url || null, id_photo_url: worker.id_photo_url || null, w9_signed_at: worker.w9_signed_at || null, has_pin: !!worker.pin_hash },
       assignments: enriched,
     })
   }
@@ -240,6 +246,187 @@ async function handleCheckin(req, res, supabase) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── PIN AUTHENTICATION ──────────────────────────────────────────────────────
+
+// Set up a new PIN (first time only, or after admin reset)
+async function handlePinSetup(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone, pin } = req.body
+  if (!phone || !pin) return res.status(400).json({ error: 'phone and pin required' })
+  if (!/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN must be exactly 4 digits' })
+
+  const worker = await findByPhone(supabase, phone, 'id, pin_hash')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+  if (worker.pin_hash) return res.status(400).json({ error: 'PIN already set. Contact admin to reset.' })
+
+  const { error } = await supabase
+    .from('applicants')
+    .update({ pin_hash: hashPin(pin), pin_attempts: 0, pin_locked_until: null })
+    .eq('id', worker.id)
+
+  if (error) return res.status(500).json({ error: 'Failed to set PIN' })
+
+  const token = createSession(worker.id)
+  return res.status(200).json({ success: true, session: token })
+}
+
+// Verify PIN and return session token
+async function handlePinVerify(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone, pin } = req.body
+  if (!phone || !pin) return res.status(400).json({ error: 'phone and pin required' })
+
+  const worker = await findByPhone(supabase, phone, 'id, pin_hash, pin_attempts, pin_locked_until')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+  // Check if PIN is set
+  if (!worker.pin_hash) return res.status(200).json({ needs_setup: true })
+
+  // Check lockout
+  if (isLocked(worker)) {
+    return res.status(429).json({ error: `Too many attempts. Try again in ${LOCKOUT_MINUTES} minutes.` })
+  }
+
+  // Verify PIN
+  if (!verifyPin(pin, worker.pin_hash)) {
+    const attempts = (worker.pin_attempts || 0) + 1
+    const update = { pin_attempts: attempts }
+    if (attempts >= MAX_ATTEMPTS) {
+      update.pin_locked_until = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000).toISOString()
+    }
+    await supabase.from('applicants').update(update).eq('id', worker.id)
+
+    const remaining = MAX_ATTEMPTS - attempts
+    if (remaining <= 0) {
+      return res.status(429).json({ error: `Too many attempts. Account locked for ${LOCKOUT_MINUTES} minutes.` })
+    }
+    return res.status(401).json({ error: `Incorrect PIN. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.` })
+  }
+
+  // Success — reset attempts and return session
+  await supabase.from('applicants').update({ pin_attempts: 0, pin_locked_until: null }).eq('id', worker.id)
+  const token = createSession(worker.id)
+  return res.status(200).json({ success: true, session: token })
+}
+
+// Verify an existing session token
+async function handleSessionCheck(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { session, phone } = req.body
+  if (!session || !phone) return res.status(400).json({ error: 'session and phone required' })
+
+  const workerId = verifySession(session)
+  if (!workerId) return res.status(401).json({ valid: false })
+
+  // Confirm the session matches the phone
+  const worker = await findByPhone(supabase, phone, 'id')
+  if (!worker || worker.id !== workerId) return res.status(401).json({ valid: false })
+
+  return res.status(200).json({ valid: true })
+}
+
+// Request PIN reset (sends email with reset token)
+async function handlePinResetRequest(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone } = req.body
+  if (!phone) return res.status(400).json({ error: 'phone required' })
+
+  const worker = await findByPhone(supabase, phone, 'id, email, first_name')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+  if (!worker.email) return res.status(400).json({ error: 'No email on file. Contact admin to reset your PIN.' })
+
+  // Generate a 6-digit reset code, store as pin_hash temporarily with a prefix
+  const resetCode = String(Math.floor(100000 + Math.random() * 900000))
+  const resetHash = 'RESET:' + hashPin(resetCode) + ':' + Date.now()
+
+  await supabase.from('applicants').update({
+    pin_locked_until: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min expiry
+  }).eq('id', worker.id)
+
+  // Store reset code temporarily
+  await supabase.from('applicants').update({
+    pin_attempts: 0,
+  }).eq('id', worker.id)
+
+  // Send reset email
+  try {
+    await sendEmail({
+      to: worker.email,
+      subject: 'V&A Hire — PIN Reset Code',
+      html: `
+        <div style="background:#0a0a0a;padding:32px;font-family:sans-serif;color:#ccc">
+          <h2 style="color:#fff;margin:0 0 16px">PIN Reset</h2>
+          <p>Hey ${worker.first_name || 'there'},</p>
+          <p>Your PIN reset code is:</p>
+          <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:20px;text-align:center;margin:16px 0">
+            <span style="font-size:32px;font-weight:bold;color:#fff;letter-spacing:8px">${resetCode}</span>
+          </div>
+          <p>This code expires in 30 minutes.</p>
+          <p style="color:#666;font-size:12px;margin-top:24px">V&A Hire • vandahire.com</p>
+        </div>`,
+    })
+  } catch (err) {
+    console.error('[pin-reset] Email error:', err)
+    return res.status(500).json({ error: 'Failed to send reset email' })
+  }
+
+  // Store the reset code hash in a way we can verify it
+  // We'll use a special field - store as base64 in pin_locked_until comment
+  await supabase.from('applicants').update({
+    pin_hash: resetHash,
+    pin_attempts: 0,
+  }).eq('id', worker.id)
+
+  return res.status(200).json({ success: true, message: 'Reset code sent to your email.' })
+}
+
+// Complete PIN reset with code + new PIN
+async function handlePinReset(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone, code, new_pin } = req.body
+  if (!phone || !code || !new_pin) return res.status(400).json({ error: 'phone, code, and new_pin required' })
+  if (!/^\d{4}$/.test(new_pin)) return res.status(400).json({ error: 'PIN must be exactly 4 digits' })
+
+  const worker = await findByPhone(supabase, phone, 'id, pin_hash')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+  // Verify the reset code
+  if (!worker.pin_hash || !worker.pin_hash.startsWith('RESET:')) {
+    return res.status(400).json({ error: 'No reset in progress. Request a new code.' })
+  }
+
+  const parts = worker.pin_hash.split(':')
+  const storedHash = parts[1]
+  const timestamp = parseInt(parts[2])
+
+  // Check expiry (30 min)
+  if (Date.now() - timestamp > 30 * 60 * 1000) {
+    return res.status(400).json({ error: 'Reset code expired. Request a new one.' })
+  }
+
+  // Verify code
+  if (hashPin(code) !== storedHash) {
+    return res.status(401).json({ error: 'Invalid reset code.' })
+  }
+
+  // Set new PIN
+  const { error } = await supabase.from('applicants').update({
+    pin_hash: hashPin(new_pin),
+    pin_attempts: 0,
+    pin_locked_until: null,
+  }).eq('id', worker.id)
+
+  if (error) return res.status(500).json({ error: 'Failed to set new PIN' })
+
+  const token = createSession(worker.id)
+  return res.status(200).json({ success: true, session: token })
 }
 
 // ─── RESPOND TO INVITE (accept / decline) ────────────────────────────────────

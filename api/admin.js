@@ -1343,6 +1343,7 @@ export default async function handler(req, res) {
       case 'cancellation': return await handleCancellation(req, res, supabase)
       case 'payouts': return await handlePayouts(req, res, supabase)
       case 'notifications': return await handleNotifications(req, res, supabase)
+      case 'reset-pin': return await handleResetPin(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -1505,4 +1506,20 @@ async function handleNotifications(req, res, supabase) {
   })
 
   return res.status(200).json({ notifications, count: notifications.length })
+}
+
+// ─── RESET PIN ──────────────────────────────────────────────────────────────
+
+async function handleResetPin(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { worker_id } = req.body
+  if (!worker_id) return res.status(400).json({ error: 'worker_id required' })
+
+  const { error } = await supabase
+    .from('applicants')
+    .update({ pin_hash: null, pin_attempts: 0, pin_locked_until: null })
+    .eq('id', worker_id)
+
+  if (error) return res.status(500).json({ error: 'Failed to reset PIN' })
+  return res.status(200).json({ ok: true, message: 'PIN cleared — worker will set a new PIN on next login' })
 }
