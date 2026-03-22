@@ -38,6 +38,8 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
           setError({ type: 'not_found', message: body.message })
         } else if (body.error === 'not_approved') {
           setError({ type: 'not_approved', message: body.message })
+        } else if (body.error === 'already_claimed') {
+          setError({ type: 'already_claimed', message: body.message })
         } else if (body.error === 'id_required') {
           setError({ type: 'id_required', message: body.message, id_url: body.id_url })
         } else if (body.error === 'w9_required') {
@@ -126,6 +128,11 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
                   Upload your ID to start claiming shifts →
                 </a>
               )}
+              {error.type === 'already_claimed' && (
+                <a href="/my-shifts" className="text-white text-xs mt-1 block hover:opacity-80">
+                  View My Shifts →
+                </a>
+              )}
               {error.type === 'w9_required' && (
                 <a href={error.w9_url} className="text-white text-xs mt-1 block hover:opacity-80">
                   Complete your W-9 to start claiming shifts →
@@ -134,13 +141,23 @@ export default function ClaimModal({ event, onClose, onSuccess }) {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-p-green text-black rounded-full py-3 font-semibold text-sm hover:opacity-90 transition-all duration-200 disabled:opacity-50"
-          >
-            {submitting ? 'Claiming...' : 'Confirm Claim →'}
-          </button>
+          {error ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full bg-[#222] text-white rounded-full py-3 font-semibold text-sm hover:bg-[#333] transition-all duration-200"
+            >
+              Close
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-p-green text-black rounded-full py-3 font-semibold text-sm hover:opacity-90 transition-all duration-200 disabled:opacity-50"
+            >
+              {submitting ? 'Claiming...' : 'Confirm Claim →'}
+            </button>
+          )}
         </form>
       </div>
     </div>

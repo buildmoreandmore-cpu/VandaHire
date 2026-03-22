@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       if (count >= event.workers_needed) return res.status(400).json({ error: 'This shift is already fully staffed' })
 
       const { data: existing } = await supabase.from('assignments').select('id').eq('event_id', event_id).eq('worker_id', worker.id).maybeSingle()
-      if (existing) return res.status(400).json({ error: 'You have already claimed this shift' })
+      if (existing) return res.status(400).json({ error: 'already_claimed', message: 'You\'ve already claimed this shift. Check My Shifts to see your status.' })
 
       const { data: assignment, error: insertError } = await supabase.from('assignments').insert({ event_id, worker_id: worker.id, status: 'invited', briefing_slot: briefing_slot || null, briefing_confirmed: false }).select('id').single()
       if (insertError) throw insertError
