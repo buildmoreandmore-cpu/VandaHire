@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
@@ -33,6 +33,27 @@ const PAYMENT_COLORS = {
   unpaid: 'text-p-muted',
   partial: 'text-yellow-400',
   paid: 'text-green-400',
+}
+
+// Valid next statuses for the status dropdown (keyed by current status)
+const NEXT_STATUSES = {
+  pending: [
+    { value: 'approved', label: 'Approve' },
+    { value: 'staffing', label: 'Start Staffing' },
+  ],
+  approved: [
+    { value: 'awaiting_payment', label: 'Awaiting Payment' },
+    { value: 'staffing', label: 'Start Staffing' },
+  ],
+  awaiting_payment: [
+    { value: 'staffing', label: 'Start Staffing' },
+  ],
+  staffing: [
+    { value: 'confirmed', label: 'Confirm Event' },
+  ],
+  confirmed: [
+    { value: 'completed', label: 'Mark Completed' },
+  ],
 }
 
 export default function EventsPanel() {
@@ -89,6 +110,26 @@ export default function EventsPanel() {
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [showReviews, setShowReviews] = useState(false)
 
+  // Collapsible section state (geofence, billing, quote, bench default closed; assignments default open)
+  const [showGeofence, setShowGeofence] = useState(false)
+  const [showBilling, setShowBilling] = useState(false)
+  const [showQuote, setShowQuote] = useState(false)
+  const [showBench, setShowBench] = useState(false)
+
+  // Worker overflow menu
+  const [openWorkerMenu, setOpenWorkerMenu] = useState(null)
+  const workerMenuRef = useRef(null)
+
+  // Close worker menu on outside click
+  useEffect(() => {
+    if (!openWorkerMenu) return
+    const handler = (e) => {
+      if (workerMenuRef.current && !workerMenuRef.current.contains(e.target)) setOpenWorkerMenu(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [openWorkerMenu])
+
   const load = async () => {
     setLoading(true)
     try {
@@ -108,6 +149,12 @@ export default function EventsPanel() {
       return
     }
     setExpanded(id)
+    setShowGeofence(false)
+    setShowBilling(false)
+    setShowQuote(false)
+    setShowBench(false)
+    setShowReviews(false)
+    setOpenWorkerMenu(null)
     setAssignLoading(true)
     setBenchLoading(true)
     setQuoteLoading(true)
@@ -537,9 +584,17 @@ export default function EventsPanel() {
                   </div>
 
                   {/* Geofence Section */}
-                  <div className="bg-black/20 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="bg-black/20 rounded-lg mb-4 overflow-hidden">
+                    <button onClick={() => setShowGeofence(!showGeofence)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors">
                       <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Geofence</h4>
+                      <span className="text-p-muted text-[10px]">
+                        {ev.latitude && ev.longitude ? `${ev.latitude}, ${ev.longitude} · ${ev.geofence_radius_meters || 200}m` : 'Not set'}
+                        {' '}{showGeofence ? '▾' : '▸'}
+                      </span>
+                    </button>
+                    {showGeofence && <div className="px-3 pb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span />  {/* spacer */}
                       {editingGeo !== ev.id ? (
                         <button onClick={() => startEditGeo(ev)} className="text-p-green text-[10px] font-medium hover:opacity-80">
                           Edit
@@ -595,12 +650,21 @@ export default function EventsPanel() {
                         )}
                       </div>
                     )}
+                  </div>}
                   </div>
 
                   {/* Billing Section */}
-                  <div className="bg-black/20 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="bg-black/20 rounded-lg mb-4 overflow-hidden">
+                    <button onClick={() => setShowBilling(!showBilling)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors">
                       <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Billing</h4>
+                      <span className="text-p-muted text-[10px]">
+                        {fmtMoney(ev.total_bill_amount)} · {(ev.payment_status || 'unpaid').replace(/_/g, ' ')}
+                        {' '}{showBilling ? '▾' : '▸'}
+                      </span>
+                    </button>
+                    {showBilling && <div className="px-3 pb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span /> {/* spacer */}
                       {editingBilling !== ev.id ? (
                         <button onClick={() => startEditBilling(ev)} className="text-p-green text-[10px] font-medium hover:opacity-80">
                           Edit
@@ -705,12 +769,21 @@ export default function EventsPanel() {
                         </div>
                       </div>
                     )}
+                  </div>}
                   </div>
 
                   {/* Quote & Deposit Section */}
-                  <div className="bg-black/20 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="bg-black/20 rounded-lg mb-4 overflow-hidden">
+                    <button onClick={() => setShowQuote(!showQuote)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors">
                       <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Quote & Deposit</h4>
+                      <span className="text-p-muted text-[10px]">
+                        {quote ? `${fmtMoney(quote.total)} · ${quote.status}` : 'No quote'}
+                        {' '}{showQuote ? '▾' : '▸'}
+                      </span>
+                    </button>
+                    {showQuote && <div className="px-3 pb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span /> {/* spacer */}
                       {!quote && !showQuoteForm && (
                         <button onClick={() => { setShowQuoteForm(true); setQuoteForm({ worker_count: ev.workers_needed || '', hours_estimated: '', bill_rate_per_hour: ev.bill_rate || '', supervisor_fee: '', bench_fee: '', platform_fee: '', roster_hold_fee: '' }) }}
                           className="text-p-green text-[10px] font-medium hover:opacity-80">
@@ -874,6 +947,7 @@ export default function EventsPanel() {
                     ) : (
                       <p className="text-p-muted text-xs">No quote generated yet</p>
                     )}
+                  </div>}
                   </div>
 
                   {/* Pay Summary (exit records) */}
@@ -906,24 +980,23 @@ export default function EventsPanel() {
                   )}
 
                   {/* Event Actions */}
-                  <div className="flex gap-2 flex-wrap mb-4">
-                    {ev.status === 'pending' && (
-                      <ActionBtn label="Approve" cls="bg-green-600 hover:bg-green-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'approved')} />
+                  <div className="flex gap-2 flex-wrap items-center mb-4">
+                    {NEXT_STATUSES[ev.status]?.length > 0 && (
+                      <select
+                        value=""
+                        disabled={updating === ev.id}
+                        onChange={(e) => { if (e.target.value) handleStatusChange(ev.id, e.target.value) }}
+                        className="bg-p-bg border border-p-border rounded-lg px-3 py-1.5 text-xs text-white font-medium disabled:opacity-50 cursor-pointer"
+                      >
+                        <option value="" disabled>Move to...</option>
+                        {NEXT_STATUSES[ev.status].map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                     )}
-                    {(ev.status === 'approved' || ev.status === 'awaiting_payment') && ev.payment_status !== 'paid' && (
-                      <ActionBtn label="Awaiting Payment" cls="bg-orange-600 hover:bg-orange-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'awaiting_payment')} />
-                    )}
-                    {(ev.status === 'approved' || ev.status === 'pending' || ev.status === 'awaiting_payment') && (
-                      <ActionBtn label="Start Staffing" cls="bg-purple-600 hover:bg-purple-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'staffing')} />
-                    )}
-                    {ev.status === 'staffing' && (
-                      <ActionBtn label="Confirm" cls="bg-green-600 hover:bg-green-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'confirmed')} />
-                    )}
-                    {ev.status === 'confirmed' && (
-                      <ActionBtn label="Mark Completed" cls="bg-green-600 hover:bg-green-700" loading={updating === ev.id} onClick={() => handleStatusChange(ev.id, 'completed')} />
-                    )}
+                    {updating === ev.id && <span className="text-p-muted text-xs">Updating...</span>}
                     {ev.status !== 'cancelled' && ev.status !== 'completed' && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 ml-auto">
                         <input
                           type="text"
                           value={cancelReason}
@@ -975,41 +1048,45 @@ export default function EventsPanel() {
                               {a.applicants?.first_name} {a.applicants?.last_name}
                               {a.is_supervisor && <span className="ml-1.5 text-[#ffffff] text-[9px] font-bold uppercase">Lead</span>}
                             </span>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                try {
-                                  await updateAssignment(a.id, { is_supervisor: !a.is_supervisor })
-                                  setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, is_supervisor: !a.is_supervisor } : x))
-                                } catch (err) { console.error('Failed to toggle supervisor:', err) }
-                              }}
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
-                                a.is_supervisor ? 'bg-[#ffffff]/20 text-[#ffffff]' : 'bg-white/5 text-p-muted hover:text-white'
-                              }`}
-                              title={a.is_supervisor ? 'Remove as supervisor' : 'Mark as supervisor'}
-                            >
-                              {a.is_supervisor ? 'Supervisor' : 'Set Lead'}
-                            </button>
+                            {a.is_supervisor && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#ffffff]/20 text-[#ffffff]">Lead</span>}
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ASSIGNMENT_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                               {a.status?.replace(/_/g, ' ')}
                             </span>
-                            <div className="flex gap-1">
-                              {a.status === 'invited' && (
-                                <>
-                                  <SmallBtn label="Confirm" onClick={() => handleAssignmentStatus(a.id, 'confirmed')} />
-                                  <SmallBtn label="Decline" onClick={() => handleAssignmentStatus(a.id, 'declined')} />
-                                  {a.confirmation_token && (
-                                    <SmallBtn label="Copy Link" onClick={() => copyConfirmLink(a)} />
+                            {/* Overflow menu */}
+                            <div className="relative" ref={openWorkerMenu === a.id ? workerMenuRef : null}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenWorkerMenu(openWorkerMenu === a.id ? null : a.id) }}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold text-p-muted hover:text-white hover:bg-white/10 transition-colors"
+                              >
+                                •••
+                              </button>
+                              {openWorkerMenu === a.id && (
+                                <div className="absolute right-0 top-full mt-1 bg-p-surface border border-p-border rounded-lg shadow-xl z-30 min-w-[140px] py-1">
+                                  <button onClick={async () => {
+                                    try { await updateAssignment(a.id, { is_supervisor: !a.is_supervisor }); setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, is_supervisor: !a.is_supervisor } : x)) } catch (err) { console.error(err) }
+                                    setOpenWorkerMenu(null)
+                                  }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">
+                                    {a.is_supervisor ? 'Remove Lead' : 'Set Lead'}
+                                  </button>
+                                  {a.status === 'invited' && (
+                                    <>
+                                      <button onClick={() => { handleAssignmentStatus(a.id, 'confirmed'); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">Confirm</button>
+                                      <button onClick={() => { handleAssignmentStatus(a.id, 'declined'); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">Decline</button>
+                                      {a.confirmation_token && (
+                                        <button onClick={() => { copyConfirmLink(a); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">Copy Confirm Link</button>
+                                      )}
+                                    </>
                                   )}
-                                </>
+                                  {a.status === 'confirmed' && (
+                                    <button onClick={() => { handleAssignmentStatus(a.id, 'checked_in'); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">Check In</button>
+                                  )}
+                                  {a.status === 'checked_in' && (
+                                    <button onClick={() => { handleAssignmentStatus(a.id, 'completed'); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-white hover:bg-white/5">Complete</button>
+                                  )}
+                                  <div className="border-t border-p-border my-1" />
+                                  <button onClick={() => { handleRemoveAssignment(a.id); setOpenWorkerMenu(null) }} className="w-full text-left px-3 py-1.5 text-[10px] text-red-400 hover:bg-white/5">Remove</button>
+                                </div>
                               )}
-                              {a.status === 'confirmed' && (
-                                <SmallBtn label="Check In" onClick={() => handleAssignmentStatus(a.id, 'checked_in')} />
-                              )}
-                              {a.status === 'checked_in' && (
-                                <SmallBtn label="Complete" onClick={() => handleAssignmentStatus(a.id, 'completed')} />
-                              )}
-                              <SmallBtn label="×" onClick={() => handleRemoveAssignment(a.id)} danger />
                             </div>
                           </div>
                         ))}
@@ -1088,11 +1165,15 @@ export default function EventsPanel() {
                   )}
 
                   {/* Bench Pool */}
-                  <div className="border-t border-p-border pt-3 mt-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="border-t border-p-border mt-3 overflow-hidden">
+                    <button onClick={() => setShowBench(!showBench)} className="w-full flex items-center justify-between px-0 py-2.5 hover:bg-white/[0.02] transition-colors">
                       <h4 className="text-white text-sm font-medium">
                         Bench Pool ({benchPool.filter(b => b.status === 'standby').length} standby)
                       </h4>
+                      <span className="text-p-muted text-xs">{showBench ? '▾' : '▸'}</span>
+                    </button>
+                    {showBench && <>
+                    <div className="flex items-center justify-end mb-2">
                       <button
                         onClick={openBenchModal}
                         className="text-xs text-p-green font-medium hover:opacity-80 transition-opacity"
@@ -1190,6 +1271,7 @@ export default function EventsPanel() {
                         <span className="text-red-400 text-[9px] mt-0.5">Notifies all available workers</span>
                       </div>
                     </div>
+                  </>}
                   </div>
 
                   {/* Add to Bench Modal */}
