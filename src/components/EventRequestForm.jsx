@@ -295,7 +295,6 @@ export default function EventRequestForm({ onSuccess }) {
               ))}
             </div>
           </div>
-          <input className={inputCls} placeholder="Pay Rate (e.g. $18/hr)" value={form.pay_rate} onChange={set('pay_rate')} />
           <input className={inputCls} placeholder="Dress Code / Requirements" value={form.dress_code} onChange={set('dress_code')} />
         </Section>
 
