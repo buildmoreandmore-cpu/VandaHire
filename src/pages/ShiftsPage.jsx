@@ -48,8 +48,11 @@ export default function ShiftsPage() {
         </div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight mb-3 fade-up">Request Received!</h2>
         <p className="text-[#888] text-sm mb-8 max-w-xs fade-up-delay-1">
-          Thanks, {claimed.first_name}! Your shift request is pending approval. You'll receive a text once you've been approved.
+          Thanks, {claimed.first_name}! Your shift request is pending approval. Check back in My Shifts to see your approval status.
         </p>
+        <div className="max-w-xs w-full mb-6 fade-up-delay-1">
+          <PushOptIn phone={localStorage.getItem('vanda_worker_phone')} />
+        </div>
         <button
           onClick={() => { setClaimed(null); setShifts([]); setLoading(true); fetch('/api/shifts').then(r => r.json()).then(d => { setShifts(Array.isArray(d) ? d : []); setLoading(false) }) }}
           className="text-p-muted text-sm hover:text-white transition-colors"

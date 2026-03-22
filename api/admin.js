@@ -5,6 +5,7 @@ import { sendSms } from '../_lib/sms.js'
 import { sendEmail } from '../_lib/email.js'
 import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
 import { getAgreementHtml } from '../_lib/agreement.js'
+import { sendPushToWorker } from '../_lib/push.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -351,6 +352,18 @@ async function handleAssignments(req, res, supabase) {
           await supabase.from('assignments').update({ shift_sent_at: new Date().toISOString() }).eq('id', id)
         } catch (e) { console.error(`[admin/assignments] Auto shift email failed:`, e.message) }
       }
+
+      // Send push notification
+      try {
+        const event = data.events
+        await sendPushToWorker(
+          supabase, data.worker_id,
+          'Shift Confirmed!',
+          `You're confirmed for ${event?.title || 'a shift'}${event?.event_date ? ` on ${formatDate(event.event_date)}` : ''}.`,
+          '/my-shifts',
+          'shift-confirmed'
+        )
+      } catch (e) { console.error('[admin/assignments] Push notification failed:', e.message) }
     }
 
     return res.status(200).json(data)
