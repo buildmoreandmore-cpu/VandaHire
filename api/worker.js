@@ -37,6 +37,7 @@ export default async function handler(req, res) {
     if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
     if (route === 'push-send') return await handlePushSend(req, res, supabase)
     if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
+    if (route === 'respond-invite') return await handleRespondInvite(req, res, supabase)
     return await handleCheckin(req, res, supabase)
   } catch (err) {
     console.error(`[worker/${route}] Error:`, err)
@@ -239,6 +240,42 @@ async function handleCheckin(req, res, supabase) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── RESPOND TO INVITE (accept / decline) ────────────────────────────────────
+
+async function handleRespondInvite(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { phone, assignment_id, response } = req.body
+  if (!phone || !assignment_id || !['accept', 'decline'].includes(response)) {
+    return res.status(400).json({ error: 'phone, assignment_id, and response (accept/decline) required' })
+  }
+
+  const worker = await findByPhone(supabase, phone, 'id')
+  if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+  // Verify the assignment belongs to this worker and is in invited status
+  const { data: assignment, error: aErr } = await supabase
+    .from('assignments')
+    .select('id, status, event_id')
+    .eq('id', assignment_id)
+    .eq('worker_id', worker.id)
+    .single()
+
+  if (aErr || !assignment) return res.status(404).json({ error: 'Assignment not found' })
+  if (assignment.status !== 'invited') return res.status(400).json({ error: `Cannot respond — shift is already ${assignment.status}` })
+
+  const newStatus = response === 'accept' ? 'confirmed' : 'declined'
+
+  const { error: updateErr } = await supabase
+    .from('assignments')
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .eq('id', assignment_id)
+
+  if (updateErr) return res.status(500).json({ error: 'Failed to update assignment' })
+
+  return res.status(200).json({ success: true, status: newStatus })
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────

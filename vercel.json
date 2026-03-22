@@ -38,6 +38,7 @@
     { "source": "/api/id-upload", "destination": "/api/worker?route=id-upload" },
     { "source": "/api/push", "destination": "/api/worker?route=push-subscribe" },
     { "source": "/api/gps-ping", "destination": "/api/worker?route=gps-ping" },
+    { "source": "/api/respond-invite", "destination": "/api/worker?route=respond-invite" },
     { "source": "/api/supervisor-dashboard", "destination": "/api/worker?route=supervisor-dashboard" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*).*)", "destination": "/index.html" }

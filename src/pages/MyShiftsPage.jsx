@@ -459,6 +459,29 @@ export default function MyShiftsPage() {
     setActionLoading(null)
   }
 
+  const handleInviteResponse = async (assignmentId, response) => {
+    setActionLoading(assignmentId)
+    setError('')
+    try {
+      const res = await fetch('/api/respond-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: localStorage.getItem(PHONE_KEY),
+          assignment_id: assignmentId,
+          response,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to respond')
+      if (navigator.vibrate) navigator.vibrate([80, 50, 80])
+      fetchShifts(localStorage.getItem(PHONE_KEY))
+    } catch (err) {
+      setError(err.message)
+    }
+    setActionLoading(null)
+  }
+
   const handleLogout = () => {
     localStorage.removeItem(PHONE_KEY)
     setVerified(false)
@@ -633,10 +656,25 @@ export default function MyShiftsPage() {
                     <p className="text-[#888] text-xs mb-2">Hours tracked: <span className="text-white font-medium">{a.hours_tracked}h</span></p>
                   )}
 
-                  {/* Pending approval notice */}
+                  {/* Invited — accept or decline */}
                   {a.status === 'invited' && (
-                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-xs text-orange-400">
-                      Your claim is pending approval. We'll text you once confirmed.
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleInviteResponse(a.id, 'accept')}
+                          disabled={actionLoading === a.id}
+                          className="flex-1 bg-white text-black rounded-lg py-3 text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-all"
+                        >
+                          {actionLoading === a.id ? 'Updating...' : 'Accept Shift'}
+                        </button>
+                        <button
+                          onClick={() => handleInviteResponse(a.id, 'decline')}
+                          disabled={actionLoading === a.id}
+                          className="flex-1 bg-[#1a1a1a] text-[#888] border border-[#2a2a2a] rounded-lg py-3 text-sm font-semibold disabled:opacity-40 hover:text-white hover:border-[#444] transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
                     </div>
                   )}
 
