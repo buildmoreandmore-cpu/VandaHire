@@ -68,7 +68,7 @@ async function handleCheckin(req, res, supabase) {
       .from('assignments')
       .select('id, status, check_in_time, check_out_time, hours_tracked, is_supervisor, event_id, events ( id, title, event_date, start_time, end_time, location, city, pay_rate, latitude, longitude, geofence_radius_meters, service_tier )')
       .eq('worker_id', worker.id)
-      .in('status', ['confirmed', 'checked_in', 'completed'])
+      .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
       .order('created_at', { ascending: false })
 
     if (aErr) return res.status(500).json({ error: 'Failed to load assignments' })
@@ -81,7 +81,7 @@ async function handleCheckin(req, res, supabase) {
           .from('assignments')
           .select('id, status, check_in_time, check_out_time, hours_tracked, is_supervisor, worker_id, applicants ( id, first_name, last_name, phone, photo_url )')
           .eq('event_id', a.event_id)
-          .in('status', ['confirmed', 'checked_in', 'completed'])
+          .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
           .order('is_supervisor', { ascending: false })
         item.crew = crew || []
       }

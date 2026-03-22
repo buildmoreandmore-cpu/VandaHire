@@ -563,7 +563,7 @@ export default function MyShiftsPage() {
           <div className="text-[#888] text-sm text-center py-12">Loading your shifts...</div>
         ) : assignments.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-[#888] text-sm">No confirmed shifts yet.</p>
+            <p className="text-[#888] text-sm">No shifts yet.</p>
             <button onClick={() => navigate('/shifts')} className="text-[#ffffff] text-sm mt-3 hover:opacity-80">Browse open shifts</button>
           </div>
         ) : (
@@ -594,11 +594,12 @@ export default function MyShiftsPage() {
                       <p className="text-[#666] text-xs mt-0.5">{ev.location}, {ev.city}</p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                      a.status === 'invited' ? 'bg-orange-500/20 text-orange-400' :
                       a.status === 'checked_in' ? 'bg-blue-500/20 text-blue-400' :
                       a.status === 'completed' ? 'bg-green-500/20 text-green-400' :
                       'bg-yellow-500/20 text-yellow-400'
                     }`}>
-                      {a.status.replace(/_/g, ' ')}
+                      {a.status === 'invited' ? 'pending approval' : a.status.replace(/_/g, ' ')}
                     </span>
                   </div>
 
@@ -630,6 +631,13 @@ export default function MyShiftsPage() {
                   {/* Hours tracked for completed */}
                   {a.status === 'completed' && a.hours_tracked && (
                     <p className="text-[#888] text-xs mb-2">Hours tracked: <span className="text-white font-medium">{a.hours_tracked}h</span></p>
+                  )}
+
+                  {/* Pending approval notice */}
+                  {a.status === 'invited' && (
+                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-xs text-orange-400">
+                      Your claim is pending approval. We'll text you once confirmed.
+                    </div>
                   )}
 
                   {/* Action buttons */}
