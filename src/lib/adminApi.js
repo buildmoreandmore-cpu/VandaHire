@@ -109,6 +109,7 @@ export const sendSurvey = (assignmentId) =>
   })
 
 export const fetchSurveys = () => adminFetch('/api/admin/surveys')
+export const fetchEventReviews = (eventId) => adminFetch(`/api/admin/surveys?event_id=${eventId}`)
 
 export const notifyWorkers = (eventId) =>
   adminFetch('/api/admin/notify-workers', {

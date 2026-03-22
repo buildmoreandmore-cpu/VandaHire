@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -85,6 +85,9 @@ export default function EventsPanel() {
   const [exitRecords, setExitRecords] = useState([])
   const [cancelling, setCancelling] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [reviews, setReviews] = useState(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [showReviews, setShowReviews] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -137,6 +140,15 @@ export default function EventsPanel() {
       console.error('Failed to load quote/payments/exits:', err)
     }
     setQuoteLoading(false)
+    // Load reviews
+    setReviewsLoading(true)
+    try {
+      const r = await fetchEventReviews(id)
+      setReviews(r)
+    } catch (err) {
+      setReviews(null)
+    }
+    setReviewsLoading(false)
   }
 
   const handleStatusChange = async (id, newStatus) => {
@@ -1250,6 +1262,106 @@ export default function EventsPanel() {
                       </div>
                     </div>
                   )}
+
+                  {/* Reviews & Feedback */}
+                  <div className="mt-4 border border-p-border rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setShowReviews(!showReviews)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-[#111] hover:bg-[#161616] transition-colors"
+                  >
+                    <span className="text-white text-sm font-semibold">Reviews & Feedback</span>
+                    <span className="text-p-muted text-xs">{showReviews ? '▾' : '▸'}</span>
+                  </button>
+                  {showReviews && (
+                    <div className="px-4 py-3 space-y-4">
+                      {reviewsLoading ? (
+                        <p className="text-p-muted text-xs">Loading reviews...</p>
+                      ) : !reviews || (!reviews.worker_surveys?.length && !reviews.client_feedback?.client_rating) ? (
+                        <p className="text-p-muted text-xs">No reviews yet for this event.</p>
+                      ) : (
+                        <>
+                          {/* Average Rating */}
+                          {(() => {
+                            const allRatings = []
+                            if (reviews.worker_surveys?.length) reviews.worker_surveys.forEach(s => { if (s.rating) allRatings.push(s.rating) })
+                            if (reviews.client_feedback?.client_rating) allRatings.push(reviews.client_feedback.client_rating)
+                            if (!allRatings.length) return null
+                            const avg = (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
+                            return (
+                              <div className="flex items-center gap-3 pb-3 border-b border-p-border">
+                                <div className="text-3xl font-bold text-white">{avg}</div>
+                                <div>
+                                  <div className="text-yellow-400 text-lg tracking-wider">
+                                    {'★'.repeat(Math.round(parseFloat(avg)))}{'☆'.repeat(5 - Math.round(parseFloat(avg)))}
+                                  </div>
+                                  <div className="text-p-muted text-[10px]">{allRatings.length} review{allRatings.length !== 1 ? 's' : ''}</div>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {/* Client / Organizer Feedback */}
+                          {reviews.client_feedback?.client_rating && (
+                            <div className="bg-[#0d0d0d] rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-white text-xs font-semibold">Organizer — {reviews.client_feedback.contact_name || 'Client'}</span>
+                                <span className="text-yellow-400 text-xs">{'★'.repeat(reviews.client_feedback.client_rating)}{'☆'.repeat(5 - reviews.client_feedback.client_rating)}</span>
+                              </div>
+                              {reviews.client_feedback.client_would_rebook !== null && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${reviews.client_feedback.client_would_rebook ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                  {reviews.client_feedback.client_would_rebook ? 'Would rebook' : 'Would not rebook'}
+                                </span>
+                              )}
+                              {reviews.client_feedback.client_feedback && (
+                                <p className="text-p-muted text-xs leading-relaxed">{reviews.client_feedback.client_feedback}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Worker Surveys */}
+                          {reviews.worker_surveys?.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-white text-xs font-semibold">Worker Reviews</p>
+                              {reviews.worker_surveys.map(s => (
+                                <div key={s.id} className="bg-[#0d0d0d] rounded-lg p-3 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white text-xs font-medium">
+                                      {s.applicants?.first_name} {s.applicants?.last_name}
+                                    </span>
+                                    <span className="text-yellow-400 text-xs">{'★'.repeat(s.rating || 0)}{'☆'.repeat(5 - (s.rating || 0))}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${s.showed_up === true ? 'bg-green-500/20 text-green-400' : s.showed_up === false ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                      {s.showed_up === true ? 'Full shift' : s.showed_up === false ? 'No-show' : 'Partial'}
+                                    </span>
+                                    {s.would_work_again !== null && (
+                                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${s.would_work_again ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                        {s.would_work_again ? 'Would rehire' : 'Would not rehire'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {s.feedback && (
+                                    <div>
+                                      <p className="text-[10px] text-p-muted mb-0.5">What went well</p>
+                                      <p className="text-xs text-[#ccc] leading-relaxed">{s.feedback}</p>
+                                    </div>
+                                  )}
+                                  {s.issues && (
+                                    <div>
+                                      <p className="text-[10px] text-p-muted mb-0.5">What to improve</p>
+                                      <p className="text-xs text-[#ccc] leading-relaxed">{s.issues}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 </div>
               )}
             </div>

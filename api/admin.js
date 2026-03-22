@@ -380,8 +380,18 @@ async function handleAssignments(req, res, supabase) {
 
 async function handleSurveys(req, res, supabase) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
-  const { data, error } = await supabase.from('surveys').select('id, submitted_at, showed_up, rating, would_work_again, issues, feedback, events ( id, title, event_date, city ), applicants ( first_name, last_name, phone )').order('submitted_at', { ascending: false })
+  const { event_id } = req.query
+  let query = supabase.from('surveys').select('id, submitted_at, showed_up, rating, would_work_again, issues, feedback, event_id, events ( id, title, event_date, city ), applicants ( first_name, last_name, phone )').order('submitted_at', { ascending: false })
+  if (event_id) query = query.eq('event_id', event_id)
+  const { data, error } = await query
   if (error) throw error
+
+  // If event_id provided, also include client feedback from events table
+  if (event_id) {
+    const { data: event } = await supabase.from('events').select('client_rating, client_feedback, client_would_rebook, client_survey_at, contact_name').eq('id', event_id).single()
+    return res.status(200).json({ worker_surveys: data || [], client_feedback: event || null })
+  }
+
   return res.status(200).json(data || [])
 }
 
