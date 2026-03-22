@@ -66,7 +66,7 @@ export default function Footer() {
             <button onClick={() => go('/privacy')} className="hover:text-[#666] transition-colors">Privacy Policy</button>
             <button onClick={() => go('/terms')} className="hover:text-[#666] transition-colors">Terms of Service</button>
           </div>
-          <p>© 2026 V&A Hire · Varist & Associates LLC</p>
+          <p>© 2026 V&A Hire · Varist & Associates of GA LLC</p>
         </div>
       </div>
     </footer>

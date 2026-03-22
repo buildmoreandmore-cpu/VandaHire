@@ -481,7 +481,7 @@ export default function MyShiftsPage() {
           <button onClick={() => navigate('/shifts')} className="text-[#777] text-sm hover:text-white transition-colors">Open Shifts</button>
         </div>
         <div className="flex-1 px-6 py-16 max-w-2xl mx-auto w-full">
-          <h1 className="text-4xl font-extrabold tracking-tighter mb-2">My Shifts</h1>
+          <h1 className="font-inter text-4xl font-extrabold tracking-tighter mb-2">My Shifts</h1>
           <p className="text-[#888] mb-10">Enter your phone number to view your shifts and check in.</p>
           <form onSubmit={handleVerify} className="space-y-4 max-w-sm">
             <div>
@@ -519,7 +519,7 @@ export default function MyShiftsPage() {
       <div className="max-w-[600px] mx-auto px-5 py-8 w-full flex-1">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">My Shifts</h1>
+            <h1 className="font-inter text-2xl font-extrabold tracking-tight">My Shifts</h1>
             {worker && <p className="text-[#888] text-sm">Hey, {worker.first_name}</p>}
           </div>
           <button onClick={() => fetchShifts(localStorage.getItem(PHONE_KEY))} className="text-[#ffffff] text-xs hover:opacity-80">Refresh</button>

@@ -65,14 +65,14 @@ export default function ShiftsPage() {
         <VandaLogo onClick={() => navigate('/')} />
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/my-shifts')} className="text-[#999] text-xs font-medium hover:text-white transition-colors">My Shifts</button>
-          <span className="text-white text-xs font-semibold border-b border-white pb-0.5">Available Shifts</span>
+          <span className="font-inter text-white text-xs font-semibold border-b border-white pb-0.5">Available Shifts</span>
         </div>
       </div>
 
       <div className="max-w-[600px] mx-auto px-5 py-8">
         <InstallPrompt />
         <PushOptIn phone="" />
-        <h1 className="text-2xl font-extrabold text-white tracking-tight mb-1">Open Shifts</h1>
+        <h1 className="font-inter text-2xl font-extrabold text-white tracking-tight mb-1">Open Shifts</h1>
         <p className="text-p-muted text-sm mb-6">
           Approved V&A Hire workers can claim shifts below. Not in our pool yet?{' '}
           <button onClick={() => navigate('/')} className="text-white underline hover:opacity-80 transition-opacity">Apply here →</button>

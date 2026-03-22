@@ -1610,7 +1610,7 @@ async function monthlyNewsletter(supabase) {
             </div>
 
             <p style="color:#666;font-size:12px;line-height:1.6;margin-top:32px;">Questions? Call us at (404) 861-7794 or reply to this email.</p>
-            <p style="color:#444;font-size:11px;margin-top:16px;">V&A Hire • Varist & Associates LLC • vandahire.com</p>
+            <p style="color:#444;font-size:11px;margin-top:16px;">V&A Hire • Varist & Associates of GA LLC • vandahire.com</p>
           </div>`,
       })
       sent++

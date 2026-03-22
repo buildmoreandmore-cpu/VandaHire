@@ -8,7 +8,7 @@ export function getAgreementHtml({ deposit, balance, total } = {}) {
   return `
     <div style="background:#141414;border:1px solid #1e1e1e;border-radius:8px;padding:24px;margin:20px 0;font-size:13px;color:#ccc;line-height:1.7">
       <h3 style="margin:0 0 12px;font-size:16px;color:#ffffff;border-bottom:2px solid #ffffff;padding-bottom:8px">V&A Hire Staffing Services Agreement</h3>
-      <p style="margin:0 0 10px">This Service Agreement ("Agreement") is entered into between <strong>Varist and Associates LLC</strong> ("Company," "we," "us") and the undersigned event organizer ("Client," "you") upon acceptance.</p>
+      <p style="margin:0 0 10px">This Service Agreement ("Agreement") is entered into between <strong>Varist and Associates of GA LLC</strong> ("Company," "we," "us") and the undersigned event organizer ("Client," "you") upon acceptance.</p>
 
       <p style="margin:16px 0 6px;font-weight:bold;color:#ffffff">1. Scope of Services</p>
       <p style="margin:0 0 10px">V&A Hire will provide temporary staffing personnel ("Workers") for Client's event as described in the accepted quote. V&A Hire retains sole discretion over worker selection, assignment, and management. Workers are employees or contractors of V&A Hire, not of Client.</p>
@@ -61,7 +61,7 @@ export function getAgreementHtml({ deposit, balance, total } = {}) {
       <p style="margin:16px 0 6px;font-weight:bold;color:#ffffff">14. Entire Agreement</p>
       <p style="margin:0 0 10px">This Agreement constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements. No modification shall be effective unless in writing and signed by both parties. If any provision is found unenforceable, the remaining provisions shall continue in full force.</p>
 
-      <p style="margin:16px 0 0;font-size:11px;color:#999">Varist and Associates LLC &bull; 196 Peachtree St SW, #121, Atlanta, GA 30303 &bull; vandahire.com</p>
+      <p style="margin:16px 0 0;font-size:11px;color:#999">Varist and Associates of GA LLC &bull; 196 Peachtree St SW, #121, Atlanta, GA 30303 &bull; vandahire.com</p>
     </div>`
 
 }

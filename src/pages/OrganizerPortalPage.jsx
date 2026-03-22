@@ -44,7 +44,7 @@ function ServiceAgreement({ event, onAccept, loading }) {
       <h3 className="text-lg font-bold mb-4">Service Agreement</h3>
       <div className="bg-[#111] border border-[#1a1a1a] rounded-xl p-5 max-h-96 overflow-y-auto text-sm text-[#aaa] leading-relaxed space-y-4">
         <p className="text-white font-bold text-base">V&A Hire Staffing Services Agreement</p>
-        <p>This Service Agreement ("Agreement") is entered into between <strong>Varist and Associates LLC</strong> ("Company," "we," "us") and the undersigned event organizer ("Client," "you") upon acceptance.</p>
+        <p>This Service Agreement ("Agreement") is entered into between <strong>Varist and Associates of GA LLC</strong> ("Company," "we," "us") and the undersigned event organizer ("Client," "you") upon acceptance.</p>
 
         <p className="text-white font-semibold">1. Scope of Services</p>
         <p>V&A Hire will provide temporary staffing personnel ("Workers") for Client's event as described in the accepted quote. V&A Hire retains sole discretion over worker selection, assignment, and management. Workers are employees or contractors of V&A Hire, not of Client.</p>
@@ -97,7 +97,7 @@ function ServiceAgreement({ event, onAccept, loading }) {
         <p className="text-white font-semibold">14. Entire Agreement</p>
         <p>This Agreement constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements. No modification shall be effective unless in writing and signed by both parties. If any provision is found unenforceable, the remaining provisions shall continue in full force.</p>
 
-        <p className="text-[#666] text-xs mt-6">Varist and Associates LLC • 196 Peachtree St SW, #121, Atlanta, GA 30303 • vandahire.com</p>
+        <p className="text-[#666] text-xs mt-6">Varist and Associates of GA LLC • 196 Peachtree St SW, #121, Atlanta, GA 30303 • vandahire.com</p>
       </div>
 
       <div className="mt-5 space-y-4">

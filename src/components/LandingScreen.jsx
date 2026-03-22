@@ -267,10 +267,10 @@ export default function LandingScreen({ onStart }) {
       {/* About / Trust Section */}
       <section className="reveal px-6 py-16 border-t border-[#1a1a1a] max-w-5xl mx-auto w-full">
         <div className="text-[#999] font-semibold text-xs tracking-widest uppercase mb-6">About V&A Hire</div>
-        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates LLC</h2>
+        <h2 className="font-inter text-3xl font-extrabold tracking-tighter mb-6">Backed by Varist & Associates of GA LLC</h2>
         <div className="text-[#888] text-sm leading-relaxed space-y-4 max-w-2xl">
           <p>
-            V&A Hire is powered by Varist & Associates LLC — an Atlanta-based workforce operations company
+            V&A Hire is powered by Varist & Associates of GA LLC — an Atlanta-based workforce operations company
             that has deployed vetted, supervised crews across some of the Southeast's biggest stages.
           </p>
           <p>

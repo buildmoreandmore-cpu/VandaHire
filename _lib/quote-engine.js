@@ -1,6 +1,6 @@
 // AI-powered Quote Engine
 // Determines bill rate, margin, and fees based on event type, size, urgency, and roles
-// Varist & Associates LLC margin target: 40-50%
+// Varist & Associates of GA LLC margin target: 40-50%
 
 const DEFAULT_PAY_RATES = {
   bartender: 22, mixologist: 24, server: 18, waiter: 18, waitress: 18,
