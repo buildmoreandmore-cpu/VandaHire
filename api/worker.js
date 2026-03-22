@@ -713,7 +713,7 @@ async function handleExitReply(req, res, supabase) {
     return res.status(400).json({ error: `reply must be one of: ${validReplies.join(', ')}` })
   }
 
-  const digits = phone.replace(/\D/g, '')
+  const digits = phone.replace(/\D/g, '').slice(-10)
 
   // Find worker
   const worker = await findByPhone(supabase, phone, 'id')
@@ -890,7 +890,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   const { phone, latitude, longitude } = req.body
   if (!phone || !latitude || !longitude) return res.status(400).json({ error: 'phone, latitude, longitude required' })
 
-  const digits = phone.replace(/\D/g, '')
+  const digits = phone.replace(/\D/g, '').slice(-10)
   const worker = await findByPhone(supabase, phone, 'id, first_name, phone')
   if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
@@ -1009,7 +1009,7 @@ async function handleGeofenceCheck(req, res, supabase) {
 
       // Push notification to supervisor
       try {
-        const { sendPushToWorker } = await import('./push.js')
+        const { sendPushToWorker } = await import('../_lib/push.js')
         await sendPushToWorker(
           supabase, sup.id,
           'Crew Alert: Worker Left Venue',
@@ -1179,6 +1179,7 @@ async function handleConnectOnboard(req, res, supabase) {
   const { phone } = req.body
   if (!phone) return res.status(400).json({ error: 'phone required' })
 
+  const digits = phone.replace(/\D/g, '').slice(-10)
   const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, email, stripe_connect_id')
 
   if (!worker) return res.status(404).json({ error: 'Worker not found' })

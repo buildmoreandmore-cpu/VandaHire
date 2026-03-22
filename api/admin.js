@@ -158,7 +158,7 @@ async function handleApplicants(req, res, supabase) {
     // Auto-send email on status change
     if (status === 'approved' && data.email) {
       try {
-        const verifyUrl = 'https://vandahire.com/verify'
+        const verifyUrl = `${process.env.VITE_APP_URL || 'https://vandahire.com'}/verify`
         await sendEmail({
           to: data.email,
           subject: 'You\'re Approved! Complete Your Verification — V&A Hire',

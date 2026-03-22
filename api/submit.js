@@ -26,7 +26,23 @@ export default async function handler(req, res) {
     process.env.SUPABASE_SERVICE_ROLE_KEY,
   )
 
-  // 1. Write applicant to Supabase first — data is never lost
+  // 1. Check for duplicate by email or phone
+  try {
+    const { data: existing } = await supabase
+      .from('applicants')
+      .select('id, status')
+      .or(`email.eq.${email},phone.eq.${phone}`)
+      .limit(1)
+      .single()
+
+    if (existing) {
+      return res.status(200).json({ success: true, applicantId: existing.id, decision: existing.status, duplicate: true })
+    }
+  } catch (err) {
+    // No duplicate found — continue with insert
+  }
+
+  // 2. Write applicant to Supabase — data is never lost
   let applicantId
   try {
     const { data, error } = await supabase
@@ -57,7 +73,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save application' })
   }
 
-  // 2. Upload photo to Supabase Storage if provided
+  // 3. Upload photo to Supabase Storage if provided
   let photoUrl = null
   if (photo_base64) {
     try {
@@ -90,7 +106,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. Score the applicant via AI
+  // 4. Score the applicant via AI
   let decision = 'needs_review'
   let scoreBreakdown = {}
 
@@ -115,7 +131,7 @@ export default async function handler(req, res) {
     console.error('[submit] Scoring error:', err)
   }
 
-  // 4. Store score but keep status as pending — gives admin 12hrs to manually review
+  // 5. Store score but keep status as pending — gives admin 12hrs to manually review
   //    If no action taken, the cron auto-decides based on the score
   try {
     await supabase
@@ -129,7 +145,7 @@ export default async function handler(req, res) {
     console.error('[submit] Supabase score update error:', err)
   }
 
-  // 5. Send confirmation to applicant (non-blocking)
+  // 6. Send confirmation to applicant (non-blocking)
   const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
   const { sendSms } = await import('../_lib/sms.js').catch(() => ({ sendSms: null }))
   const { sendEmail } = await import('../_lib/email.js').catch(() => ({ sendEmail: null }))
@@ -146,7 +162,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 6. Waitlist referral SMS — turn every signup into a recruiter (sent regardless of status)
+  // 7. Waitlist referral SMS — turn every signup into a recruiter (sent regardless of status)
   if (sendSms && phone) {
     try {
       await sendSms(phone, `You're on the Vanda Hire ${city || 'Atlanta'} list, ${first_name}. We'll text you when events match your role.\n\nWant to move up? Send us 2 friends who'd be great workers — just reply with their names and numbers. We'll prioritize you for the next event.`)
@@ -155,5 +171,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ success: true, applicantId, decision: finalStatus })
+  return res.status(200).json({ success: true, applicantId, decision })
 }
