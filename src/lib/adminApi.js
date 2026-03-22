@@ -41,6 +41,9 @@ async function adminFetch(path, options = {}) {
 // Stats
 export const fetchStats = () => adminFetch('/api/admin/stats')
 
+// Notifications
+export const fetchNotifications = () => adminFetch('/api/admin/notifications')
+
 // Applicants
 export const fetchApplicants = (status) =>
   adminFetch(`/api/admin/applicants${status ? `?status=${status}` : ''}`)

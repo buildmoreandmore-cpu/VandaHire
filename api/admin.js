@@ -1342,10 +1342,167 @@ export default async function handler(req, res) {
       case 'exit-records': return await handleExitRecords(req, res, supabase)
       case 'cancellation': return await handleCancellation(req, res, supabase)
       case 'payouts': return await handlePayouts(req, res, supabase)
+      case 'notifications': return await handleNotifications(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
     console.error(`[admin/${action}] Error:`, err)
     return res.status(500).json({ error: 'Internal server error' })
   }
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+async function handleNotifications(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const today = new Date().toISOString().slice(0, 10)
+  const notifications = []
+
+  // 1. New worker applications (pending)
+  const { data: pendingWorkers } = await supabase
+    .from('applicants')
+    .select('id, first_name, last_name, created_at')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  for (const w of (pendingWorkers || [])) {
+    notifications.push({
+      id: `worker-${w.id}`,
+      type: 'worker_application',
+      title: `${w.first_name} ${w.last_name} applied`,
+      subtitle: 'New application — review & approve',
+      time: w.created_at,
+      action: { tab: 'workers', filter: 'pending' },
+    })
+  }
+
+  // 2. Workers who accepted shifts (recently confirmed from invited)
+  const { data: recentAccepts } = await supabase
+    .from('assignments')
+    .select('id, status, updated_at, applicants ( first_name, last_name ), events ( title )')
+    .eq('status', 'confirmed')
+    .gte('updated_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+    .order('updated_at', { ascending: false })
+    .limit(10)
+
+  for (const a of (recentAccepts || [])) {
+    if (a.applicants && a.events) {
+      notifications.push({
+        id: `accept-${a.id}`,
+        type: 'shift_accepted',
+        title: `${a.applicants.first_name} ${a.applicants.last_name} confirmed`,
+        subtitle: a.events.title,
+        time: a.updated_at,
+        action: { tab: 'assignments' },
+      })
+    }
+  }
+
+  // 3. Workers who declined shifts
+  const { data: recentDeclines } = await supabase
+    .from('assignments')
+    .select('id, status, updated_at, applicants ( first_name, last_name ), events ( title )')
+    .eq('status', 'declined')
+    .gte('updated_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+    .order('updated_at', { ascending: false })
+    .limit(10)
+
+  for (const a of (recentDeclines || [])) {
+    if (a.applicants && a.events) {
+      notifications.push({
+        id: `decline-${a.id}`,
+        type: 'shift_declined',
+        title: `${a.applicants.first_name} ${a.applicants.last_name} declined`,
+        subtitle: `${a.events.title} — find replacement`,
+        time: a.updated_at,
+        action: { tab: 'events' },
+      })
+    }
+  }
+
+  // 4. Events needing staffing
+  const { data: staffingEvents } = await supabase
+    .from('events')
+    .select('id, title, event_date, workers_needed')
+    .eq('status', 'staffing')
+    .gte('event_date', today)
+    .order('event_date', { ascending: true })
+    .limit(10)
+
+  for (const ev of (staffingEvents || [])) {
+    const { count } = await supabase
+      .from('assignments')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', ev.id)
+      .in('status', ['invited', 'confirmed', 'checked_in'])
+
+    const needed = ev.workers_needed - (count || 0)
+    if (needed > 0) {
+      notifications.push({
+        id: `staffing-${ev.id}`,
+        type: 'needs_staffing',
+        title: `${ev.title} needs ${needed} more worker${needed > 1 ? 's' : ''}`,
+        subtitle: `Event date: ${ev.event_date}`,
+        time: null,
+        action: { tab: 'events' },
+        priority: true,
+      })
+    }
+  }
+
+  // 5. Upcoming events in next 3 days
+  const threeDaysOut = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const { data: upcomingEvents } = await supabase
+    .from('events')
+    .select('id, title, event_date, start_time, status')
+    .in('status', ['confirmed', 'staffing'])
+    .gte('event_date', today)
+    .lte('event_date', threeDaysOut)
+    .order('event_date', { ascending: true })
+    .limit(10)
+
+  for (const ev of (upcomingEvents || [])) {
+    notifications.push({
+      id: `upcoming-${ev.id}`,
+      type: 'upcoming_event',
+      title: `${ev.title} — ${ev.event_date}`,
+      subtitle: ev.status === 'staffing' ? 'Still staffing!' : 'Confirmed & ready',
+      time: null,
+      action: { tab: 'events' },
+      priority: ev.status === 'staffing',
+    })
+  }
+
+  // 6. Outstanding payments
+  const { data: unpaidEvents } = await supabase
+    .from('events')
+    .select('id, title, total_bill_amount, payment_status')
+    .in('payment_status', ['unpaid', 'partial'])
+    .gt('total_bill_amount', 0)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  for (const ev of (unpaidEvents || [])) {
+    notifications.push({
+      id: `payment-${ev.id}`,
+      type: 'payment_outstanding',
+      title: `${ev.title} — $${(ev.total_bill_amount || 0).toLocaleString()} ${ev.payment_status}`,
+      subtitle: 'Follow up on payment',
+      time: null,
+      action: { tab: 'events' },
+    })
+  }
+
+  // Sort: priority first, then by time (newest first)
+  notifications.sort((a, b) => {
+    if (a.priority && !b.priority) return -1
+    if (!a.priority && b.priority) return 1
+    if (a.time && b.time) return new Date(b.time) - new Date(a.time)
+    if (a.time) return -1
+    return 1
+  })
+
+  return res.status(200).json({ notifications, count: notifications.length })
 }

@@ -7,6 +7,7 @@ import EventsPanel from '../components/admin/EventsPanel.jsx'
 import AssignmentsPanel from '../components/admin/AssignmentsPanel.jsx'
 import OperationsPanel from '../components/admin/OperationsPanel.jsx'
 import SurveysPanel from '../components/admin/SurveysPanel.jsx'
+import NotificationBell from '../components/admin/NotificationBell.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
@@ -48,9 +49,12 @@ export default function AdminPage() {
           <VandaLogo size="sm" onClick={() => { clearToken(); setAuthed(false); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
           <span className="text-p-muted text-xs">Coordinator</span>
         </div>
-        <button onClick={handleLogout} className="text-p-muted text-xs hover:text-white transition-colors">
-          Sign Out
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationBell onNavigate={({ tab }) => setTab(tab)} />
+          <button onClick={handleLogout} className="text-p-muted text-xs hover:text-white transition-colors">
+            Sign Out
+          </button>
+        </div>
       </div>
 
       {/* Stats Bar */}
