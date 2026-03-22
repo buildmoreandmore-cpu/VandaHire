@@ -44,11 +44,15 @@ export default async function handler(req, res) {
     if (!event_id || !phone) return res.status(400).json({ error: 'event_id and phone are required' })
 
     try {
-      const digits = phone.replace(/\D/g, '')
+      const digits = phone.replace(/\D/g, '').slice(-10)
+      // Phone may be stored formatted — match area code + prefix + line separately
+      const area = digits.slice(0, 3)
+      const prefix = digits.slice(3, 6)
+      const line = digits.slice(6)
       const { data: workers, error: workerError } = await supabase
         .from('applicants')
         .select('id, first_name, last_name, status, phone, w9_signed_at, id_photo_url')
-        .ilike('phone', `%${digits.slice(-10)}%`)
+        .ilike('phone', `%${area}%${prefix}%${line}%`)
         .limit(1)
 
       if (workerError) throw workerError
