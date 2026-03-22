@@ -577,6 +577,15 @@ async function handleBench(req, res, supabase) {
       .upsert(rows, { onConflict: 'event_id,worker_id' })
       .select()
     if (error) throw error
+
+    // Notify bench workers
+    try {
+      const { data: event } = await supabase.from('events').select('title, event_date').eq('id', event_id).single()
+      for (const ba of (data || [])) {
+        await sendPushToWorker(supabase, ba.worker_id, 'Added to Bench', `You're on standby for ${event?.title || 'an event'}. We'll notify you if you're needed.`, '/my-shifts', 'bench-added')
+      }
+    } catch (e) { console.error('[admin/bench] Push notification failed:', e.message) }
+
     return res.status(200).json({ created: data.length, bench_assignments: data })
   }
 
@@ -591,8 +600,16 @@ async function handleBench(req, res, supabase) {
     }
     if (notes !== undefined) updates.notes = notes
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
-    const { data, error } = await supabase.from('bench_assignments').update(updates).eq('id', id).select().single()
+    const { data, error } = await supabase.from('bench_assignments').update(updates).eq('id', id).select('*, events ( title )').single()
     if (error) throw error
+
+    // Notify worker when called in from bench
+    if (updates.status === 'called_in' && data.worker_id) {
+      try {
+        await sendPushToWorker(supabase, data.worker_id, 'You\'re Needed!', `You've been called in for ${data.events?.title || 'an event'}. Check My Shifts for details.`, '/my-shifts', 'bench-called-in')
+      } catch (e) { console.error('[admin/bench] Call-in push failed:', e.message) }
+    }
+
     return res.status(200).json(data)
   }
 
