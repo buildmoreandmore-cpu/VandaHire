@@ -20,6 +20,9 @@ export default async function handler(req, res) {
       if (error) throw error
       if (!survey) return res.status(404).json({ error: 'Survey not found' })
       if (survey.submitted_at) return res.status(400).json({ error: 'already_submitted', message: 'This survey has already been submitted.' })
+      if (survey.events?.event_date && new Date(survey.events.event_date + 'T23:59:59') > new Date()) {
+        return res.status(400).json({ error: 'event_not_completed', message: 'This survey is not available yet — the event has not taken place.' })
+      }
 
       return res.status(200).json({ survey_id: survey.id, event: survey.events, worker: survey.applicants })
     } catch (err) {
@@ -36,13 +39,16 @@ export default async function handler(req, res) {
     try {
       const { data: survey, error: findError } = await supabase
         .from('surveys')
-        .select('id, submitted_at')
+        .select('id, submitted_at, events ( event_date )')
         .eq('token', token)
         .maybeSingle()
 
       if (findError) throw findError
       if (!survey) return res.status(404).json({ error: 'Survey not found' })
       if (survey.submitted_at) return res.status(400).json({ error: 'already_submitted', message: 'This survey has already been submitted.' })
+      if (survey.events?.event_date && new Date(survey.events.event_date + 'T23:59:59') > new Date()) {
+        return res.status(400).json({ error: 'event_not_completed', message: 'This survey cannot be submitted yet — the event has not taken place.' })
+      }
 
       const { error: updateError } = await supabase
         .from('surveys')

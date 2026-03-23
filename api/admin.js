@@ -164,6 +164,14 @@ async function handleApplicants(req, res, supabase) {
     const { data, error } = await supabase.from('applicants').update(updates).eq('id', id).select().single()
     if (error) throw error
 
+    // Cancel active assignments when worker is removed or rejected
+    if (status === 'removed' || status === 'rejected') {
+      try {
+        await supabase.from('assignments').update({ status: 'cancelled' }).eq('worker_id', id).in('status', ['invited', 'confirmed', 'checked_in'])
+        await supabase.from('bench_assignments').update({ status: 'cancelled' }).eq('worker_id', id).in('status', ['standby', 'called_in'])
+      } catch (e) { console.error('[admin/applicants] Cancel assignments on remove/reject:', e) }
+    }
+
     // Auto-send email on status change
     if (status === 'approved' && data.email) {
       try {
