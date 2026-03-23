@@ -30,7 +30,7 @@ export default function AdminPage() {
       clearToken()
       setAuthed(false)
     })
-  }, [authed])
+  }, [authed, tab])
 
   if (!authed) {
     return <AdminLogin onLogin={() => setAuthed(true)} />

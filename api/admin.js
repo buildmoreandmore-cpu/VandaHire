@@ -55,6 +55,7 @@ async function handleStats(req, res, supabase) {
 
   let totalBilled = 0, totalPaidByClients = 0, totalOutstanding = 0
   for (const ev of events.data) {
+    if (ev.status === 'cancelled') continue // cancelled events don't count toward outstanding
     const amt = parseFloat(ev.total_bill_amount) || 0
     totalBilled += amt
     if (ev.payment_status === 'paid') totalPaidByClients += amt
@@ -1154,9 +1155,12 @@ async function handleCancellation(req, res, supabase) {
     }
   }
 
-  // Cancel the event — cron jobs skip cancelled events for billing
+  // Cancel the event — zero out billing so it doesn't count as outstanding
   await supabase.from('events').update({
     status: 'cancelled',
+    total_bill_amount: refundResult.refund_amount > 0 ? (depositPaid - refundResult.refund_amount) : 0,
+    payment_status: 'paid',
+    invoice_status: 'paid',
     updated_at: new Date().toISOString(),
   }).eq('id', event_id)
 
