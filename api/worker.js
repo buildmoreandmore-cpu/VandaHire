@@ -1032,7 +1032,7 @@ async function handleGeofenceCheck(req, res, supabase) {
               <p>Worker phone: <a href="tel:${worker.phone}">${worker.phone}</a></p>
               <p>Hours worked so far: ${hoursWorked}h</p>
               <p>Please take action — you can call the worker or release them from the Supervisor Portal.</p>
-              <a href="https://vandahire.com/supervisor" style="display:inline-block;padding:12px 24px;background:#fff;color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px">Open Supervisor Portal</a>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/supervisor" target="_blank" style="background:#ffffff;color:#000000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Open Supervisor Portal</a></td></tr></table>
               <p style="color:#888;font-size:12px;margin-top:24px">V&A Hire • Auto-Alert</p>
             </div>`,
           })

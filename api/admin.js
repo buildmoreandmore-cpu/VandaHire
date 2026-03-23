@@ -172,7 +172,7 @@ async function handleApplicants(req, res, supabase) {
               <li>Describe a recent work experience where you solved a problem</li>
             </ol>
             <p>It takes less than 2 minutes:</p>
-            <p style="text-align:center;margin:20px 0"><a href="${verifyUrl}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Record Verification Video</a></p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td align="center" valign="middle" style="background:#ffffff;border-radius:8px"><a href="${verifyUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;mso-padding-alt:0;text-underline-color:#000000">Record Verification Video</a></td></tr></table>
             <p style="color:#888;font-size:14px">Once your video is reviewed, you'll receive a confirmation email and can start claiming shifts immediately.</p>
             <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
@@ -207,14 +207,14 @@ async function handleApplicants(req, res, supabase) {
                 <span style="color:#ccc;font-size:14px;margin-left:8px;">Upload your government-issued ID</span>
               </td></tr>
               <tr><td style="padding:4px 0 16px;text-align:center;">
-                <a href="https://vandahire.com/id-upload/${encodeURIComponent(data.phone)}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Upload ID →</a>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/id-upload/${encodeURIComponent(data.phone)}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Upload ID &rarr;</a></td></tr></table>
               </td></tr>
               <tr><td style="padding:8px 0;text-align:center;">
                 <span style="display:inline-block;background:#333;color:#fff;width:28px;height:28px;line-height:28px;border-radius:50%;font-weight:bold;font-size:14px;text-align:center;">2</span>
                 <span style="color:#ccc;font-size:14px;margin-left:8px;">Complete your W-9 tax form</span>
               </td></tr>
               <tr><td style="padding:4px 0 16px;text-align:center;">
-                <a href="https://vandahire.com/w9/${encodeURIComponent(data.phone)}" style="background:#141414;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;border:1px solid #333;">Complete W-9 →</a>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto"><tr><td style="background:#141414;border-radius:8px;border:1px solid #333"><a href="https://vandahire.com/w9/${encodeURIComponent(data.phone)}" target="_blank" style="background:#141414;color:#ffffff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete W-9 &rarr;</a></td></tr></table>
               </td></tr>
             </table>
             <p style="color:#888;font-size:13px;">Both steps take less than 2 minutes total. Once complete, you can start claiming shifts immediately.</p>
@@ -908,7 +908,7 @@ async function handleQuotes(req, res, supabase) {
                 <div><span style="color:#aaa;font-size:12px">Balance (Net 15)</span><br><strong style="font-size:18px">$${quote.balance_amount.toFixed(2)}</strong></div>
               </div>
             </div>
-            <p style="text-align:center;margin:24px 0"><a href="${payUrl}" style="background:#ffffff;color:#000;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Review & Pay Deposit</a></p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${payUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Review &amp; Pay Deposit</a></td></tr></table>
             <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px">Please review the Service Agreement below. You will formally accept it when you pay your deposit.</p>
             ${agreementHtml}
             <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
@@ -1113,7 +1113,7 @@ async function handleCancellation(req, res, supabase) {
             <p>Unfortunately, the shift for <strong>${event.title}</strong> on ${event.event_date} has been cancelled.</p>
             ${reason ? `<p>Reason: ${reason}</p>` : ''}
             <p>We apologize for the inconvenience. Check for other available shifts:</p>
-            <p><a href="https://vandahire.com/shifts" style="background:#ffffff;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Browse Shifts</a></p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:16px 0"><tr><td style="background:#ffffff;border-radius:6px"><a href="https://vandahire.com/shifts" target="_blank" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">Browse Shifts</a></td></tr></table>
             <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })

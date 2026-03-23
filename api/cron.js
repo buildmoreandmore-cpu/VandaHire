@@ -509,7 +509,7 @@ async function autoReviewTimeout(supabase) {
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
               <h2 style="color:#ffffff">Welcome to V&A Hire, ${applicant.first_name}!</h2>
               <p>Your application has been approved! Complete your verification video to start claiming shifts:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/verify" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/verify" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></td></tr></table>
               <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
@@ -616,7 +616,7 @@ async function autoBalanceLink(supabase) {
             <h2>Balance Payment Due</h2>
             <p>Hi ${event.contact_name || 'there'},</p>
             <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is due by ${formatDate(event.balance_due_date)}.</p>
-            <p style="text-align:center;margin:20px 0"><a href="${existingPayment.stripe_checkout_url}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance Now</a></p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${existingPayment.stripe_checkout_url}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance Now</a></td></tr></table>
             <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
@@ -861,7 +861,7 @@ async function autoChargeBalance(supabase) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>Your balance of <strong>$${balance.toFixed(2)}</strong> for ${event.title} is now due.</p>
               <p>We were unable to charge your card on file. Please visit your event portal to make payment:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/organizer" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Pay Balance Now</a></td></tr></table>
               <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
@@ -973,7 +973,7 @@ async function autoChargeBalance(supabase) {
               <p>Hi ${event.contact_name || 'there'},</p>
               <p>We were unable to charge your card on file for the balance of <strong>$${balance.toFixed(2)}</strong> on ${event.title}.</p>
               <p>Please update your payment method or pay manually to avoid late fees:</p>
-              <p style="text-align:center;margin:20px 0"><a href="https://vandahire.com/organizer" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Pay Balance Now</a></p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/organizer" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Pay Balance Now</a></td></tr></table>
               <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
@@ -1054,9 +1054,7 @@ async function w9Reminders(supabase) {
             <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
               <h2 style="color:#ffffff;margin:0 0 16px;">Complete Your W-9, ${w.first_name}</h2>
               <p style="color:#ccc;line-height:1.6;">${urgencyText}</p>
-              <p style="text-align:center;margin:24px 0;">
-                <a href="${w9Url}" style="background:#ffffff;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Complete W-9 Now →</a>
-              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${w9Url}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete W-9 Now &rarr;</a></td></tr></table>
               <p style="color:#666;font-size:12px;">Takes less than 2 minutes. Your information is encrypted and secure.</p>
               <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire • vandahire.com</p>
             </div>`,
@@ -1290,9 +1288,7 @@ async function postEventOrganizerSummary(supabase) {
               ${crewRows}
             </table>` : ''}
 
-            <p style="text-align:center;margin:32px 0 16px;">
-              <a href="https://vandahire.com/events" style="background:#ffffff;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Book Another Event →</a>
-            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:32px auto 16px"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/events" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Book Another Event &rarr;</a></td></tr></table>
 
             <p style="color:#888;font-size:12px;">Thank you for choosing V&A Hire. Questions? Call (404) 861-7794.</p>
             <p style="color:#444;font-size:11px;margin-top:16px;">V&A Hire • vandahire.com</p>
@@ -1463,7 +1459,7 @@ async function postEventInvoice(supabase) {
             </table>
           </div>
 
-          ${!balancePaid ? `<p style="text-align:center;margin:20px 0"><a href="${payUrl}" style="background:#ffffff;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance — $${balance.toFixed(2)}</a></p>` : ''}
+          ${!balancePaid ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${payUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Pay Balance — $${balance.toFixed(2)}</a></td></tr></table>` : ''}
 
           <div style="background:#141414;border:1px solid #1e1e1e;border-radius:12px;padding:16px;margin:20px 0;text-align:center">
             <p style="margin:0 0 8px;color:#888;font-size:14px">How was your experience?</p>
@@ -1602,9 +1598,7 @@ async function monthlyNewsletter(supabase) {
               <tr><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Event</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">Date</th><th style="text-align:left;padding:8px;border-bottom:1px solid #333;color:#888;">City</th></tr>
               ${eventListHtml}
             </table>
-            <p style="text-align:center;margin:20px 0;">
-              <a href="https://vandahire.com/shifts" style="background:#ffffff;color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Browse All Shifts →</a>
-            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/shifts" target="_blank" style="background:#ffffff;color:#000000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Browse All Shifts &rarr;</a></td></tr></table>
 
             ${spotlightHtml}
 
