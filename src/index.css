@@ -8,12 +8,23 @@
   --bg: #0a0a0a;
   --surface: #141414;
   --border: #1e1e1e;
+  --link: #93b3f3;
   --font-heading: 'Syne', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Global link color — distinct from body text on dark backgrounds */
+@layer base {
+  a:not([class*="bg-"]):not([class*="rounded"]):not([style*="background"]) {
+    color: var(--link);
+  }
+  a:not([class*="bg-"]):not([class*="rounded"]):not([style*="background"]):hover {
+    color: #b8cff7;
+  }
 }
 
 body {

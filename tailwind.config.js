@@ -12,6 +12,7 @@ export default {
         'p-muted': '#888888',
         'p-disabled': '#333333',
         'p-error': '#ff4444',
+        'p-link': '#93b3f3',
       },
       fontFamily: {
         heading: ['Syne', 'sans-serif'],

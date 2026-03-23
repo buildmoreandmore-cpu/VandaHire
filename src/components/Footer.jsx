@@ -18,7 +18,7 @@ export default function Footer() {
           {/* Column 1: For Event Organizers */}
           <div>
             <h4 className="text-[#888] text-xs font-semibold uppercase tracking-wider mb-3">For Organizers</h4>
-            <div className="flex flex-col gap-2.5 text-[#666]">
+            <div className="flex flex-col gap-2.5 text-p-link">
               <button onClick={() => go('/events')} className="text-left hover:text-white transition-colors">Request Staff</button>
               <button onClick={() => go('/organizer')} className="text-left hover:text-white transition-colors">Event Status</button>
               <button onClick={() => go('/how-it-works')} className="text-left hover:text-white transition-colors">How It Works</button>
@@ -29,7 +29,7 @@ export default function Footer() {
           {/* Column 2: For Workers */}
           <div>
             <h4 className="text-[#888] text-xs font-semibold uppercase tracking-wider mb-3">For Workers</h4>
-            <div className="flex flex-col gap-2.5 text-[#666]">
+            <div className="flex flex-col gap-2.5 text-p-link">
               <button onClick={() => go('/')} className="text-left hover:text-white transition-colors">Apply for Work</button>
               <button onClick={() => go('/shifts')} className="text-left hover:text-white transition-colors">Available Shifts</button>
               <button onClick={() => go('/my-shifts')} className="text-left hover:text-white transition-colors">My Shifts</button>
@@ -42,7 +42,7 @@ export default function Footer() {
           {/* Column 3: Portals */}
           <div className="col-span-2 sm:col-span-1">
             <h4 className="text-[#888] text-xs font-semibold uppercase tracking-wider mb-3">Portals</h4>
-            <div className="flex flex-col gap-2.5 text-[#666]">
+            <div className="flex flex-col gap-2.5 text-p-link">
               <button onClick={() => go('/supervisor')} className="text-left hover:text-white transition-colors">Supervisor Portal</button>
               <a href="/admin" className="hover:text-white transition-colors">Coordinator Login</a>
             </div>
@@ -51,7 +51,7 @@ export default function Footer() {
 
         {/* Phone */}
         <div className="text-center mb-4">
-          <a href="tel:+14048617794" className="text-[#888] text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
+          <a href="tel:+14048617794" className="text-p-link text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
         </div>
 
         {/* Address */}

@@ -128,9 +128,9 @@ export default function LandingScreen({ onStart }) {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6">
-            <button onClick={() => navigate('/events')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Request Staff</button>
-            <button onClick={() => navigate('/organizer')} className="text-[#999] text-sm hover:text-white transition-colors font-medium">Event Status</button>
-            <a href="/shifts" className="text-[#999] text-sm hover:text-white transition-colors font-medium">Worker Portal</a>
+            <button onClick={() => navigate('/events')} className="text-p-link text-sm hover:text-white transition-colors font-medium">Request Staff</button>
+            <button onClick={() => navigate('/organizer')} className="text-p-link text-sm hover:text-white transition-colors font-medium">Event Status</button>
+            <a href="/shifts" className="text-p-link text-sm hover:text-white transition-colors font-medium">Worker Portal</a>
           </nav>
 
           {/* Mobile hamburger */}
@@ -148,9 +148,9 @@ export default function LandingScreen({ onStart }) {
         {/* Mobile menu dropdown */}
         {menuOpen && (
           <div className="md:hidden absolute top-full left-0 right-0 bg-[#0a0a0a] border-b border-[#1a1a1a] px-6 py-4 flex flex-col gap-4 z-50">
-            <button onClick={() => { navigate('/events'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Request Staff</button>
-            <button onClick={() => { navigate('/organizer'); setMenuOpen(false) }} className="text-[#ccc] text-sm font-medium text-left py-2 hover:text-white transition-colors">Event Status</button>
-            <a href="/shifts" onClick={() => setMenuOpen(false)} className="text-[#ccc] text-sm font-medium py-2 hover:text-white transition-colors">Worker Portal</a>
+            <button onClick={() => { navigate('/events'); setMenuOpen(false) }} className="text-p-link text-sm font-medium text-left py-2 hover:text-white transition-colors">Request Staff</button>
+            <button onClick={() => { navigate('/organizer'); setMenuOpen(false) }} className="text-p-link text-sm font-medium text-left py-2 hover:text-white transition-colors">Event Status</button>
+            <a href="/shifts" onClick={() => setMenuOpen(false)} className="text-p-link text-sm font-medium py-2 hover:text-white transition-colors">Worker Portal</a>
           </div>
         )}
       </header>

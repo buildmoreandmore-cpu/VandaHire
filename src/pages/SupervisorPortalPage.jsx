@@ -276,7 +276,7 @@ export default function SupervisorPortalPage() {
                             {c.is_supervisor && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.1)', padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase' }}>Lead</span>}
                           </div>
                           <div style={{ color: '#666', fontSize: 11, marginTop: 1 }}>
-                            <a href={`tel:${w.phone}`} style={{ color: '#666', textDecoration: 'none' }}>{w.phone}</a>
+                            <a href={`tel:${w.phone}`} style={{ color: '#93b3f3', textDecoration: 'none' }}>{w.phone}</a>
                           </div>
                         </div>
 
@@ -322,7 +322,7 @@ export default function SupervisorPortalPage() {
                         <div style={{ flex: 1 }}>
                           <span style={{ fontWeight: 600, fontSize: 13 }}>{w.first_name} {w.last_name}</span>
                           <div style={{ color: '#666', fontSize: 11, marginTop: 1 }}>
-                            <a href={`tel:${w.phone}`} style={{ color: '#666', textDecoration: 'none' }}>{w.phone}</a>
+                            <a href={`tel:${w.phone}`} style={{ color: '#93b3f3', textDecoration: 'none' }}>{w.phone}</a>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>

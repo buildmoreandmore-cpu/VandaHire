@@ -642,7 +642,7 @@ export default function MyShiftsPage() {
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
         <div className="px-6 pt-8 flex items-center justify-between max-w-2xl mx-auto w-full">
           <VandaLogo onClick={() => navigate('/')} />
-          <button onClick={() => navigate('/shifts')} className="text-[#777] text-sm hover:text-white transition-colors">Open Shifts</button>
+          <button onClick={() => navigate('/shifts')} className="text-p-link text-sm hover:text-white transition-colors">Open Shifts</button>
         </div>
         <div className="flex-1 px-6 py-16 max-w-2xl mx-auto w-full">
           <h1 className="font-inter text-4xl font-extrabold tracking-tighter mb-2">My Shifts</h1>

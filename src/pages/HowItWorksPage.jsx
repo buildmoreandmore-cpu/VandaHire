@@ -51,7 +51,7 @@ export default function HowItWorksPage() {
       {/* Nav */}
       <div className="px-6 pt-8 flex items-center justify-between max-w-5xl mx-auto w-full">
         <VandaLogo onClick={() => navigate('/')} />
-        <a href="/admin" className="text-[#777] text-sm hover:text-white transition-colors">Coordinator Login</a>
+        <a href="/admin" className="text-p-link text-sm hover:text-white transition-colors">Coordinator Login</a>
       </div>
 
       {/* Header */}
