@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchEvents, updateEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -115,6 +115,10 @@ export default function EventsPanel() {
   const [showBilling, setShowBilling] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
   const [showBench, setShowBench] = useState(false)
+
+  // Event edit/delete
+  const [editingEvent, setEditingEvent] = useState(null)
+  const [eventEditForm, setEventEditForm] = useState({})
 
   // Worker overflow menu
   const [openWorkerMenu, setOpenWorkerMenu] = useState(null)
@@ -1013,7 +1017,81 @@ export default function EventsPanel() {
                         </button>
                       </div>
                     )}
+                    <button
+                      onClick={() => {
+                        setEditingEvent(ev.id)
+                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '' })
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors"
+                    >Edit Event</button>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`PERMANENTLY delete "${ev.title}"? This removes the event and all assignments, quotes, payments. Cannot be undone.`)) {
+                          setUpdating(ev.id)
+                          try {
+                            await deleteEvent(ev.id)
+                            setEvents(prev => prev.filter(x => x.id !== ev.id))
+                            setExpanded(null)
+                          } catch (err) { alert('Delete failed: ' + err.message) }
+                          setUpdating(null)
+                        }
+                      }}
+                      disabled={updating === ev.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-red-900/50 hover:bg-red-900 border border-red-800/50 transition-colors disabled:opacity-50"
+                    >{updating === ev.id ? '...' : 'Delete Event'}</button>
                   </div>
+
+                  {/* Edit Event Form */}
+                  {editingEvent === ev.id && (
+                    <div className="bg-black/30 rounded-lg p-3 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                        {[
+                          { key: 'title', label: 'Title' },
+                          { key: 'organizer', label: 'Organizer' },
+                          { key: 'contact_name', label: 'Contact Name' },
+                          { key: 'contact_email', label: 'Contact Email' },
+                          { key: 'contact_phone', label: 'Contact Phone' },
+                          { key: 'location', label: 'Location' },
+                          { key: 'city', label: 'City' },
+                          { key: 'event_date', label: 'Date', type: 'date' },
+                          { key: 'start_time', label: 'Start Time', type: 'time' },
+                          { key: 'end_time', label: 'End Time', type: 'time' },
+                          { key: 'workers_needed', label: 'Workers Needed', type: 'number' },
+                          { key: 'pay_rate', label: 'Pay Rate' },
+                          { key: 'dress_code', label: 'Dress Code' },
+                          { key: 'notes', label: 'Notes' },
+                        ].map(f => (
+                          <div key={f.key}>
+                            <label className="text-p-muted text-[10px]">{f.label}</label>
+                            <input
+                              type={f.type || 'text'}
+                              value={eventEditForm[f.key] || ''}
+                              onChange={e => setEventEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                              className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            setUpdating(ev.id)
+                            try {
+                              const fields = { ...eventEditForm }
+                              if (fields.workers_needed) fields.workers_needed = parseInt(fields.workers_needed, 10)
+                              await updateEvent(ev.id, fields)
+                              setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, ...fields } : x))
+                              setEditingEvent(null)
+                            } catch (err) { alert('Save failed: ' + err.message) }
+                            setUpdating(null)
+                          }}
+                          disabled={updating === ev.id}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-black bg-p-green hover:opacity-90 disabled:opacity-50"
+                        >{updating === ev.id ? 'Saving...' : 'Save'}</button>
+                        <button onClick={() => setEditingEvent(null)} className="text-p-muted text-xs hover:text-white">Cancel</button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Assignments */}
                   <div className="border-t border-p-border pt-3">

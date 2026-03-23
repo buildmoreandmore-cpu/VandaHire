@@ -143,15 +143,24 @@ async function handleApplicants(req, res, supabase) {
     return res.status(200).json(enriched)
   }
   if (req.method === 'PATCH') {
-    const { id, status, video_verified } = req.body
+    const { id, status, video_verified, first_name, last_name, email, phone, city, zip, roles, availability } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const updates = { updated_at: new Date().toISOString() }
     if (status) {
-      const valid = ['pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected']
+      const valid = ['pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
       if (!valid.includes(status)) return res.status(400).json({ error: `Invalid status` })
       updates.status = status
     }
     if (video_verified !== undefined) updates.video_verified = video_verified
+    // Editable fields
+    if (first_name !== undefined) updates.first_name = first_name
+    if (last_name !== undefined) updates.last_name = last_name
+    if (email !== undefined) updates.email = email
+    if (phone !== undefined) updates.phone = phone
+    if (city !== undefined) updates.city = city
+    if (zip !== undefined) updates.zip = zip
+    if (roles !== undefined) updates.roles = roles
+    if (availability !== undefined) updates.availability = availability
     const { data, error } = await supabase.from('applicants').update(updates).eq('id', id).select().single()
     if (error) throw error
 
@@ -227,6 +236,18 @@ async function handleApplicants(req, res, supabase) {
 
     return res.status(200).json(data)
   }
+  if (req.method === 'DELETE') {
+    const { id } = req.body
+    if (!id) return res.status(400).json({ error: 'id required' })
+    // Delete related records first, then the applicant
+    await supabase.from('assignments').delete().eq('worker_id', id)
+    await supabase.from('bench_assignments').delete().eq('worker_id', id)
+    await supabase.from('exit_records').delete().eq('worker_id', id)
+    await supabase.from('surveys').delete().eq('worker_id', id)
+    const { error } = await supabase.from('applicants').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
   return res.status(405).json({ error: 'Method not allowed' })
 }
 
@@ -291,6 +312,20 @@ async function handleEvents(req, res, supabase) {
       } catch (e) { console.error('[admin/events] Auto-notify error:', e) }
     }
     return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body
+    if (!id) return res.status(400).json({ error: 'id required' })
+    // Delete related records first, then the event
+    await supabase.from('assignments').delete().eq('event_id', id)
+    await supabase.from('bench_assignments').delete().eq('event_id', id)
+    await supabase.from('exit_records').delete().eq('event_id', id)
+    await supabase.from('surveys').delete().eq('event_id', id)
+    await supabase.from('quotes').delete().eq('event_id', id)
+    await supabase.from('payments').delete().eq('event_id', id)
+    const { error } = await supabase.from('events').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
   }
   return res.status(405).json({ error: 'Method not allowed' })
 }

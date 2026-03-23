@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchApplicants, updateApplicant, fetchEvents, createAssignments } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
@@ -28,6 +28,8 @@ export default function ApplicantsPanel() {
   const [assigning, setAssigning] = useState(false)
   const [assignResult, setAssignResult] = useState(null)
   const [search, setSearch] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [editForm, setEditForm] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -479,7 +481,68 @@ export default function ApplicantsPanel() {
                               )}
                             </>
                           )}
+                          <ActionBtn
+                            label="Edit"
+                            cls="bg-p-border hover:bg-[#333]"
+                            loading={false}
+                            onClick={() => {
+                              setEditing(a.id)
+                              setEditForm({ first_name: a.first_name || '', last_name: a.last_name || '', email: a.email || '', phone: a.phone || '', city: a.city || '', zip: a.zip || '' })
+                            }}
+                          />
+                          <ActionBtn
+                            label="Delete"
+                            cls="bg-red-900/50 hover:bg-red-900 border border-red-800/50"
+                            loading={updating === a.id}
+                            onClick={async () => {
+                              if (confirm(`PERMANENTLY delete ${a.first_name} ${a.last_name}? This cannot be undone.`)) {
+                                setUpdating(a.id)
+                                try {
+                                  await deleteApplicant(a.id)
+                                  setApplicants(prev => prev.filter(x => x.id !== a.id))
+                                } catch (err) { console.error('Delete failed:', err) }
+                                setUpdating(null)
+                              }
+                            }}
+                          />
                         </div>
+
+                        {/* Edit Form */}
+                        {editing === a.id && (
+                          <div className="mt-3 bg-black/30 rounded-lg p-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                              {['first_name', 'last_name', 'email', 'phone', 'city', 'zip'].map(field => (
+                                <div key={field}>
+                                  <label className="text-p-muted text-[10px]">{field.replace(/_/g, ' ')}</label>
+                                  <input
+                                    type="text"
+                                    value={editForm[field] || ''}
+                                    onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
+                                    className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  setUpdating(a.id)
+                                  try {
+                                    await editApplicant(a.id, editForm)
+                                    setApplicants(prev => prev.map(x => x.id === a.id ? { ...x, ...editForm } : x))
+                                    setEditing(null)
+                                  } catch (err) { console.error('Edit failed:', err) }
+                                  setUpdating(null)
+                                }}
+                                disabled={updating === a.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-black bg-p-green hover:opacity-90 disabled:opacity-50"
+                              >
+                                {updating === a.id ? 'Saving...' : 'Save'}
+                              </button>
+                              <button onClick={() => setEditing(null)} className="text-p-muted text-xs hover:text-white">Cancel</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -54,6 +54,18 @@ export const updateApplicant = (id, status, video_verified) =>
     body: JSON.stringify({ id, status, ...(video_verified !== undefined && { video_verified }) }),
   })
 
+export const editApplicant = (id, fields) =>
+  adminFetch('/api/admin/applicants', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, ...fields }),
+  })
+
+export const deleteApplicant = (id) =>
+  adminFetch('/api/admin/applicants', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
+  })
+
 // Events
 export const fetchEvents = (status) =>
   adminFetch(`/api/admin/events${status ? `?status=${status}` : ''}`)
@@ -62,6 +74,12 @@ export const updateEvent = (id, fields) =>
   adminFetch('/api/admin/events', {
     method: 'PATCH',
     body: JSON.stringify({ id, ...fields }),
+  })
+
+export const deleteEvent = (id) =>
+  adminFetch('/api/admin/events', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
   })
 
 // Assignments
