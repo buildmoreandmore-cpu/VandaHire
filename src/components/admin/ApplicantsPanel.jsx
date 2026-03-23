@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { fetchApplicants, updateApplicant, fetchEvents, createAssignments } from '../../lib/adminApi.js'
 
-const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected']
+const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-500/20 text-yellow-400',
@@ -10,6 +10,7 @@ const STATUS_COLORS = {
   not_a_fit: 'bg-red-500/20 text-red-400',
   approved: 'bg-green-500/20 text-green-400',
   rejected: 'bg-red-500/20 text-red-400',
+  removed: 'bg-gray-500/20 text-gray-400',
 }
 
 export default function ApplicantsPanel() {
@@ -26,6 +27,7 @@ export default function ApplicantsPanel() {
   const [assignEventId, setAssignEventId] = useState('')
   const [assigning, setAssigning] = useState(false)
   const [assignResult, setAssignResult] = useState(null)
+  const [search, setSearch] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -62,15 +64,22 @@ export default function ApplicantsPanel() {
     }
   }, [applicants])
 
-  // Apply client-side filters
+  // Apply client-side filters + search
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
     return applicants.filter(a => {
       if (cityFilter !== 'all' && a.city !== cityFilter) return false
       if (roleFilter !== 'all' && !(a.roles || []).includes(roleFilter)) return false
       if (availFilter !== 'all' && !(a.availability || []).includes(availFilter)) return false
+      if (q) {
+        const name = `${a.first_name || ''} ${a.last_name || ''}`.toLowerCase()
+        const phone = (a.phone || '').replace(/\D/g, '')
+        const searchDigits = q.replace(/\D/g, '')
+        if (!name.includes(q) && !(searchDigits && phone.includes(searchDigits))) return false
+      }
       return true
     })
-  }, [applicants, cityFilter, roleFilter, availFilter])
+  }, [applicants, cityFilter, roleFilter, availFilter, search])
 
   // Group by city
   const grouped = useMemo(() => {
@@ -171,6 +180,17 @@ export default function ApplicantsPanel() {
             {s === 'all' ? 'All' : s.replace(/_/g, ' ')}
           </button>
         ))}
+      </div>
+
+      {/* Search */}
+      <div className="mb-3">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or phone..."
+          className="w-full bg-p-surface border border-p-border rounded-lg px-4 py-2 text-sm text-white placeholder:text-p-muted focus:outline-none focus:border-p-link"
+        />
       </div>
 
       {/* Secondary Filters */}
@@ -391,48 +411,73 @@ export default function ApplicantsPanel() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-2 mt-4">
-                          {a.status !== 'approved' && a.status !== 'rejected' && (
+                        <div className="flex gap-2 mt-4 flex-wrap">
+                          {a.status === 'removed' ? (
                             <ActionBtn
-                              label="Approve"
-                              cls="bg-green-600 hover:bg-green-700"
+                              label="Restore to Pool"
+                              cls="bg-blue-600 hover:bg-blue-700"
                               loading={updating === a.id}
-                              onClick={() => handleStatusChange(a.id, 'approved')}
+                              onClick={() => {
+                                if (confirm(`Restore ${a.first_name} ${a.last_name} back to the worker pool?`)) {
+                                  handleStatusChange(a.id, 'approved')
+                                }
+                              }}
                             />
-                          )}
-                          {a.status !== 'approved' && a.status !== 'rejected' && (
-                            <ActionBtn
-                              label="Reject"
-                              cls="bg-red-600 hover:bg-red-700"
-                              loading={updating === a.id}
-                              onClick={() => handleStatusChange(a.id, 'rejected')}
-                            />
-                          )}
-                          {(a.status === 'approved' || a.status === 'rejected') && (
-                            <ActionBtn
-                              label={a.status === 'approved' ? 'Revoke Approval' : 'Undo Rejection'}
-                              cls="bg-p-border hover:bg-[#333]"
-                              loading={updating === a.id}
-                              onClick={() => handleStatusChange(a.id, 'pending')}
-                            />
-                          )}
-                          <ActionBtn
-                            label="Remove from Pool"
-                            cls="bg-red-900/50 hover:bg-red-900 border border-red-800/50"
-                            loading={updating === a.id}
-                            onClick={() => {
-                              if (confirm(`Remove ${a.first_name} ${a.last_name} from the worker pool? This will reject them permanently.`)) {
-                                handleStatusChange(a.id, 'rejected')
-                              }
-                            }}
-                          />
-                          {a.status !== 'needs_review' && a.status !== 'approved' && a.status !== 'rejected' && (
-                            <ActionBtn
-                              label="Flag for Review"
-                              cls="bg-orange-600 hover:bg-orange-700"
-                              loading={updating === a.id}
-                              onClick={() => handleStatusChange(a.id, 'needs_review')}
-                            />
+                          ) : (
+                            <>
+                              {a.status !== 'approved' && a.status !== 'rejected' && (
+                                <ActionBtn
+                                  label="Approve"
+                                  cls="bg-green-600 hover:bg-green-700"
+                                  loading={updating === a.id}
+                                  onClick={() => handleStatusChange(a.id, 'approved')}
+                                />
+                              )}
+                              {a.status !== 'approved' && a.status !== 'rejected' && (
+                                <ActionBtn
+                                  label="Reject"
+                                  cls="bg-red-600 hover:bg-red-700"
+                                  loading={updating === a.id}
+                                  onClick={() => handleStatusChange(a.id, 'rejected')}
+                                />
+                              )}
+                              {a.status === 'approved' && (
+                                <ActionBtn
+                                  label="Revoke Approval"
+                                  cls="bg-p-border hover:bg-[#333]"
+                                  loading={updating === a.id}
+                                  onClick={() => handleStatusChange(a.id, 'pending')}
+                                />
+                              )}
+                              {a.status === 'rejected' && (
+                                <ActionBtn
+                                  label="Undo Rejection"
+                                  cls="bg-p-border hover:bg-[#333]"
+                                  loading={updating === a.id}
+                                  onClick={() => handleStatusChange(a.id, 'pending')}
+                                />
+                              )}
+                              {a.status !== 'rejected' && (
+                                <ActionBtn
+                                  label="Remove from Pool"
+                                  cls="bg-red-900/50 hover:bg-red-900 border border-red-800/50"
+                                  loading={updating === a.id}
+                                  onClick={() => {
+                                    if (confirm(`Remove ${a.first_name} ${a.last_name} from the worker pool? You can restore them later from the "removed" filter.`)) {
+                                      handleStatusChange(a.id, 'removed')
+                                    }
+                                  }}
+                                />
+                              )}
+                              {a.status !== 'needs_review' && a.status !== 'approved' && a.status !== 'rejected' && (
+                                <ActionBtn
+                                  label="Flag for Review"
+                                  cls="bg-orange-600 hover:bg-orange-700"
+                                  loading={updating === a.id}
+                                  onClick={() => handleStatusChange(a.id, 'needs_review')}
+                                />
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
