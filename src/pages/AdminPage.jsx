@@ -8,12 +8,14 @@ import AssignmentsPanel from '../components/admin/AssignmentsPanel.jsx'
 import OperationsPanel from '../components/admin/OperationsPanel.jsx'
 import SurveysPanel from '../components/admin/SurveysPanel.jsx'
 import NotificationBell from '../components/admin/NotificationBell.jsx'
+import IncidentsPanel from '../components/admin/IncidentsPanel.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
   { key: 'events', label: 'Events' },
   { key: 'assignments', label: 'Assignments' },
   { key: 'surveys', label: 'Surveys' },
+  { key: 'incidents', label: 'Incidents' },
   { key: 'operations', label: 'Operations' },
 ]
 
@@ -96,6 +98,7 @@ export default function AdminPage() {
         {tab === 'events' && <EventsPanel />}
         {tab === 'assignments' && <AssignmentsPanel />}
         {tab === 'surveys' && <SurveysPanel />}
+        {tab === 'incidents' && <IncidentsPanel />}
         {tab === 'operations' && <OperationsPanel stats={stats} />}
       </div>
     </div>

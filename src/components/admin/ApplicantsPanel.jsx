@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
@@ -30,6 +30,19 @@ export default function ApplicantsPanel() {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null)
   const [editForm, setEditForm] = useState({})
+
+  // Feature 2: Bulk status change
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+
+  // Feature 10: Messaging
+  const [messagingWorker, setMessagingWorker] = useState(null)
+  const [msgText, setMsgText] = useState('')
+  const [msgChannel, setMsgChannel] = useState('both')
+  const [sendingMsg, setSendingMsg] = useState(false)
+
+  // Feature 13: PIN reset
+  const [resettingPin, setResettingPin] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -163,10 +176,77 @@ export default function ApplicantsPanel() {
     setAssigning(false)
   }
 
+  // Feature 6: Quick stats
+  const workerStats = useMemo(() => {
+    const total = applicants.length
+    const byStatus = {}
+    let withRating = 0, totalRating = 0
+    for (const a of applicants) {
+      byStatus[a.status] = (byStatus[a.status] || 0) + 1
+      if (a.avg_rating != null) { withRating++; totalRating += parseFloat(a.avg_rating) }
+    }
+    const avgRating = withRating > 0 ? (totalRating / withRating).toFixed(1) : null
+    return { total, byStatus, avgRating }
+  }, [applicants])
+
+  // Feature 2: Bulk status change
+  const handleBulkStatusChange = async () => {
+    if (!bulkStatus || selected.size === 0) return
+    setBulkUpdating(true)
+    try {
+      await bulkUpdateStatus([...selected], bulkStatus)
+      setApplicants(prev => prev.map(a => selected.has(a.id) ? { ...a, status: bulkStatus } : a))
+      setSelected(new Set())
+      setBulkStatus('')
+    } catch (err) {
+      console.error('Bulk status failed:', err)
+    }
+    setBulkUpdating(false)
+  }
+
+  // Feature 10: Send message
+  const handleSendMessage = async () => {
+    if (!messagingWorker || !msgText.trim()) return
+    setSendingMsg(true)
+    try {
+      await sendAdminMessage(messagingWorker.id, msgText, msgChannel)
+      alert(`Message sent to ${messagingWorker.first_name}!`)
+      setMessagingWorker(null)
+      setMsgText('')
+    } catch (err) {
+      alert('Send failed: ' + err.message)
+    }
+    setSendingMsg(false)
+  }
+
+  // Feature 13: PIN reset
+  const handleResetPin = async (worker) => {
+    if (!confirm(`Reset PIN for ${worker.first_name} ${worker.last_name}? They will need to set a new PIN on next login.`)) return
+    setResettingPin(worker.id)
+    try {
+      await resetWorkerPin(worker.id)
+      alert(`PIN reset for ${worker.first_name}. They'll set a new one on next login.`)
+    } catch (err) {
+      alert('Reset failed: ' + err.message)
+    }
+    setResettingPin(null)
+  }
+
   const activeEvents = events.filter(e => ['pending', 'staffing', 'confirmed'].includes(e.status))
 
   return (
     <div>
+      {/* Quick Stats (Feature 6) */}
+      {!loading && applicants.length > 0 && (
+        <div className="flex gap-4 mb-3 overflow-x-auto pb-1">
+          <MiniStat label="Total" value={workerStats.total} />
+          {workerStats.byStatus.approved > 0 && <MiniStat label="Approved" value={workerStats.byStatus.approved} color="text-green-400" />}
+          {workerStats.byStatus.pending > 0 && <MiniStat label="Pending" value={workerStats.byStatus.pending} color="text-yellow-400" />}
+          {workerStats.byStatus.needs_review > 0 && <MiniStat label="Review" value={workerStats.byStatus.needs_review} color="text-orange-400" />}
+          {workerStats.avgRating && <MiniStat label="Avg Rating" value={`★ ${workerStats.avgRating}`} color="text-yellow-400" />}
+        </div>
+      )}
+
       {/* Status Filters */}
       <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
         {STATUS_OPTIONS.map(s => (
@@ -228,6 +308,19 @@ export default function ApplicantsPanel() {
           >
             {assigning ? 'Assigning...' : 'Assign to Event'}
           </button>
+          <div className="border-l border-p-border pl-3 flex items-center gap-2">
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="bg-black border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
+              <option value="">Bulk status change...</option>
+              {['approved', 'pending', 'needs_review', 'not_a_fit', 'rejected', 'removed'].map(s => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkStatusChange}
+              disabled={!bulkStatus || bulkUpdating}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-black bg-p-green hover:opacity-90 transition-all disabled:opacity-40"
+            >{bulkUpdating ? 'Updating...' : 'Apply'}</button>
+          </div>
           <button onClick={() => setSelected(new Set())} className="text-p-muted text-xs hover:text-white">Clear</button>
         </div>
       )}
@@ -301,6 +394,9 @@ export default function ApplicantsPanel() {
                             {(a.roles || []).join(', ') || 'No roles'} · {(a.availability || []).join(', ') || ''}
                           </div>
                         </div>
+                        {a.avg_rating != null && (
+                          <span className="text-yellow-400 text-[10px] flex-shrink-0 hidden sm:inline">★ {a.avg_rating}</span>
+                        )}
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                           {a.status?.replace(/_/g, ' ')}
                         </span>
@@ -491,6 +587,18 @@ export default function ApplicantsPanel() {
                             }}
                           />
                           <ActionBtn
+                            label="Message"
+                            cls="bg-indigo-600 hover:bg-indigo-700"
+                            loading={false}
+                            onClick={() => { setMessagingWorker(a); setMsgText(''); setMsgChannel('both') }}
+                          />
+                          <ActionBtn
+                            label="Reset PIN"
+                            cls="bg-p-border hover:bg-[#333]"
+                            loading={resettingPin === a.id}
+                            onClick={() => handleResetPin(a)}
+                          />
+                          <ActionBtn
                             label="Delete"
                             cls="bg-red-900/50 hover:bg-red-900 border border-red-800/50"
                             loading={updating === a.id}
@@ -552,6 +660,51 @@ export default function ApplicantsPanel() {
           ))}
         </div>
       )}
+
+      {/* Messaging Modal (Feature 10) */}
+      {messagingWorker && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" onClick={() => setMessagingWorker(null)}>
+          <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
+              <h3 className="text-white font-semibold text-sm">Message {messagingWorker.first_name} {messagingWorker.last_name}</h3>
+              <button onClick={() => setMessagingWorker(null)} className="text-p-muted hover:text-white text-lg">×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="text-p-muted text-[10px]">
+                {messagingWorker.phone && <span>Phone: {messagingWorker.phone}</span>}
+                {messagingWorker.phone && messagingWorker.email && <span> · </span>}
+                {messagingWorker.email && <span>Email: {messagingWorker.email}</span>}
+              </div>
+              <select value={msgChannel} onChange={e => setMsgChannel(e.target.value)} className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="both">SMS + Email</option>
+                <option value="sms">SMS Only</option>
+                <option value="email">Email Only</option>
+              </select>
+              <textarea
+                value={msgText}
+                onChange={e => setMsgText(e.target.value)}
+                placeholder="Type your message..."
+                rows={4}
+                className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-p-muted focus:outline-none focus:border-p-link resize-none"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!msgText.trim() || sendingMsg}
+                className="w-full bg-p-green text-black rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition-all"
+              >{sendingMsg ? 'Sending...' : 'Send Message'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MiniStat({ label, value, color = 'text-white' }) {
+  return (
+    <div className="flex-shrink-0">
+      <span className={`text-sm font-bold ${color}`}>{value}</span>
+      <span className="text-p-muted text-[10px] ml-1">{label}</span>
     </div>
   )
 }

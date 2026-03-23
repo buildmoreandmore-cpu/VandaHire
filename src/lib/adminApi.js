@@ -224,3 +224,77 @@ export const processPayouts = (eventId) =>
     method: 'POST',
     body: JSON.stringify({ event_id: eventId }),
   })
+
+// Bulk status change (Feature 2)
+export const bulkUpdateStatus = (worker_ids, status) =>
+  adminFetch('/api/admin/bulk-status', {
+    method: 'POST',
+    body: JSON.stringify({ worker_ids, status }),
+  })
+
+// Batch send shift details (Feature 3)
+export const batchSendShifts = (event_id) =>
+  adminFetch('/api/admin/batch-shift', {
+    method: 'POST',
+    body: JSON.stringify({ event_id }),
+  })
+
+// Event cloning (Feature 4)
+export const cloneEvent = (event_id) =>
+  adminFetch('/api/admin/clone-event', {
+    method: 'POST',
+    body: JSON.stringify({ event_id }),
+  })
+
+// Batch send surveys (Feature 8)
+export const batchSendSurveys = (event_id) =>
+  adminFetch('/api/admin/batch-survey', {
+    method: 'POST',
+    body: JSON.stringify({ event_id }),
+  })
+
+// Send message from admin (Feature 10)
+export const sendAdminMessage = (worker_id, message, channel = 'both') =>
+  adminFetch('/api/admin/send-message', {
+    method: 'POST',
+    body: JSON.stringify({ worker_id, message, channel }),
+  })
+
+// Event templates (Feature 11)
+export const fetchTemplates = () => adminFetch('/api/admin/templates')
+
+export const createTemplate = (data) =>
+  adminFetch('/api/admin/templates', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const deleteTemplate = (id) =>
+  adminFetch('/api/admin/templates', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
+  })
+
+// Create event from template (Feature 11)
+export const createEvent = (data) =>
+  adminFetch('/api/admin/events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+// Incidents (Feature 12)
+export const fetchIncidents = (event_id) =>
+  adminFetch(`/api/admin/incidents${event_id ? `?event_id=${event_id}` : ''}`)
+
+export const updateIncident = (id, resolved) =>
+  adminFetch('/api/admin/incidents', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, resolved }),
+  })
+
+// Worker PIN reset (Feature 13)
+export const resetWorkerPin = (worker_id) =>
+  adminFetch('/api/admin/reset-pin', {
+    method: 'POST',
+    body: JSON.stringify({ worker_id }),
+  })

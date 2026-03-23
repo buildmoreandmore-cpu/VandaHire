@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews } from '../../lib/adminApi.js'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -119,6 +119,26 @@ export default function EventsPanel() {
   // Event edit/delete
   const [editingEvent, setEditingEvent] = useState(null)
   const [eventEditForm, setEventEditForm] = useState({})
+
+  // Search (Feature 5)
+  const [search, setSearch] = useState('')
+
+  // Calendar view (Feature 9)
+  const [viewMode, setViewMode] = useState('list') // 'list' | 'calendar'
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+
+  // Templates (Feature 11)
+  const [templates, setTemplates] = useState([])
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+
+  // Batch operations (Features 3, 8)
+  const [batchingShifts, setBatchingShifts] = useState(false)
+  const [batchingSurveys, setBatchingSurveys] = useState(false)
+  const [batchResult, setBatchResult] = useState(null)
+
+  // Clone (Feature 4)
+  const [cloning, setCloning] = useState(null)
 
   // Worker overflow menu
   const [openWorkerMenu, setOpenWorkerMenu] = useState(null)
@@ -504,6 +524,129 @@ export default function EventsPanel() {
     }
   }
 
+  // Feature 5: Search filter
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return events
+    return events.filter(ev => {
+      const title = (ev.title || '').toLowerCase()
+      const organizer = (ev.organizer || '').toLowerCase()
+      const city = (ev.city || '').toLowerCase()
+      const contact = (ev.contact_name || '').toLowerCase()
+      return title.includes(q) || organizer.includes(q) || city.includes(q) || contact.includes(q)
+    })
+  }, [events, search])
+
+  // Feature 6: Quick stats
+  const stats = useMemo(() => {
+    const total = events.length
+    const byStatus = {}
+    let upcoming = 0
+    const today = new Date().toISOString().slice(0, 10)
+    for (const ev of events) {
+      byStatus[ev.status] = (byStatus[ev.status] || 0) + 1
+      if (ev.event_date >= today && ev.status !== 'cancelled' && ev.status !== 'completed') upcoming++
+    }
+    return { total, byStatus, upcoming }
+  }, [events])
+
+  // Feature 3: Batch send shift details
+  const handleBatchShifts = async (eventId) => {
+    setBatchingShifts(true)
+    setBatchResult(null)
+    try {
+      const result = await batchSendShifts(eventId)
+      setBatchResult({ type: 'shift', ...result })
+    } catch (err) {
+      setBatchResult({ type: 'shift', error: err.message })
+    }
+    setBatchingShifts(false)
+  }
+
+  // Feature 8: Batch send surveys
+  const handleBatchSurveys = async (eventId) => {
+    setBatchingSurveys(true)
+    setBatchResult(null)
+    try {
+      const result = await batchSendSurveys(eventId)
+      setBatchResult({ type: 'survey', ...result })
+    } catch (err) {
+      setBatchResult({ type: 'survey', error: err.message })
+    }
+    setBatchingSurveys(false)
+  }
+
+  // Feature 4: Clone event
+  const handleCloneEvent = async (eventId) => {
+    setCloning(eventId)
+    try {
+      const newEvent = await cloneEvent(eventId)
+      setEvents(prev => [newEvent, ...prev])
+      alert(`Event cloned! "${newEvent.title}" created as pending. Set a date and update details.`)
+    } catch (err) {
+      alert('Clone failed: ' + err.message)
+    }
+    setCloning(null)
+  }
+
+  // Feature 9: Calendar data
+  const calendarData = useMemo(() => {
+    const [year, month] = calMonth.split('-').map(Number)
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const days = []
+    for (let i = 0; i < firstDay; i++) days.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      const dayEvents = events.filter(ev => ev.event_date === dateStr)
+      days.push({ day: d, date: dateStr, events: dayEvents })
+    }
+    return { year, month, days, monthName: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }
+  }, [events, calMonth])
+
+  const prevMonth = () => {
+    const [y, m] = calMonth.split('-').map(Number)
+    const d = new Date(y, m - 2, 1)
+    setCalMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  const nextMonth = () => {
+    const [y, m] = calMonth.split('-').map(Number)
+    const d = new Date(y, m, 1)
+    setCalMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  // Feature 11: Templates
+  const loadTemplates = async () => {
+    try { setTemplates(await fetchTemplates()) } catch (e) { console.error(e) }
+  }
+  const handleSaveAsTemplate = async (ev) => {
+    const name = prompt('Template name:', `${ev.title} Template`)
+    if (!name) return
+    setSavingTemplate(true)
+    try {
+      const template_data = {
+        title: ev.title, organizer: ev.organizer, location: ev.location, city: ev.city,
+        workers_needed: ev.workers_needed, role_types: ev.role_types, start_time: ev.start_time,
+        end_time: ev.end_time, pay_rate: ev.pay_rate, dress_code: ev.dress_code, notes: ev.notes,
+        service_tier: ev.service_tier, meeting_point: ev.meeting_point,
+      }
+      await createTemplate({ name, template_data })
+      alert('Template saved!')
+    } catch (err) { alert('Save failed: ' + err.message) }
+    setSavingTemplate(false)
+  }
+  const handleApplyTemplate = async (template) => {
+    const data = template.template_data
+    try {
+      await createEvent({ ...data, title: data.title || 'New Event' })
+      await load()
+      setShowTemplates(false)
+      alert(`Event created from template "${template.name}"!`)
+    } catch (err) {
+      alert('Failed: ' + err.message)
+    }
+  }
+
   const formatDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const formatTime = (t) => {
     if (!t) return ''
@@ -516,8 +659,20 @@ export default function EventsPanel() {
 
   return (
     <div>
+      {/* Quick Stats (Feature 6) */}
+      {!loading && events.length > 0 && (
+        <div className="flex gap-4 mb-3 overflow-x-auto pb-1">
+          <MiniStat label="Total" value={stats.total} />
+          <MiniStat label="Upcoming" value={stats.upcoming} color="text-blue-400" />
+          {stats.byStatus.staffing > 0 && <MiniStat label="Staffing" value={stats.byStatus.staffing} color="text-purple-400" />}
+          {stats.byStatus.pending > 0 && <MiniStat label="Pending" value={stats.byStatus.pending} color="text-yellow-400" />}
+          {stats.byStatus.confirmed > 0 && <MiniStat label="Confirmed" value={stats.byStatus.confirmed} color="text-green-400" />}
+          {stats.byStatus.completed > 0 && <MiniStat label="Completed" value={stats.byStatus.completed} color="text-green-400" />}
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
         {STATUS_OPTIONS.map(s => (
           <button
             key={s}
@@ -531,13 +686,85 @@ export default function EventsPanel() {
         ))}
       </div>
 
+      {/* Search + View Toggle (Features 5, 9, 11) */}
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by title, organizer, city, or contact..."
+          className="flex-1 bg-p-surface border border-p-border rounded-lg px-4 py-2 text-sm text-white placeholder:text-p-muted focus:outline-none focus:border-p-link"
+        />
+        <button
+          onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
+          className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${viewMode === 'calendar' ? 'bg-p-green text-black' : 'bg-p-surface text-p-muted border border-p-border hover:text-white'}`}
+        >{viewMode === 'calendar' ? 'List' : 'Calendar'}</button>
+        <button
+          onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) loadTemplates() }}
+          className="px-3 py-2 rounded-lg text-xs font-medium bg-p-surface text-p-muted border border-p-border hover:text-white transition-colors"
+        >Templates</button>
+      </div>
+
+      {/* Templates Panel (Feature 11) */}
+      {showTemplates && (
+        <div className="bg-p-surface border border-p-border rounded-lg p-3 mb-4">
+          <h4 className="text-white text-xs font-semibold uppercase tracking-wider mb-2">Event Templates</h4>
+          {templates.length === 0 ? (
+            <p className="text-p-muted text-xs">No templates saved yet. Click "Save as Template" on any event to create one.</p>
+          ) : (
+            <div className="space-y-1">
+              {templates.map(t => (
+                <div key={t.id} className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2">
+                  <span className="text-white text-xs flex-1">{t.name}</span>
+                  <span className="text-p-muted text-[10px]">{t.template_data?.city} · {t.template_data?.workers_needed} workers</span>
+                  <button onClick={() => handleApplyTemplate(t)} className="px-2 py-1 bg-p-green/20 text-p-green rounded text-[10px] font-medium hover:bg-p-green/30">Use</button>
+                  <button onClick={async () => { await deleteTemplate(t.id); setTemplates(prev => prev.filter(x => x.id !== t.id)) }} className="text-red-400 text-[10px] hover:text-red-300">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Calendar View (Feature 9) */}
+      {viewMode === 'calendar' && !loading && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={prevMonth} className="text-p-muted hover:text-white text-sm px-2">←</button>
+            <span className="text-white text-sm font-semibold">{calendarData.monthName}</span>
+            <button onClick={nextMonth} className="text-p-muted hover:text-white text-sm px-2">→</button>
+          </div>
+          <div className="grid grid-cols-7 gap-px bg-p-border rounded-lg overflow-hidden">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+              <div key={d} className="bg-p-surface px-1 py-1.5 text-center text-[10px] text-p-muted font-medium">{d}</div>
+            ))}
+            {calendarData.days.map((cell, i) => (
+              <div key={i} className={`bg-p-bg min-h-[60px] p-1 ${!cell ? 'bg-black/20' : ''}`}>
+                {cell && (
+                  <>
+                    <div className="text-[10px] text-p-muted mb-0.5">{cell.day}</div>
+                    {cell.events.map(ev => (
+                      <button
+                        key={ev.id}
+                        onClick={() => { setViewMode('list'); handleExpand(ev.id) }}
+                        className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate mb-0.5 ${STATUS_COLORS[ev.status] || 'bg-p-border text-p-muted'}`}
+                      >{ev.title}</button>
+                    ))}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-p-muted text-sm py-8 text-center">Loading...</div>
-      ) : events.length === 0 ? (
+      ) : viewMode === 'calendar' ? null : filtered.length === 0 ? (
         <div className="text-p-muted text-sm py-8 text-center">No events found</div>
       ) : (
         <div className="space-y-2">
-          {events.map(ev => (
+          {filtered.map(ev => (
             <div key={ev.id} className="bg-p-surface border border-p-border rounded-lg overflow-hidden">
               {/* Row */}
               <button
@@ -1039,7 +1266,40 @@ export default function EventsPanel() {
                       disabled={updating === ev.id}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-red-900/50 hover:bg-red-900 border border-red-800/50 transition-colors disabled:opacity-50"
                     >{updating === ev.id ? '...' : 'Delete Event'}</button>
+                    <button
+                      onClick={() => handleCloneEvent(ev.id)}
+                      disabled={cloning === ev.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >{cloning === ev.id ? 'Cloning...' : 'Clone Event'}</button>
+                    <button
+                      onClick={() => handleSaveAsTemplate(ev)}
+                      disabled={savingTemplate}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors disabled:opacity-50"
+                    >{savingTemplate ? '...' : 'Save as Template'}</button>
                   </div>
+
+                  {/* Batch Actions (Features 3, 8) */}
+                  {assignments.length > 0 && (
+                    <div className="flex gap-2 flex-wrap items-center mb-4">
+                      <button
+                        onClick={() => handleBatchShifts(ev.id)}
+                        disabled={batchingShifts}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      >{batchingShifts ? 'Sending...' : 'Send All Shift Details'}</button>
+                      {(ev.status === 'completed' || ev.status === 'confirmed') && (
+                        <button
+                          onClick={() => handleBatchSurveys(ev.id)}
+                          disabled={batchingSurveys}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 transition-colors disabled:opacity-50"
+                        >{batchingSurveys ? 'Sending...' : 'Send All Surveys'}</button>
+                      )}
+                      {batchResult && (
+                        <span className={`text-xs ${batchResult.error ? 'text-red-400' : 'text-green-400'}`}>
+                          {batchResult.error || `Sent to ${batchResult.sent}/${batchResult.total} workers`}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Edit Event Form */}
                   {editingEvent === ev.id && (
@@ -1560,5 +1820,14 @@ function SmallBtn({ label, onClick, danger }) {
     >
       {label}
     </button>
+  )
+}
+
+function MiniStat({ label, value, color = 'text-white' }) {
+  return (
+    <div className="flex-shrink-0">
+      <span className={`text-sm font-bold ${color}`}>{value}</span>
+      <span className="text-p-muted text-[10px] ml-1">{label}</span>
+    </div>
   )
 }

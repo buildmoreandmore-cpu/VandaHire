@@ -268,6 +268,30 @@ async function handleEvents(req, res, supabase) {
     if (error) throw error
     return res.status(200).json(data)
   }
+  if (req.method === 'POST') {
+    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, contact_name, contact_email, contact_phone } = req.body
+    if (!title) return res.status(400).json({ error: 'title required' })
+    const insert = { title, status: 'pending' }
+    if (organizer) insert.organizer = organizer
+    if (location) insert.location = location
+    if (city) insert.city = city
+    if (workers_needed) insert.workers_needed = parseInt(workers_needed, 10) || null
+    if (role_types) insert.role_types = role_types
+    if (start_time) insert.start_time = start_time
+    if (end_time) insert.end_time = end_time
+    if (pay_rate) insert.pay_rate = pay_rate
+    if (dress_code) insert.dress_code = dress_code
+    if (notes) insert.notes = notes
+    if (service_tier) insert.service_tier = service_tier
+    if (meeting_point) insert.meeting_point = meeting_point
+    if (event_date) insert.event_date = event_date
+    if (contact_name) insert.contact_name = contact_name
+    if (contact_email) insert.contact_email = contact_email
+    if (contact_phone) insert.contact_phone = contact_phone
+    const { data, error } = await supabase.from('events').insert(insert).select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
   if (req.method === 'PATCH') {
     const { id, status, bill_rate, total_bill_amount, invoice_status, payment_status, latitude, longitude, geofence_radius_meters } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
@@ -295,6 +319,11 @@ async function handleEvents(req, res, supabase) {
     const validServiceTiers = ['labor_supply', 'managed_labor']
     const { service_tier } = req.body
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
+    // Free-form editable fields
+    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor']
+    for (const f of editableFields) {
+      if (req.body[f] !== undefined) updates[f] = req.body[f]
+    }
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
     const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single()
     if (error) throw error
@@ -1427,6 +1456,12 @@ export default async function handler(req, res) {
       case 'payouts': return await handlePayouts(req, res, supabase)
       case 'notifications': return await handleNotifications(req, res, supabase)
       case 'reset-pin': return await handleResetPin(req, res, supabase)
+      case 'bulk-status': return await handleBulkStatus(req, res, supabase)
+      case 'batch-shift': return await handleBatchShift(req, res, supabase)
+      case 'batch-survey': return await handleBatchSurvey(req, res, supabase)
+      case 'clone-event': return await handleCloneEvent(req, res, supabase)
+      case 'send-message': return await handleSendMessage(req, res, supabase)
+      case 'templates': return await handleTemplates(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -1605,4 +1640,207 @@ async function handleResetPin(req, res, supabase) {
 
   if (error) return res.status(500).json({ error: 'Failed to reset PIN' })
   return res.status(200).json({ ok: true, message: 'PIN cleared — worker will set a new PIN on next login' })
+}
+
+// ─── BULK STATUS CHANGE (Feature 2) ─────────────────────────────────────────
+
+async function handleBulkStatus(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { worker_ids, status } = req.body
+  if (!worker_ids?.length || !status) return res.status(400).json({ error: 'worker_ids and status required' })
+
+  const validStatuses = ['pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
+  if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+
+  const { error } = await supabase.from('applicants').update({ status }).in('id', worker_ids)
+  if (error) throw error
+
+  // Auto-cancel assignments if removed or rejected
+  if (status === 'removed' || status === 'rejected') {
+    await supabase.from('assignments').update({ status: 'cancelled' }).in('worker_id', worker_ids).neq('status', 'completed')
+  }
+
+  return res.status(200).json({ success: true, updated: worker_ids.length })
+}
+
+// ─── BATCH SEND SHIFT DETAILS (Feature 3) ───────────────────────────────────
+
+async function handleBatchShift(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { event_id } = req.body
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: assignments, error } = await supabase
+    .from('assignments')
+    .select('id, shift_sent_at, applicants ( first_name, last_name, phone, email ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, supervisor_phone, pay_rate, dress_code )')
+    .eq('event_id', event_id)
+    .in('status', ['invited', 'confirmed', 'checked_in'])
+
+  if (error) throw error
+  if (!assignments?.length) return res.status(200).json({ success: true, sent: 0, message: 'No assignments to notify' })
+
+  let sent = 0, errors = []
+  for (const a of assignments) {
+    const worker = a.applicants
+    const event = a.events
+    if (!worker) continue
+
+    const smsBody = [
+      `Hi ${worker.first_name}! Your shift details for ${event.title}:`,
+      `Date: ${formatDate(event.event_date)} · ${formatTime(event.start_time)} – ${formatTime(event.end_time)}`,
+      `Location: ${event.location}, ${event.city}`,
+      event.meeting_point ? `Meeting point: ${event.meeting_point}` : '',
+      event.supervisor_name ? `Supervisor: ${event.supervisor_name}${event.supervisor_phone ? ` (${event.supervisor_phone})` : ''}` : '',
+      event.pay_rate ? `Pay: ${event.pay_rate}` : '',
+      event.dress_code ? `Dress code: ${event.dress_code}` : '',
+      `Questions? Call (404) 861-7794`,
+    ].filter(Boolean).join('\n')
+
+    const emailHtml = `<h2>Your Shift Details — ${event.title}</h2><p><strong>Date:</strong> ${formatDate(event.event_date)}</p><p><strong>Time:</strong> ${formatTime(event.start_time)} – ${formatTime(event.end_time)}</p><p><strong>Location:</strong> ${event.location}, ${event.city}</p>${event.meeting_point ? `<p><strong>Meeting Point:</strong> ${event.meeting_point}</p>` : ''}${event.supervisor_name ? `<p><strong>Supervisor:</strong> ${event.supervisor_name}${event.supervisor_phone ? ` · ${event.supervisor_phone}` : ''}</p>` : ''}${event.pay_rate ? `<p><strong>Pay Rate:</strong> ${event.pay_rate}</p>` : ''}${event.dress_code ? `<p><strong>Dress Code:</strong> ${event.dress_code}</p>` : ''}`
+
+    try {
+      await Promise.allSettled([
+        worker.phone ? sendSms(worker.phone, smsBody) : Promise.resolve(),
+        worker.email ? sendEmail({ to: worker.email, subject: `Your Shift: ${event.title}`, html: emailHtml }) : Promise.resolve(),
+      ])
+      await supabase.from('assignments').update({ shift_sent_at: new Date().toISOString() }).eq('id', a.id)
+      sent++
+    } catch (e) {
+      errors.push(`${worker.first_name}: ${e.message}`)
+    }
+  }
+
+  return res.status(200).json({ success: true, sent, total: assignments.length, errors: errors.length ? errors : undefined })
+}
+
+// ─── BATCH SEND SURVEYS (Feature 8) ─────────────────────────────────────────
+
+async function handleBatchSurvey(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { event_id } = req.body
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  // Only send surveys for completed events
+  const { data: event, error: evErr } = await supabase.from('events').select('id, title, event_date').eq('id', event_id).single()
+  if (evErr || !event) return res.status(404).json({ error: 'Event not found' })
+  if (event.event_date && new Date(event.event_date + 'T23:59:59') > new Date()) {
+    return res.status(400).json({ error: 'Cannot send surveys — event has not taken place yet' })
+  }
+
+  const { data: assignments, error } = await supabase
+    .from('assignments')
+    .select('id, event_id, worker_id, applicants ( first_name, phone, email ), events ( title )')
+    .eq('event_id', event_id)
+    .in('status', ['completed', 'checked_in', 'confirmed'])
+
+  if (error) throw error
+  if (!assignments?.length) return res.status(200).json({ success: true, sent: 0, message: 'No assignments to survey' })
+
+  const baseUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
+  let sent = 0
+
+  for (const a of assignments) {
+    const worker = a.applicants
+    if (!worker) continue
+
+    try {
+      const { data: survey, error: surveyError } = await supabase
+        .from('surveys')
+        .upsert({ assignment_id: a.id, event_id: a.event_id, worker_id: a.worker_id }, { onConflict: 'assignment_id' })
+        .select('token')
+        .single()
+      if (surveyError) continue
+
+      const surveyUrl = `${baseUrl}/survey/${survey.token}`
+      const eventTitle = a.events?.title
+
+      await Promise.allSettled([
+        worker.phone ? sendSms(worker.phone, `Hi ${worker.first_name}! Thanks for working ${eventTitle}. Share your feedback: ${surveyUrl}`) : Promise.resolve(),
+        worker.email ? sendEmail({ to: worker.email, subject: `How was your shift? — ${eventTitle}`, html: `<h2>How was your shift? — ${eventTitle}</h2><p>Hi ${worker.first_name},</p><p><a href="${surveyUrl}">Complete Your Survey →</a></p>` }) : Promise.resolve(),
+      ])
+
+      await supabase.from('assignments').update({ survey_sent_at: new Date().toISOString() }).eq('id', a.id)
+      sent++
+    } catch (e) {
+      console.error(`Survey send failed for assignment ${a.id}:`, e.message)
+    }
+  }
+
+  return res.status(200).json({ success: true, sent, total: assignments.length })
+}
+
+// ─── CLONE EVENT (Feature 4) ────────────────────────────────────────────────
+
+async function handleCloneEvent(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { event_id } = req.body
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: original, error } = await supabase.from('events')
+    .select('title, organizer, contact_name, contact_email, contact_phone, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, latitude, longitude, geofence_radius_meters, bench_coverage_threshold, bench_pool_size, service_tier, meeting_point, supervisor_name, supervisor_phone')
+    .eq('id', event_id).single()
+  if (error || !original) return res.status(404).json({ error: 'Event not found' })
+
+  const clone = { ...original, title: `${original.title} (Copy)`, status: 'pending', event_date: null }
+  const { data: newEvent, error: insertErr } = await supabase.from('events').insert(clone).select().single()
+  if (insertErr) throw insertErr
+
+  return res.status(200).json(newEvent)
+}
+
+// ─── SEND MESSAGE FROM ADMIN (Feature 10) ───────────────────────────────────
+
+async function handleSendMessage(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { worker_id, message, channel = 'both' } = req.body
+  if (!worker_id || !message) return res.status(400).json({ error: 'worker_id and message required' })
+
+  const { data: worker, error } = await supabase.from('applicants').select('first_name, phone, email').eq('id', worker_id).single()
+  if (error || !worker) return res.status(404).json({ error: 'Worker not found' })
+
+  const results = { sms: null, email: null }
+
+  if ((channel === 'sms' || channel === 'both') && worker.phone) {
+    try {
+      await sendSms(worker.phone, message)
+      results.sms = 'sent'
+    } catch (e) { results.sms = e.message }
+  }
+
+  if ((channel === 'email' || channel === 'both') && worker.email) {
+    try {
+      await sendEmail({ to: worker.email, subject: 'Message from VandaHire', html: `<p>${message.replace(/\n/g, '<br>')}</p>` })
+      results.email = 'sent'
+    } catch (e) { results.email = e.message }
+  }
+
+  return res.status(200).json({ success: true, results })
+}
+
+// ─── EVENT TEMPLATES (Feature 11) ───────────────────────────────────────────
+
+async function handleTemplates(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('event_templates').select('*').order('created_at', { ascending: false })
+    if (error) throw error
+    return res.status(200).json(data || [])
+  }
+
+  if (req.method === 'POST') {
+    const { name, template_data } = req.body
+    if (!name || !template_data) return res.status(400).json({ error: 'name and template_data required' })
+    const { data, error } = await supabase.from('event_templates').insert({ name, template_data }).select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.body
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('event_templates').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
 }
