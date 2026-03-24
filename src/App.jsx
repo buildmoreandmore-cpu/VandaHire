@@ -35,7 +35,7 @@ export default function App({ groupCode }) {
 
   useEffect(() => {
     if (!groupCode) return
-    fetch(`/api/group-info?code=${encodeURIComponent(groupCode)}`)
+    fetch(`/api/submit?group_code=${encodeURIComponent(groupCode)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setGroupInfo(data) })
       .catch(() => {})

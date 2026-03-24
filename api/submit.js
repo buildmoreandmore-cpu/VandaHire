@@ -1,6 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
+  // GET /api/submit?group_code=X — public group info for join pages
+  if (req.method === 'GET') {
+    const { group_code } = req.query
+    if (!group_code) return res.status(400).json({ error: 'Missing group_code' })
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const { data, error } = await supabase
+      .from('worker_groups')
+      .select('name, description, type')
+      .eq('code', group_code)
+      .eq('archived', false)
+      .single()
+    if (error || !data) return res.status(404).json({ error: 'Group not found' })
+    return res.status(200).json(data)
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
