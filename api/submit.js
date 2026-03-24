@@ -11,6 +11,7 @@ export default async function handler(req, res) {
     experience_types, availability_windows,
     has_transportation, short_notice, notes,
     photo_base64,
+    source_group_code,
   } = req.body
 
   // Basic validation
@@ -42,27 +43,46 @@ export default async function handler(req, res) {
     // No duplicate found — continue with insert
   }
 
-  // 2. Write applicant to Supabase — data is never lost
+  // 2. Resolve source group if recruitment link was used
+  let sourceGroupId = null
+  if (source_group_code) {
+    try {
+      const { data: group } = await supabase
+        .from('worker_groups')
+        .select('id')
+        .eq('code', source_group_code)
+        .eq('archived', false)
+        .single()
+      if (group) sourceGroupId = group.id
+    } catch (err) {
+      // Group not found — continue without tagging
+    }
+  }
+
+  // 3. Write applicant to Supabase — data is never lost
   let applicantId
   try {
+    const insertData = {
+      first_name,
+      last_name,
+      email,
+      phone,
+      city,
+      zip,
+      roles: roles || [],
+      availability: availability || [],
+      experience_types: experience_types || [],
+      availability_windows: availability_windows || [],
+      has_transportation: has_transportation || '',
+      short_notice: short_notice || '',
+      notes: notes || '',
+      status: 'pending',
+    }
+    if (sourceGroupId) insertData.source_group_id = sourceGroupId
+
     const { data, error } = await supabase
       .from('applicants')
-      .insert({
-        first_name,
-        last_name,
-        email,
-        phone,
-        city,
-        zip,
-        roles: roles || [],
-        availability: availability || [],
-        experience_types: experience_types || [],
-        availability_windows: availability_windows || [],
-        has_transportation: has_transportation || '',
-        short_notice: short_notice || '',
-        notes: notes || '',
-        status: 'pending',
-      })
+      .insert(insertData)
       .select('id')
       .single()
 
@@ -71,6 +91,15 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[submit] Supabase insert error:', err)
     return res.status(500).json({ error: 'Failed to save application' })
+  }
+
+  // 3b. Auto-add to group members if from recruitment link
+  if (sourceGroupId && applicantId) {
+    try {
+      await supabase.from('worker_group_members').insert({ group_id: sourceGroupId, worker_id: applicantId })
+    } catch (err) {
+      console.error('[submit] Group member insert error:', err)
+    }
   }
 
   // 3. Upload photo to Supabase Storage if provided

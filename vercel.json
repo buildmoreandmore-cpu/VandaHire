@@ -45,6 +45,7 @@
     { "source": "/api/pin-reset", "destination": "/api/worker?route=pin-reset" },
     { "source": "/api/session-check", "destination": "/api/worker?route=session-check" },
     { "source": "/api/supervisor-dashboard", "destination": "/api/worker?route=supervisor-dashboard" },
+    { "source": "/api/group-info", "destination": "/api/group-info" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*).*)", "destination": "/index.html" }
   ]

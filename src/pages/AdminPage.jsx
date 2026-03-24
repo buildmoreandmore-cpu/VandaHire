@@ -9,6 +9,7 @@ import OperationsPanel from '../components/admin/OperationsPanel.jsx'
 import SurveysPanel from '../components/admin/SurveysPanel.jsx'
 import NotificationBell from '../components/admin/NotificationBell.jsx'
 import IncidentsPanel from '../components/admin/IncidentsPanel.jsx'
+import WorkerGroupsPanel from '../components/admin/WorkerGroupsPanel.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
@@ -94,6 +95,7 @@ export default function AdminPage() {
 
       {/* Content */}
       <div className="p-4 max-w-4xl mx-auto">
+        {tab === 'workers' && <WorkerGroupsPanel />}
         {tab === 'workers' && <ApplicantsPanel />}
         {tab === 'events' && <EventsPanel />}
         {tab === 'assignments' && <AssignmentsPanel />}

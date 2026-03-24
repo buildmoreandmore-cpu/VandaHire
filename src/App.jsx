@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import LandingScreen from './components/LandingScreen.jsx'
 import BasicInfoForm from './components/BasicInfoForm.jsx'
 import SubmittedScreen from './components/SubmittedScreen.jsx'
@@ -26,11 +26,20 @@ const initialFormData = {
   photo: null,
 }
 
-export default function App() {
+export default function App({ groupCode }) {
   const [screen, setScreen] = useState(SCREENS.LANDING)
   const [formData, setFormData] = useState(initialFormData)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+  const [groupInfo, setGroupInfo] = useState(null)
+
+  useEffect(() => {
+    if (!groupCode) return
+    fetch(`/api/group-info?code=${encodeURIComponent(groupCode)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setGroupInfo(data) })
+      .catch(() => {})
+  }, [groupCode])
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -39,6 +48,7 @@ export default function App() {
       const { photo, ...fields } = formData
       const payload = { ...fields }
       if (photo) payload.photo_base64 = photo
+      if (groupCode) payload.source_group_code = groupCode
       const res = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,6 +68,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] font-inter">
+      {groupInfo && (
+        <div className="bg-p-green/10 border-b border-p-green/30 px-4 py-2.5 text-center">
+          <span className="text-p-green text-sm font-medium">Applying via: {groupInfo.name}</span>
+        </div>
+      )}
       {screen === SCREENS.LANDING && (
         <LandingScreen onStart={() => setScreen(SCREENS.APPLICATION)} />
       )}

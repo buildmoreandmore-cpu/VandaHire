@@ -298,3 +298,34 @@ export const resetWorkerPin = (worker_id) =>
     method: 'POST',
     body: JSON.stringify({ worker_id }),
   })
+
+// Worker Groups
+export const fetchGroups = (type) =>
+  adminFetch(`/api/admin/groups${type ? `?type=${type}` : ''}`)
+
+export const createGroup = (data) =>
+  adminFetch('/api/admin/groups', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateGroup = (id, fields) =>
+  adminFetch('/api/admin/groups', {
+    method: 'PATCH',
+    body: JSON.stringify({ id, ...fields }),
+  })
+
+export const deleteGroup = (id) =>
+  adminFetch('/api/admin/groups', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
+  })
+
+export const fetchGroupMembers = (group_id) =>
+  adminFetch(`/api/admin/group-members?group_id=${group_id}`)
+
+export const updateGroupMembers = (group_id, worker_ids, action) =>
+  adminFetch('/api/admin/group-members', {
+    method: 'POST',
+    body: JSON.stringify({ group_id, worker_ids, action }),
+  })

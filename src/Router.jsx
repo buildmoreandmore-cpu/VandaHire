@@ -327,6 +327,9 @@ export default function Router() {
   } else if (path.startsWith('/blog/')) {
     const slug = path.replace('/blog/', '')
     page = <BlogPostPage slug={slug} />
+  } else if (path.startsWith('/join/')) {
+    const code = path.replace('/join/', '')
+    page = <App groupCode={code} />
   } else if (SEO_PAGES[path]) {
     page = <SeoLandingPage {...SEO_PAGES[path]} />
   } else {

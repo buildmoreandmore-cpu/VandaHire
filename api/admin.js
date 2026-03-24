@@ -1466,6 +1466,8 @@ export default async function handler(req, res) {
       case 'clone-event': return await handleCloneEvent(req, res, supabase)
       case 'send-message': return await handleSendMessage(req, res, supabase)
       case 'templates': return await handleTemplates(req, res, supabase)
+      case 'groups': return await handleGroups(req, res, supabase)
+      case 'group-members': return await handleGroupMembers(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -1844,6 +1846,111 @@ async function handleTemplates(req, res, supabase) {
     const { error } = await supabase.from('event_templates').delete().eq('id', id)
     if (error) throw error
     return res.status(200).json({ success: true })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── WORKER GROUPS ────────────────────────────────────────────────────────────
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function randomSuffix(len = 4) {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'
+  let s = ''
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
+}
+
+async function handleGroups(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { type } = req.query
+    let query = supabase.from('worker_groups').select('*, worker_group_members(count)')
+    if (type) query = query.eq('type', type)
+    query = query.order('created_at', { ascending: false })
+    const { data, error } = await query
+    if (error) throw error
+    const groups = (data || []).map(g => ({
+      ...g,
+      member_count: g.worker_group_members?.[0]?.count || 0,
+      worker_group_members: undefined,
+    }))
+    return res.status(200).json(groups)
+  }
+
+  if (req.method === 'POST') {
+    const { name, type, description } = req.body
+    if (!name || !type) return res.status(400).json({ error: 'name and type required' })
+    const code = slugify(name) + '-' + randomSuffix()
+    const { data, error } = await supabase
+      .from('worker_groups')
+      .insert({ name, code, type, description: description || '', archived: false })
+      .select()
+      .single()
+    if (error) throw error
+    return res.status(201).json(data)
+  }
+
+  if (req.method === 'PATCH') {
+    const { id, ...fields } = req.body
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const allowed = {}
+    if (fields.name !== undefined) allowed.name = fields.name
+    if (fields.description !== undefined) allowed.description = fields.description
+    if (fields.archived !== undefined) allowed.archived = fields.archived
+    allowed.updated_at = new Date().toISOString()
+    const { data, error } = await supabase.from('worker_groups').update(allowed).eq('id', id).select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.body || req.query
+    if (!id) return res.status(400).json({ error: 'id required' })
+    await supabase.from('worker_group_members').delete().eq('group_id', id)
+    const { error } = await supabase.from('worker_groups').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+async function handleGroupMembers(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { group_id } = req.query
+    if (!group_id) return res.status(400).json({ error: 'group_id required' })
+    const { data, error } = await supabase
+      .from('worker_group_members')
+      .select('id, created_at, worker_id, applicants(id, first_name, last_name, photo_url, city, status)')
+      .eq('group_id', group_id)
+    if (error) throw error
+    const members = (data || []).map(m => ({ ...m, ...m.applicants, applicants: undefined }))
+    return res.status(200).json(members)
+  }
+
+  if (req.method === 'POST') {
+    const { group_id, worker_ids, action } = req.body
+    if (!group_id || !worker_ids?.length || !action) {
+      return res.status(400).json({ error: 'group_id, worker_ids, and action required' })
+    }
+
+    if (action === 'add') {
+      const rows = worker_ids.map(wid => ({ group_id, worker_id: wid }))
+      const { error } = await supabase.from('worker_group_members').upsert(rows, { onConflict: 'group_id,worker_id', ignoreDuplicates: true })
+      if (error) throw error
+      return res.status(200).json({ success: true, added: worker_ids.length })
+    }
+
+    if (action === 'remove') {
+      const { error } = await supabase.from('worker_group_members').delete().eq('group_id', group_id).in('worker_id', worker_ids)
+      if (error) throw error
+      return res.status(200).json({ success: true, removed: worker_ids.length })
+    }
+
+    return res.status(400).json({ error: 'action must be add or remove' })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
