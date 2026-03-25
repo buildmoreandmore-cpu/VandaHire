@@ -1086,6 +1086,104 @@ async function w9Reminders(supabase) {
   return { sent, sms_sent: smsSent, message: `Sent ${sent} email(s), ${smsSent} SMS` }
 }
 
+// ─── BG CHECK REMINDERS ─────────────────────────────────────────────────────
+// Sends email + SMS reminders to workers who completed W-9 but haven't done bg check
+// Day 3, Day 7, Day 14 after W-9 completion
+
+async function bgCheckReminders(supabase) {
+  const now = new Date()
+  const threeDaysAgo = new Date(now.getTime() - 3 * 86400000).toISOString()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString()
+
+  // Workers with W-9 signed but no bg check
+  const { data: workers, error } = await supabase
+    .from('applicants')
+    .select('id, first_name, email, phone, status, w9_signed_at, bg_check_signed_at, bg_check_reminder_count')
+    .eq('status', 'approved')
+    .is('bg_check_signed_at', null)
+    .not('w9_signed_at', 'is', null)
+
+  if (error) throw error
+  if (!workers?.length) return { sent: 0, sms_sent: 0, message: 'No bg check reminders needed' }
+
+  let sent = 0, smsSent = 0
+
+  for (const w of workers) {
+    const w9Date = new Date(w.w9_signed_at)
+    const daysSinceW9 = Math.floor((now - w9Date) / 86400000)
+    const reminderCount = w.bg_check_reminder_count || 0
+
+    let shouldSend = false
+    let urgency = ''
+
+    if (daysSinceW9 >= 14 && reminderCount < 3) {
+      shouldSend = true
+      urgency = 'final'
+    } else if (daysSinceW9 >= 7 && reminderCount < 2) {
+      shouldSend = true
+      urgency = 'second'
+    } else if (daysSinceW9 >= 3 && reminderCount < 1) {
+      shouldSend = true
+      urgency = 'first'
+    }
+
+    if (!shouldSend) continue
+
+    const bgUrl = `https://vandahire.com/bg-check/${(w.phone || '').replace(/\D/g, '')}`
+
+    if (w.email) {
+      const subject = urgency === 'final'
+        ? `Final Reminder: Complete Your Background Check — V&A Hire`
+        : urgency === 'second'
+        ? `Reminder: Background Check Still Needed — V&A Hire`
+        : `Complete Your Background Check — V&A Hire`
+
+      const urgencyText = urgency === 'final'
+        ? 'This is your <strong>final reminder</strong>. You cannot be assigned to shifts until your background check is complete.'
+        : urgency === 'second'
+        ? 'You still haven\'t completed your background check. Shifts are filling up — don\'t miss out.'
+        : 'You\'re almost done! One last step: complete your background check consent form and payment.'
+
+      try {
+        await sendEmail({
+          to: w.email,
+          subject,
+          html: `
+            <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#0a0a0a;color:#fff;">
+              <h2 style="color:#ffffff;margin:0 0 16px;">Complete Your Background Check, ${w.first_name}</h2>
+              <p style="color:#ccc;line-height:1.6;">${urgencyText}</p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${bgUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete Background Check &rarr;</a></td></tr></table>
+              <p style="color:#666;font-size:12px;">Takes less than 5 minutes. Your information is encrypted and secure.</p>
+              <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire • vandahire.com</p>
+            </div>`,
+        })
+        sent++
+      } catch (e) {
+        console.error(`[cron/bg-check-reminders] Email failed for ${w.id}:`, e.message)
+      }
+    }
+
+    // SMS on 7-day and 14-day reminders
+    if (w.phone && (urgency === 'second' || urgency === 'final')) {
+      try {
+        const { sendSms } = await import('../_lib/sms.js')
+        await sendSms(w.phone, `V&A Hire: Your background check is still needed before you can claim shifts. Complete it here: ${bgUrl}`)
+        smsSent++
+      } catch (e) {
+        console.error(`[cron/bg-check-reminders] SMS failed for ${w.id}:`, e.message)
+      }
+    }
+
+    await supabase.from('applicants').update({
+      bg_check_reminder_count: reminderCount + 1,
+      updated_at: now.toISOString(),
+    }).eq('id', w.id)
+  }
+
+  return { sent, sms_sent: smsSent, message: `Sent ${sent} email(s), ${smsSent} SMS` }
+}
+
 // ─── NO-SHOW AUTO-DETECTION ─────────────────────────────────────────────────
 // 30 min after event start, mark workers who haven't checked in as no-shows
 
@@ -1663,6 +1761,8 @@ export default async function handler(req, res) {
         return res.status(200).json(await postEventInvoice(supabase))
       case 'w9-reminders':
         return res.status(200).json(await w9Reminders(supabase))
+      case 'bg-check-reminders':
+        return res.status(200).json(await bgCheckReminders(supabase))
       case 'no-shows':
         return res.status(200).json(await detectNoShows(supabase))
       case 'organizer-summary':
@@ -1687,6 +1787,7 @@ export default async function handler(req, res) {
         results.briefing_reminders = await briefingReminders(supabase)
         results.auto_charge_balance = await autoChargeBalance(supabase)
         results.w9_reminders = await w9Reminders(supabase)
+        results.bg_check_reminders = await bgCheckReminders(supabase)
         results.no_shows = await detectNoShows(supabase)
         results.organizer_summary = await postEventOrganizerSummary(supabase)
         results.crew_shortfall = await crewShortfallEscalation(supabase)

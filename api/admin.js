@@ -109,7 +109,7 @@ async function handleStats(req, res, supabase) {
 
 async function handleApplicants(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status').order('created_at', { ascending: false })
+    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url').order('created_at', { ascending: false })
     const { status } = req.query
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
@@ -144,7 +144,7 @@ async function handleApplicants(req, res, supabase) {
     return res.status(200).json(enriched)
   }
   if (req.method === 'PATCH') {
-    const { id, status, video_verified, first_name, last_name, email, phone, city, zip, roles, availability } = req.body
+    const { id, status, video_verified, first_name, last_name, email, phone, city, zip, roles, availability, bg_check_cleared, bg_check_result_base64 } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const updates = { updated_at: new Date().toISOString() }
     if (status) {
@@ -162,6 +162,33 @@ async function handleApplicants(req, res, supabase) {
     if (zip !== undefined) updates.zip = zip
     if (roles !== undefined) updates.roles = roles
     if (availability !== undefined) updates.availability = availability
+    if (bg_check_cleared !== undefined) updates.bg_check_cleared = bg_check_cleared
+
+    // Handle bg check result PDF/image upload
+    if (bg_check_result_base64) {
+      try {
+        const base64Data = bg_check_result_base64.replace(/^data:[^;]+;base64,/, '')
+        const buffer = Buffer.from(base64Data, 'base64')
+        const bucketName = 'applicant-photos'
+        const filePath = `bg-check-results/${id}.pdf`
+
+        const { data: buckets } = await supabase.storage.listBuckets()
+        if (!buckets?.find(b => b.name === bucketName)) {
+          await supabase.storage.createBucket(bucketName, { public: true })
+        }
+
+        await supabase.storage.from(bucketName).upload(filePath, buffer, {
+          contentType: 'application/pdf',
+          upsert: true,
+        })
+
+        const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+        updates.bg_check_result_url = urlData.publicUrl
+      } catch (e) {
+        console.error('[admin/applicants] BG check result upload failed:', e.message)
+      }
+    }
+
     const { data, error } = await supabase.from('applicants').update(updates).eq('id', id).select().single()
     if (error) throw error
 

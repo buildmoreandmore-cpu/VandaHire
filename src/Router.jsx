@@ -16,6 +16,7 @@ import BlogIndexPage from './pages/BlogIndexPage.jsx'
 import BlogPostPage from './pages/BlogPostPage.jsx'
 import VideoVerifyPage from './pages/VideoVerifyPage.jsx'
 import W9FormPage from './pages/W9FormPage.jsx'
+import BgCheckPage from './pages/BgCheckPage.jsx'
 import IdUploadPage from './pages/IdUploadPage.jsx'
 import SupervisorPortalPage from './pages/SupervisorPortalPage.jsx'
 
@@ -302,6 +303,11 @@ export default function Router() {
     page = <W9FormPage phone={phoneParam} />
   } else if (path === '/w9') {
     page = <W9FormPage />
+  } else if (path.startsWith('/bg-check/')) {
+    const phoneParam = path.replace('/bg-check/', '')
+    page = <BgCheckPage phone={phoneParam} />
+  } else if (path === '/bg-check') {
+    page = <BgCheckPage />
   } else if (path.startsWith('/id-upload/')) {
     const phoneParam = path.replace('/id-upload/', '')
     page = <IdUploadPage phone={phoneParam} />

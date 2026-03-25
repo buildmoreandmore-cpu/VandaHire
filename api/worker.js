@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     if (route === 'client-survey') return await handleClientSurvey(req, res, supabase)
     if (route === 'my-crew-status') return await handleMyCrewStatus(req, res, supabase)
     if (route === 'w9') return await handleW9(req, res, supabase)
+    if (route === 'bg-check') return await handleBgCheck(req, res, supabase)
     if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
     if (route === 'push-subscribe') return await handlePushSubscribe(req, res, supabase)
     if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
@@ -63,7 +64,7 @@ async function handleCheckin(req, res, supabase) {
 
     const { data: workers, error: wErr } = await supabase
       .from('applicants')
-      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at, pin_hash')
+      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at, bg_check_signed_at, bg_check_cleared, pin_hash')
 
     // Match on last 10 digits to handle any format
     const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
@@ -96,7 +97,7 @@ async function handleCheckin(req, res, supabase) {
     }
 
     return res.status(200).json({
-      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name, video_url: worker.video_url || null, id_photo_url: worker.id_photo_url || null, w9_signed_at: worker.w9_signed_at || null, has_pin: !!worker.pin_hash },
+      worker: { id: worker.id, first_name: worker.first_name, last_name: worker.last_name, video_url: worker.video_url || null, id_photo_url: worker.id_photo_url || null, w9_signed_at: worker.w9_signed_at || null, bg_check_signed_at: worker.bg_check_signed_at || null, bg_check_cleared: worker.bg_check_cleared || false, has_pin: !!worker.pin_hash },
       assignments: enriched,
     })
   }
@@ -835,12 +836,13 @@ async function handleVerifyVideo(req, res, supabase) {
       // Check what's already completed
       const { data: fullWorker } = await supabase
         .from('applicants')
-        .select('id_photo_url, w9_signed_at')
+        .select('id_photo_url, w9_signed_at, bg_check_signed_at')
         .eq('id', worker.id)
         .single()
 
       const hasId = !!fullWorker?.id_photo_url
       const hasW9 = !!fullWorker?.w9_signed_at
+      const hasBg = !!fullWorker?.bg_check_signed_at
       const phoneDigits = phone.replace(/\D/g, '').slice(-10)
 
       const stepsHtml = `
@@ -855,12 +857,15 @@ async function handleVerifyVideo(req, res, supabase) {
           <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
             ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
           </div>
+          <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+            ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+          </div>
         </div>`
 
-      const allComplete = hasId && hasW9
+      const allComplete = hasId && hasW9 && hasBg
       const incompleteMsg = allComplete
         ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
-        : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>
+        : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>
            <p style="color:#666">Please complete the remaining steps as soon as possible so we can get you on the schedule.</p>`
 
       await sendEmail({
@@ -1409,6 +1414,18 @@ function encryptTin(tin) {
   return `${iv.toString('hex')}:${tag}:${encrypted}`
 }
 
+function decryptTin(encrypted) {
+  const key = Buffer.from(process.env.W9_ENCRYPTION_KEY, 'hex')
+  const [ivHex, tagHex, encHex] = encrypted.split(':')
+  const iv = Buffer.from(ivHex, 'hex')
+  const tag = Buffer.from(tagHex, 'hex')
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(tag)
+  let decrypted = decipher.update(encHex, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  return decrypted
+}
+
 // ─── ID PHOTO UPLOAD ────────────────────────────────────────────────────────
 
 async function handleIdUpload(req, res, supabase) {
@@ -1431,7 +1448,7 @@ async function handleIdUpload(req, res, supabase) {
     const digits = phone.replace(/\D/g, '').slice(-10)
     const { data: allWorkers } = await supabase
       .from('applicants')
-      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at')
+      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at')
     const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
@@ -1493,7 +1510,8 @@ async function handleIdUpload(req, res, supabase) {
         try {
           const hasVideo = !!worker.video_url
           const hasW9 = !!worker.w9_signed_at
-          const allComplete = hasVideo && hasW9
+          const hasBg = !!worker.bg_check_signed_at
+          const allComplete = hasVideo && hasW9 && hasBg
 
           const stepsHtml = `
             <div style="margin:20px 0">
@@ -1507,11 +1525,14 @@ async function handleIdUpload(req, res, supabase) {
               <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
                 ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
               </div>
+              <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+                ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+              </div>
             </div>`
 
           const incompleteMsg = allComplete
             ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
-            : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>`
+            : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>`
 
           await sendEmail({
             to: worker.email,
@@ -1570,7 +1591,7 @@ async function handleW9(req, res, supabase) {
     const digits = phone.replace(/\D/g, '').slice(-10)
     const { data: allW } = await supabase
       .from('applicants')
-      .select('id, first_name, email, phone, w9_signed_at, video_url, id_photo_url')
+      .select('id, first_name, email, phone, w9_signed_at, video_url, id_photo_url, bg_check_signed_at')
     const worker = (allW || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
@@ -1637,7 +1658,8 @@ async function handleW9(req, res, supabase) {
       try {
         const hasVideo = !!worker.video_url
         const hasId = !!worker.id_photo_url
-        const allComplete = hasVideo && hasId
+        const hasBg = !!worker.bg_check_signed_at
+        const allComplete = hasVideo && hasId && hasBg
 
         const stepsHtml = `
           <div style="margin:20px 0">
@@ -1651,11 +1673,14 @@ async function handleW9(req, res, supabase) {
             <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
               ✅ W-9 Tax Form — Complete
             </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
           </div>`
 
         const incompleteMsg = allComplete
           ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
-          : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 3 steps are completed.</p>`
+          : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>`
 
         await sendEmail({
           to: worker.email,
@@ -1673,6 +1698,192 @@ async function handleW9(req, res, supabase) {
     }
 
     return res.status(200).json({ success: true, w9_signed_at: now })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── BACKGROUND CHECK ────────────────────────────────────────────────────────
+
+async function handleBgCheck(req, res, supabase) {
+  // GET — check bg check status
+  if (req.method === 'GET') {
+    const { phone } = req.query
+    if (!phone) return res.status(400).json({ error: 'phone required' })
+
+    const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, bg_check_signed_at, bg_check_cleared, bg_check_ssn_last4')
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
+
+    return res.status(200).json({
+      bg_check_signed_at: worker.bg_check_signed_at || null,
+      bg_check_cleared: worker.bg_check_cleared || false,
+      bg_check_ssn_last4: worker.bg_check_ssn_last4 || null,
+      first_name: worker.first_name,
+      last_name: worker.last_name,
+    })
+  }
+
+  // POST — submit bg check consent
+  if (req.method === 'POST') {
+    const { phone, legal_name, address, city, state, zip, sex, race, dob, ssn, consent_type, signature_name } = req.body
+
+    if (!phone || !legal_name || !address || !city || !state || !zip || !sex || !race || !dob || !ssn || !signature_name) {
+      return res.status(400).json({ error: 'All required fields must be completed' })
+    }
+
+    const ssnDigits = ssn.replace(/\D/g, '')
+    if (ssnDigits.length !== 9) return res.status(400).json({ error: 'SSN must be exactly 9 digits' })
+    if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'ZIP must be 5 digits' })
+
+    const digits = phone.replace(/\D/g, '').slice(-10)
+    const { data: allW } = await supabase
+      .from('applicants')
+      .select('id, first_name, last_name, email, phone, bg_check_signed_at, video_url, id_photo_url, w9_signed_at')
+    const worker = (allW || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
+
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
+    if (worker.bg_check_signed_at) return res.status(400).json({ error: 'Background check consent already on file' })
+
+    if (!process.env.W9_ENCRYPTION_KEY) {
+      console.error('[bg-check] W9_ENCRYPTION_KEY not configured')
+      return res.status(500).json({ error: 'Server configuration error' })
+    }
+
+    const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown'
+    const ip = typeof clientIp === 'string' ? clientIp.split(',')[0].trim() : 'unknown'
+    const now = new Date().toISOString()
+
+    const { error: updateErr } = await supabase.from('applicants').update({
+      bg_check_legal_name: legal_name,
+      bg_check_address: address,
+      bg_check_city: city,
+      bg_check_state: state,
+      bg_check_zip: zip,
+      bg_check_sex: sex,
+      bg_check_race: race,
+      bg_check_dob: dob,
+      bg_check_ssn_encrypted: encryptTin(ssnDigits),
+      bg_check_ssn_last4: ssnDigits.slice(-4),
+      bg_check_consent_type: consent_type || '90_days',
+      bg_check_signed_at: now,
+      bg_check_ip: ip,
+      updated_at: now,
+    }).eq('id', worker.id)
+
+    if (updateErr) {
+      console.error('[bg-check] Update failed:', updateErr)
+      return res.status(500).json({ error: 'Failed to save background check consent' })
+    }
+
+    // Decrypt SSN for PCG email
+    const fullSsn = ssnDigits
+    const formattedSsn = `${fullSsn.slice(0, 3)}-${fullSsn.slice(3, 5)}-${fullSsn.slice(5)}`
+    const consentLabel = consent_type === 'employment_duration' ? 'Duration of employment' : 'Valid for 90 days from signature'
+
+    // Send consent form email to PCG Screening Services
+    try {
+      await sendEmail({
+        to: 'info@pcgscreening.com',
+        subject: `Background Check Consent — ${legal_name} — V&A Hire`,
+        html: `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#ffffff;color:#333;">
+          <h2 style="color:#000;margin:0 0 20px;border-bottom:2px solid #000;padding-bottom:12px;">PCG Screening Services — Background Check Authorization</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Full Legal Name</td><td style="padding:8px 0;border-bottom:1px solid #eee;"><strong>${legal_name}</strong></td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Current Address</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${address}, ${city}, ${state} ${zip}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Sex/Gender</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${sex}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Race</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${race}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date of Birth</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${dob}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Social Security Number</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${formattedSsn}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Purpose Code</td><td style="padding:8px 0;border-bottom:1px solid #eee;">E — Regular Employment/Housing/Volunteer</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Consent Type</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${consentLabel}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Signed By</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-style:italic;">${signature_name}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date Signed</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${now}</td></tr>
+            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">IP Address</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${ip}</td></tr>
+          </table>
+          <hr style="margin:24px 0;border:none;border-top:1px solid #ddd;">
+          <p style="color:#888;font-size:12px;">Submitted via V&A Hire worker onboarding</p>
+          <p style="color:#888;font-size:12px;">Worker Phone: ${digits} | Worker Email: ${worker.email || 'N/A'}</p>
+        </div>`,
+      })
+    } catch (e) {
+      console.error('[bg-check] PCG email failed:', e.message)
+    }
+
+    // Send admin notification
+    const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
+    try {
+      await sendEmail({
+        to: adminEmail,
+        subject: `Background Check Consent: ${legal_name}`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;padding:32px;max-width:600px;">
+            <h2 style="color:#ffffff;margin:0 0 20px;">New Background Check Consent</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Legal Name</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;"><strong>${legal_name}</strong></td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Address</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${address}, ${city}, ${state} ${zip}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">SSN (last 4)</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">***-**-${ssnDigits.slice(-4)}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Phone</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${digits}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Consent Type</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${consentLabel}</td></tr>
+              <tr><td style="color:#888;padding:8px 12px 8px 0;">Signed At</td><td style="color:#fff;padding:8px 0;">${now}</td></tr>
+            </table>
+            <p style="color:#888;font-size:12px;margin-top:16px;">Consent form also sent to info@pcgscreening.com</p>
+            <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire — Background Check Auto-Notification</p>
+          </div>`,
+      })
+    } catch (e) {
+      console.error('[bg-check] Admin email failed:', e.message)
+    }
+
+    // Send worker checklist email
+    if (worker.email) {
+      try {
+        const hasVideo = !!worker.video_url
+        const hasId = !!worker.id_photo_url
+        const hasW9 = !!worker.w9_signed_at
+        const allComplete = hasVideo && hasId && hasW9
+
+        const stepsHtml = `
+          <div style="margin:20px 0">
+            <p style="font-weight:600;margin-bottom:12px">Your onboarding checklist:</p>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasVideo ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasVideo ? '✅' : '⬜'} Verification Video — ${hasVideo ? 'Complete' : '<a href="https://vandahire.com/verify" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasId ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasId ? '✅' : '⬜'} ID Photo Upload — ${hasId ? 'Complete' : '<a href="https://vandahire.com/id-upload/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
+              ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
+            </div>
+            <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
+              ✅ Background Check — Complete
+            </div>
+          </div>`
+
+        const incompleteMsg = allComplete
+          ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
+          : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>`
+
+        await sendEmail({
+          to: worker.email,
+          subject: allComplete ? 'Onboarding Complete — V&A Hire' : 'Action Required: Complete Your Onboarding — V&A Hire',
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+            <h2>Background Check Consent Received!</h2>
+            <p>Hi ${worker.first_name},</p>
+            <p>Your background check authorization has been submitted to PCG Screening Services. Please complete the payment to finalize your screening.</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete Payment &rarr;</a></td></tr></table>
+            ${stepsHtml}
+            ${incompleteMsg}
+            <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
+          </div>`,
+        })
+      } catch (e) { console.error('[bg-check] Worker email failed:', e.message) }
+    }
+
+    return res.status(200).json({
+      success: true,
+      bg_check_signed_at: now,
+      payment_url: 'https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00',
+    })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })

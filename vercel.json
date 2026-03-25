@@ -35,6 +35,7 @@
     { "source": "/api/client-survey", "destination": "/api/worker?route=client-survey" },
     { "source": "/api/my-crew-status", "destination": "/api/worker?route=my-crew-status" },
     { "source": "/api/w9", "destination": "/api/worker?route=w9" },
+    { "source": "/api/bg-check", "destination": "/api/worker?route=bg-check" },
     { "source": "/api/id-upload", "destination": "/api/worker?route=id-upload" },
     { "source": "/api/push", "destination": "/api/worker?route=push-subscribe" },
     { "source": "/api/gps-ping", "destination": "/api/worker?route=gps-ping" },

@@ -480,6 +480,74 @@ export default function ApplicantsPanel() {
                           </div>
                         )}
 
+                        {/* Background Check Status */}
+                        <div className="mt-3 bg-black/30 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-p-muted text-xs">BG Check:</span>
+                            {a.bg_check_cleared ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">Cleared</span>
+                            ) : a.bg_check_signed_at ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">Consent Sent</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400">Not Started</span>
+                            )}
+                            {a.bg_check_signed_at && !a.bg_check_cleared && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Mark ${a.first_name} ${a.last_name}'s background check as cleared?`)) return
+                                  setUpdating(a.id)
+                                  try {
+                                    await editApplicant(a.id, { bg_check_cleared: true })
+                                    setApplicants(prev => prev.map(x => x.id === a.id ? { ...x, bg_check_cleared: true } : x))
+                                  } catch (err) { console.error('Mark cleared failed:', err) }
+                                  setUpdating(null)
+                                }}
+                                disabled={updating === a.id}
+                                className="px-2 py-0.5 rounded text-[10px] font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50"
+                              >
+                                Mark Cleared
+                              </button>
+                            )}
+                            {a.bg_check_result_url && (
+                              <a
+                                href={a.bg_check_result_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-0.5 rounded text-[10px] font-medium text-blue-400 bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
+                              >
+                                View Results
+                              </a>
+                            )}
+                            {a.bg_check_signed_at && (
+                              <label className="px-2 py-0.5 rounded text-[10px] font-medium text-white bg-p-border hover:bg-[#333] transition-colors cursor-pointer">
+                                Upload Results
+                                <input
+                                  type="file"
+                                  accept=".pdf,image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    setUpdating(a.id)
+                                    try {
+                                      const reader = new FileReader()
+                                      reader.onload = async () => {
+                                        await editApplicant(a.id, { bg_check_result_base64: reader.result })
+                                        setApplicants(prev => prev.map(x => x.id === a.id ? { ...x, bg_check_result_url: 'uploaded' } : x))
+                                        setUpdating(null)
+                                      }
+                                      reader.readAsDataURL(file)
+                                    } catch (err) {
+                                      console.error('Upload failed:', err)
+                                      setUpdating(null)
+                                    }
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Worker Rating */}
                         <div className="mt-3 bg-black/30 rounded-lg px-3 py-2">
                           {a.avg_rating != null ? (
