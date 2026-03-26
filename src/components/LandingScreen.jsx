@@ -94,7 +94,8 @@ const WORKER_TIMELINE = [
   { step: '1', title: 'Submit your application', time: '2 min' },
   { step: '2', title: 'Application review', time: '24–48 hrs' },
   { step: '3', title: 'Upload ID & complete W-9', time: 'Once approved' },
-  { step: '4', title: 'Receive shifts via text & claim', time: 'Start earning' },
+  { step: '4', title: 'Pass background check', time: 'Required' },
+  { step: '5', title: 'Receive shifts via text & claim', time: 'Start earning' },
 ]
 
 export default function LandingScreen({ onStart }) {
