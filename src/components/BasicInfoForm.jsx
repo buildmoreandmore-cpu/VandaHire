@@ -460,36 +460,47 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
         )}
 
         {section === 2 && (
-          <div className="flex gap-3 mt-8">
-            <button
-              type="button"
-              onClick={() => setSection(1)}
-              className="rounded-full py-4 px-6 font-semibold text-base border border-[#2a2a2a] text-[#888] hover:border-[#444] transition-all duration-200 cursor-pointer"
-            >
-              ← Back
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className={`flex-1 rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
-                ${submitting
-                  ? 'bg-[#333] text-[#666] cursor-not-allowed'
-                  : 'bg-[#ffffff] text-black hover:opacity-90 cursor-pointer'
-                }`}
-            >
-              {submitting ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Submitting...
-                </>
-              ) : (
-                'Submit Application'
-              )}
-            </button>
-          </div>
+          <>
+            <div className="flex gap-3 mt-8">
+              <button
+                type="button"
+                onClick={() => setSection(1)}
+                className="rounded-full py-4 px-6 font-semibold text-base border border-[#2a2a2a] text-[#888] hover:border-[#444] transition-all duration-200 cursor-pointer"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className={`flex-1 rounded-full py-4 font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2
+                  ${submitting
+                    ? 'bg-[#333] text-[#666] cursor-not-allowed'
+                    : 'bg-[#ffffff] text-black hover:opacity-90 cursor-pointer'
+                  }`}
+              >
+                {submitting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Application'
+                )}
+              </button>
+            </div>
+
+            <div className="mt-4 px-1">
+              <div className="flex items-start gap-2 bg-[#1a1207] border border-[#3d2e0a] rounded-lg px-4 py-3">
+                <span className="text-yellow-500 text-sm mt-0.5 flex-shrink-0">&#9888;</span>
+                <p className="text-yellow-500/90 text-xs leading-relaxed">
+                  <strong>All workers must pass a background check</strong> before being assigned to shifts. You will be asked to complete a background check consent form as part of onboarding.
+                </p>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -194,6 +194,9 @@ export default function LandingScreen({ onStart }) {
         <p className="fade-up-delay-3 text-[#555] text-sm mt-6">
           Workers apply in minutes. Organizers get vetted crew with GPS-verified check-in.
         </p>
+        <p className="fade-up-delay-3 text-yellow-500/80 text-xs font-semibold mt-3 tracking-wide">
+          ALL WORKERS MUST PASS A BACKGROUND CHECK
+        </p>
       </div>
 
       {/* Stats Bar */}
