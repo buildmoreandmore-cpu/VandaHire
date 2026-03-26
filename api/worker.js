@@ -836,14 +836,21 @@ async function handleVerifyVideo(req, res, supabase) {
       // Check what's already completed
       const { data: fullWorker } = await supabase
         .from('applicants')
-        .select('id_photo_url, w9_signed_at, bg_check_signed_at')
+        .select('id_photo_url, w9_signed_at, bg_check_signed_at, bg_check_cleared')
         .eq('id', worker.id)
         .single()
 
       const hasId = !!fullWorker?.id_photo_url
       const hasW9 = !!fullWorker?.w9_signed_at
-      const hasBg = !!fullWorker?.bg_check_signed_at
+      const bgCleared = !!fullWorker?.bg_check_cleared
+      const bgSent = !!fullWorker?.bg_check_signed_at
       const phoneDigits = phone.replace(/\D/g, '').slice(-10)
+
+      const bgStepHtml = bgCleared
+        ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
+        : bgSent
+        ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
+        : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${phoneDigits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
 
       const stepsHtml = `
         <div style="margin:20px 0">
@@ -857,12 +864,10 @@ async function handleVerifyVideo(req, res, supabase) {
           <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
             ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
           </div>
-          <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
-            ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + phoneDigits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
-          </div>
+          ${bgStepHtml}
         </div>`
 
-      const allComplete = hasId && hasW9 && hasBg
+      const allComplete = hasId && hasW9 && bgCleared
       const incompleteMsg = allComplete
         ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
         : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>
@@ -1448,7 +1453,7 @@ async function handleIdUpload(req, res, supabase) {
     const digits = phone.replace(/\D/g, '').slice(-10)
     const { data: allWorkers } = await supabase
       .from('applicants')
-      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at')
+      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at, bg_check_cleared')
     const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
@@ -1510,8 +1515,15 @@ async function handleIdUpload(req, res, supabase) {
         try {
           const hasVideo = !!worker.video_url
           const hasW9 = !!worker.w9_signed_at
-          const hasBg = !!worker.bg_check_signed_at
-          const allComplete = hasVideo && hasW9 && hasBg
+          const bgCleared = !!worker.bg_check_cleared
+          const bgSent = !!worker.bg_check_signed_at
+          const allComplete = hasVideo && hasW9 && bgCleared
+
+          const bgStepHtml = bgCleared
+            ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
+            : bgSent
+            ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
+            : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${digits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
 
           const stepsHtml = `
             <div style="margin:20px 0">
@@ -1525,9 +1537,7 @@ async function handleIdUpload(req, res, supabase) {
               <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
                 ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
               </div>
-              <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
-                ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
-              </div>
+              ${bgStepHtml}
             </div>`
 
           const incompleteMsg = allComplete
@@ -1591,7 +1601,7 @@ async function handleW9(req, res, supabase) {
     const digits = phone.replace(/\D/g, '').slice(-10)
     const { data: allW } = await supabase
       .from('applicants')
-      .select('id, first_name, email, phone, w9_signed_at, video_url, id_photo_url, bg_check_signed_at')
+      .select('id, first_name, email, phone, w9_signed_at, video_url, id_photo_url, bg_check_signed_at, bg_check_cleared')
     const worker = (allW || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
@@ -1658,8 +1668,15 @@ async function handleW9(req, res, supabase) {
       try {
         const hasVideo = !!worker.video_url
         const hasId = !!worker.id_photo_url
-        const hasBg = !!worker.bg_check_signed_at
-        const allComplete = hasVideo && hasId && hasBg
+        const bgCleared = !!worker.bg_check_cleared
+        const bgSent = !!worker.bg_check_signed_at
+        const allComplete = hasVideo && hasId && bgCleared
+
+        const bgStepHtml = bgCleared
+          ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
+          : bgSent
+          ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
+          : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${digits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
 
         const stepsHtml = `
           <div style="margin:20px 0">
@@ -1673,9 +1690,7 @@ async function handleW9(req, res, supabase) {
             <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
               ✅ W-9 Tax Form — Complete
             </div>
-            <div style="margin-bottom:8px;padding:12px 16px;background:${hasBg ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
-              ${hasBg ? '✅' : '⬜'} Background Check — ${hasBg ? 'Complete' : '<a href="https://vandahire.com/bg-check/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
-            </div>
+            ${bgStepHtml}
           </div>`
 
         const incompleteMsg = allComplete
@@ -1840,7 +1855,7 @@ async function handleBgCheck(req, res, supabase) {
         const hasVideo = !!worker.video_url
         const hasId = !!worker.id_photo_url
         const hasW9 = !!worker.w9_signed_at
-        const allComplete = hasVideo && hasId && hasW9
+        const allComplete = false // bg_check_cleared is always false at submission time
 
         const stepsHtml = `
           <div style="margin:20px 0">
@@ -1854,18 +1869,17 @@ async function handleBgCheck(req, res, supabase) {
             <div style="margin-bottom:8px;padding:12px 16px;background:${hasW9 ? '#f0fdf4;color:#166534' : '#fef3c7;color:#92400e'};border-radius:8px">
               ${hasW9 ? '✅' : '⬜'} W-9 Tax Form — ${hasW9 ? 'Complete' : '<a href="https://vandahire.com/w9/' + digits + '" style="color:#92400e;font-weight:600">Complete Now →</a>'}
             </div>
-            <div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">
-              ✅ Background Check — Complete
+            <div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">
+              ⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a>
             </div>
           </div>`
 
-        const incompleteMsg = allComplete
-          ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
-          : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>`
+        const incompleteMsg = `<p style="color:#92400e;font-weight:600">⚠️ Please complete the background check payment to finalize your screening.</p>
+          <p style="color:#666">Results are typically returned within 2–3 business days after payment.</p>`
 
         await sendEmail({
           to: worker.email,
-          subject: allComplete ? 'Onboarding Complete — V&A Hire' : 'Action Required: Complete Your Onboarding — V&A Hire',
+          subject: 'Action Required: Complete Background Check Payment — V&A Hire',
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2>Background Check Consent Received!</h2>
             <p>Hi ${worker.first_name},</p>
