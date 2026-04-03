@@ -94,8 +94,7 @@ const WORKER_TIMELINE = [
   { step: '1', title: 'Submit your application', time: '2 min' },
   { step: '2', title: 'Application review', time: '24–48 hrs' },
   { step: '3', title: 'Upload ID & complete W-9', time: 'Once approved' },
-  { step: '4', title: 'Pass background check', time: 'Required' },
-  { step: '5', title: 'Receive shifts via text & claim', time: 'Start earning' },
+  { step: '4', title: 'Receive shifts via text & claim', time: 'Start earning' },
 ]
 
 export default function LandingScreen({ onStart }) {
@@ -193,9 +192,6 @@ export default function LandingScreen({ onStart }) {
 
         <p className="fade-up-delay-3 text-[#555] text-sm mt-6">
           Workers apply in minutes. Organizers get vetted crew with GPS-verified check-in.
-        </p>
-        <p className="fade-up-delay-3 text-yellow-500/80 text-xs font-semibold mt-3 tracking-wide">
-          ALL WORKERS MUST PASS A BACKGROUND CHECK
         </p>
       </div>
 

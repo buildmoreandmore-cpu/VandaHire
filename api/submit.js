@@ -52,6 +52,28 @@ export default async function handler(req, res) {
       .single()
 
     if (existing) {
+      // Still enroll in group if from recruitment link
+      if (source_group_code) {
+        try {
+          const { data: group } = await supabase
+            .from('worker_groups')
+            .select('id')
+            .eq('code', source_group_code)
+            .eq('archived', false)
+            .single()
+          if (group) {
+            await supabase.from('worker_group_members')
+              .upsert({ group_id: group.id, worker_id: existing.id }, { onConflict: 'group_id,worker_id', ignoreDuplicates: true })
+            // Tag source group if not already set
+            await supabase.from('applicants')
+              .update({ source_group_id: group.id })
+              .eq('id', existing.id)
+              .is('source_group_id', null)
+          }
+        } catch (err) {
+          console.error('[submit] Duplicate group enrollment error:', err)
+        }
+      }
       return res.status(200).json({ success: true, applicantId: existing.id, decision: existing.status, duplicate: true })
     }
   } catch (err) {

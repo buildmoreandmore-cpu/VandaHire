@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '../_lib/email.js'
+import { sendPushToWorker } from '../_lib/push.js'
 
 // Single cron function — dispatches by ?job= parameter
 // Vercel cron hits: /api/cron?job=shift-reminders, /api/cron?job=balance-reminders, etc.
@@ -33,7 +34,7 @@ async function shiftReminders(supabase) {
   // Get assignments for events happening in next 24-72 hours
   const { data: assignments, error } = await supabase
     .from('assignments')
-    .select('id, shift_sent_at, status, pay_rate, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, dress_code )')
+    .select('id, worker_id, shift_sent_at, status, pay_rate, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, dress_code )')
     .in('status', ['confirmed', 'invited'])
     .is('check_in_time', null)
 
@@ -106,6 +107,22 @@ async function shiftReminders(supabase) {
         sent++
       } catch (e) {
         console.error(`[cron/shift-reminders] Email failed for assignment ${a.id}:`, e.message)
+      }
+    }
+
+    // ── Push notification: 24h out for confirmed workers ──
+    if (isIn24h && a.status === 'confirmed' && a.worker_id) {
+      try {
+        await sendPushToWorker(
+          supabase,
+          a.worker_id,
+          `Shift Tomorrow — ${event.title}`,
+          `${formatTime(event.start_time)} at ${event.location}, ${event.city}. Arrive 10 min early.`,
+          '/my-shifts',
+          'shift-reminder-24h'
+        )
+      } catch (e) {
+        console.error(`[cron/shift-reminders] Push failed for assignment ${a.id}:`, e.message)
       }
     }
   }
@@ -472,7 +489,7 @@ async function autoReviewTimeout(supabase) {
   // Pick up both 'pending' and 'needs_review' applicants older than 12 hours
   const { data: staleApplicants, error } = await supabase
     .from('applicants')
-    .select('id, first_name, email, score_breakdown, created_at')
+    .select('id, first_name, email, phone, score_breakdown, created_at')
     .in('status', ['pending', 'needs_review'])
     .lt('created_at', twelveHoursAgo)
 
@@ -502,15 +519,24 @@ async function autoReviewTimeout(supabase) {
     if (newStatus === 'approved') {
       approved++
       if (applicant.email) {
+        const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
+        const ph = encodeURIComponent(applicant.phone || '')
         try {
           await sendEmail({
             to: applicant.email,
-            subject: 'You\'re Approved! Complete Your Verification — V&A Hire',
+            subject: 'You\'re Approved! Complete Your Onboarding — V&A Hire',
             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-              <h2 style="color:#ffffff">Welcome to V&A Hire, ${applicant.first_name}!</h2>
-              <p>Your application has been approved! Complete your verification video to start claiming shifts:</p>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/verify" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Record Verification Video</a></td></tr></table>
-              <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+              <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Welcome to V&A Hire, ${applicant.first_name}!</h2>
+              <p>Great news — your application has been approved!</p>
+              <p>Complete these <strong>4 quick steps</strong> to start claiming shifts:</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>1. Verification Video</strong><br/>Record a short intro video</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/verify" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Record Video</a></td></tr>
+                <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>2. ID Upload</strong><br/>Upload a valid government ID</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/id-upload/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Upload ID</a></td></tr>
+                <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>3. W-9 Form</strong><br/>Complete your tax form</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/w9/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Fill W-9</a></td></tr>
+                <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>4. Background Check</strong><br/>Authorize a quick background check</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/bg-check/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Start Check</a></td></tr>
+              </table>
+              <p style="color:#888;font-size:14px">Once all steps are complete, you'll be eligible to claim shifts immediately.</p>
+              <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
             </div>`,
           })
         } catch (e) { console.error(`[cron/auto-review] Email failed:`, e.message) }

@@ -203,22 +203,22 @@ async function handleApplicants(req, res, supabase) {
     // Auto-send email on status change
     if (status === 'approved' && data.email) {
       try {
-        const verifyUrl = `${process.env.VITE_APP_URL || 'https://vandahire.com'}/verify`
+        const siteUrl = process.env.VITE_APP_URL || 'https://vandahire.com'
+        const ph = encodeURIComponent(data.phone || '')
         await sendEmail({
           to: data.email,
-          subject: 'You\'re Approved! Complete Your Verification — V&A Hire',
+          subject: 'You\'re Approved! Complete Your Onboarding — V&A Hire',
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Welcome to V&A Hire, ${data.first_name}!</h2>
             <p>Great news — your application has been approved!</p>
-            <p>To complete your profile and start claiming shifts, you need to <strong>record a short verification video</strong>. This ensures the safety of our team and clients.</p>
-            <h3>What you'll do:</h3>
-            <ol>
-              <li>Say your full name and tell us why you want to work with V&A Hire</li>
-              <li>Describe a recent work experience where you solved a problem</li>
-            </ol>
-            <p>It takes less than 2 minutes:</p>
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:20px auto"><tr><td align="center" valign="middle" style="background:#ffffff;border-radius:8px"><a href="${verifyUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;mso-padding-alt:0;text-underline-color:#000000">Record Verification Video</a></td></tr></table>
-            <p style="color:#888;font-size:14px">Once your video is reviewed, you'll receive a confirmation email and can start claiming shifts immediately.</p>
+            <p>Complete these <strong>4 quick steps</strong> to start claiming shifts:</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+              <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>1. Verification Video</strong><br/>Record a short intro video</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/verify" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Record Video</a></td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>2. ID Upload</strong><br/>Upload a valid government ID</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/id-upload/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Upload ID</a></td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>3. W-9 Form</strong><br/>Complete your tax form</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/w9/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Fill W-9</a></td></tr>
+              <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>4. Background Check</strong><br/>Authorize a quick background check</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/bg-check/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Start Check</a></td></tr>
+            </table>
+            <p style="color:#888;font-size:14px">Once all steps are complete, you'll be eligible to claim shifts immediately.</p>
             <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
           </div>`,
         })
