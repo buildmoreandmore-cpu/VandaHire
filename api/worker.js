@@ -60,16 +60,9 @@ async function handleCheckin(req, res, supabase) {
     const { phone } = req.query
     if (!phone) return res.status(400).json({ error: 'phone required' })
 
-    const digits = phone.replace(/\D/g, '').slice(-10)
+    const worker = await findByPhone(supabase, phone, 'id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at, bg_check_signed_at, bg_check_cleared, pin_hash')
 
-    const { data: workers, error: wErr } = await supabase
-      .from('applicants')
-      .select('id, first_name, last_name, phone, status, video_url, id_photo_url, w9_signed_at, bg_check_signed_at, bg_check_cleared, pin_hash')
-
-    // Match on last 10 digits to handle any format
-    const worker = (workers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
-
-    if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
     if (!['approved', 'pending', 'needs_review'].includes(worker.status)) return res.status(403).json({ error: 'Not an approved worker' })
 
     const { data: assignments, error: aErr } = await supabase
@@ -1438,10 +1431,11 @@ async function handleIdUpload(req, res, supabase) {
     const { phone } = req.query
     if (!phone) return res.status(400).json({ error: 'phone required' })
 
-    const worker = await findByPhone(supabase, phone, 'id, id_photo_url')
+    const worker = await findByPhone(supabase, phone, 'id, first_name, id_photo_url')
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     return res.status(200).json({
+      first_name: worker.first_name,
       has_id_photo: !!worker.id_photo_url,
     })
   }
@@ -1450,31 +1444,37 @@ async function handleIdUpload(req, res, supabase) {
     const { phone, photo_base64 } = req.body
     if (!phone || !photo_base64) return res.status(400).json({ error: 'phone and photo_base64 required' })
 
-    const digits = phone.replace(/\D/g, '').slice(-10)
-    const { data: allWorkers } = await supabase
-      .from('applicants')
-      .select('id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at, bg_check_cleared')
-    const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
+    const worker = await findByPhone(supabase, phone, 'id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at, bg_check_cleared')
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
 
     // Upload to Supabase Storage
     try {
+      // Detect content type from data URL prefix
+      const mimeMatch = photo_base64.match(/^data:(image\/\w+);base64,/)
+      const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+      const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg'
+
       const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       const bucketName = 'applicant-photos'
-      const filePath = `id-photos/${worker.id}.jpg`
+      const filePath = `id-photos/${worker.id}.${ext}`
 
-      // Ensure bucket exists
+      // Ensure bucket exists (handle race condition gracefully)
       const { data: buckets } = await supabase.storage.listBuckets()
       if (!(buckets || []).find(b => b.name === bucketName)) {
-        await supabase.storage.createBucket(bucketName, { public: true })
+        try {
+          await supabase.storage.createBucket(bucketName, { public: true })
+        } catch (bucketErr) {
+          // Another request may have created it — ignore "already exists" errors
+          if (!bucketErr.message?.includes('already exists')) throw bucketErr
+        }
       }
 
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filePath, buffer, {
-          contentType: 'image/jpeg',
+          contentType,
           upsert: true,
         })
 

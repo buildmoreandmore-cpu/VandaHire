@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import imageCompression from 'browser-image-compression'
 
 export default function IdUploadPage({ phone: phoneParam }) {
   const [phone, setPhone] = useState(phoneParam || '')
@@ -6,7 +7,9 @@ export default function IdUploadPage({ phone: phoneParam }) {
   const [worker, setWorker] = useState(null)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [compressing, setCompressing] = useState(false)
   const [preview, setPreview] = useState(null)
+  const [compressedFile, setCompressedFile] = useState(null)
   const [done, setDone] = useState(false)
   const fileRef = useRef(null)
 
@@ -24,18 +27,18 @@ export default function IdUploadPage({ phone: phoneParam }) {
     }
 
     try {
-      const res = await fetch(`/api/checkin?phone=${encodeURIComponent(digits)}`)
+      const res = await fetch(`/api/id-upload?phone=${encodeURIComponent(digits)}`)
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || 'Worker not found. Please make sure you have applied first.')
         setStep('lookup')
         return
       }
-      const w = data.worker || data
-      setWorker(w)
+
+      setWorker({ first_name: data.first_name })
 
       // Check if ID already uploaded
-      if (w.id_photo_url) {
+      if (data.has_id_photo) {
         setDone(true)
         setStep('done')
         return
@@ -47,23 +50,47 @@ export default function IdUploadPage({ phone: phoneParam }) {
     }
   }
 
-  function handleFileSelect(e) {
+  async function handleFileSelect(e) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum 10MB.')
+    if (file.size > 20 * 1024 * 1024) {
+      setError('File too large. Maximum 20MB.')
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => setPreview(reader.result)
-    reader.readAsDataURL(file)
     setError('')
+    setCompressing(true)
+
+    try {
+      // Compress and convert to JPEG (handles HEIC, PNG, WebP, etc.)
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: 'image/jpeg',
+      })
+
+      // Generate preview from the compressed file
+      const reader = new FileReader()
+      reader.onload = () => {
+        setPreview(reader.result)
+        setCompressedFile(compressed)
+        setCompressing(false)
+      }
+      reader.onerror = () => {
+        setError('Failed to process image. Please try another photo.')
+        setCompressing(false)
+      }
+      reader.readAsDataURL(compressed)
+    } catch {
+      setError('Failed to process image. Please try another photo.')
+      setCompressing(false)
+    }
   }
 
   async function handleUpload() {
-    if (!preview) {
+    if (!preview || !compressedFile) {
       setError('Please select or take a photo of your ID.')
       return
     }
@@ -72,12 +99,20 @@ export default function IdUploadPage({ phone: phoneParam }) {
     setError('')
 
     try {
+      // Read compressed file as base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(compressedFile)
+      })
+
       const res = await fetch('/api/id-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: phone.replace(/\D/g, ''),
-          photo_base64: preview,
+          photo_base64: base64,
         }),
       })
       const data = await res.json()
@@ -177,7 +212,12 @@ export default function IdUploadPage({ phone: phoneParam }) {
               style={{ display: 'none' }}
             />
 
-            {!preview ? (
+            {compressing ? (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <div style={{ width: 48, height: 48, border: '4px solid #333', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
+                <p style={{ color: '#aaa' }}>Processing photo...</p>
+              </div>
+            ) : !preview ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -190,7 +230,7 @@ export default function IdUploadPage({ phone: phoneParam }) {
               <div style={{ marginBottom: 16 }}>
                 <img src={preview} alt="ID Preview" style={{ width: '100%', borderRadius: 8, marginBottom: 12 }} />
                 <button
-                  onClick={() => { setPreview(null); if (fileRef.current) fileRef.current.value = '' }}
+                  onClick={() => { setPreview(null); setCompressedFile(null); if (fileRef.current) fileRef.current.value = '' }}
                   style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '8px 16px', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
                 >
                   Retake Photo
@@ -200,11 +240,11 @@ export default function IdUploadPage({ phone: phoneParam }) {
 
             <button
               onClick={handleUpload}
-              disabled={uploading || !preview}
+              disabled={uploading || !preview || compressing}
               style={{
                 width: '100%', padding: 16, borderRadius: 8, border: 'none',
                 background: '#fff', color: '#000', fontSize: 16, fontWeight: 600,
-                cursor: uploading ? 'not-allowed' : 'pointer', opacity: (uploading || !preview) ? 0.5 : 1,
+                cursor: (uploading || compressing) ? 'not-allowed' : 'pointer', opacity: (uploading || !preview || compressing) ? 0.5 : 1,
                 marginTop: 16,
               }}
             >
