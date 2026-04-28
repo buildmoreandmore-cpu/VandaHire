@@ -1,5 +1,24 @@
 import { createClient } from '@supabase/supabase-js'
 
+const MAIN_GROUP_CODE = 'all-workers'
+
+async function resolveGroupId(supabase, code) {
+  if (!code) return null
+  const { data } = await supabase
+    .from('worker_groups')
+    .select('id')
+    .eq('code', code)
+    .eq('archived', false)
+    .single()
+  return data?.id || null
+}
+
+async function enrollInGroup(supabase, groupId, workerId) {
+  if (!groupId || !workerId) return
+  await supabase.from('worker_group_members')
+    .upsert({ group_id: groupId, worker_id: workerId }, { onConflict: 'group_id,worker_id', ignoreDuplicates: true })
+}
+
 export default async function handler(req, res) {
   // GET /api/submit?upcoming=1 — public list of featured upcoming event groups
   if (req.method === 'GET' && req.query.upcoming) {
@@ -72,27 +91,24 @@ export default async function handler(req, res) {
       .single()
 
     if (existing) {
-      // Still enroll in group if from recruitment link
-      if (source_group_code) {
-        try {
-          const { data: group } = await supabase
-            .from('worker_groups')
-            .select('id')
-            .eq('code', source_group_code)
-            .eq('archived', false)
-            .single()
-          if (group) {
-            await supabase.from('worker_group_members')
-              .upsert({ group_id: group.id, worker_id: existing.id }, { onConflict: 'group_id,worker_id', ignoreDuplicates: true })
-            // Tag source group if not already set
-            await supabase.from('applicants')
-              .update({ source_group_id: group.id })
-              .eq('id', existing.id)
-              .is('source_group_id', null)
-          }
-        } catch (err) {
-          console.error('[submit] Duplicate group enrollment error:', err)
+      // Always enroll in master roster + source event group (idempotent upserts)
+      try {
+        const [mainGroupId, sourceGroupId] = await Promise.all([
+          resolveGroupId(supabase, MAIN_GROUP_CODE),
+          resolveGroupId(supabase, source_group_code),
+        ])
+        await Promise.all([
+          enrollInGroup(supabase, mainGroupId, existing.id),
+          enrollInGroup(supabase, sourceGroupId, existing.id),
+        ])
+        if (sourceGroupId) {
+          await supabase.from('applicants')
+            .update({ source_group_id: sourceGroupId })
+            .eq('id', existing.id)
+            .is('source_group_id', null)
         }
+      } catch (err) {
+        console.error('[submit] Duplicate group enrollment error:', err)
       }
       return res.status(200).json({ success: true, applicantId: existing.id, decision: existing.status, duplicate: true })
     }
@@ -100,21 +116,11 @@ export default async function handler(req, res) {
     // No duplicate found — continue with insert
   }
 
-  // 2. Resolve source group if recruitment link was used
-  let sourceGroupId = null
-  if (source_group_code) {
-    try {
-      const { data: group } = await supabase
-        .from('worker_groups')
-        .select('id')
-        .eq('code', source_group_code)
-        .eq('archived', false)
-        .single()
-      if (group) sourceGroupId = group.id
-    } catch (err) {
-      // Group not found — continue without tagging
-    }
-  }
+  // 2. Resolve master + source groups in parallel
+  const [mainGroupId, sourceGroupId] = await Promise.all([
+    resolveGroupId(supabase, MAIN_GROUP_CODE),
+    resolveGroupId(supabase, source_group_code),
+  ])
 
   // 3. Write applicant to Supabase — data is never lost
   let applicantId
@@ -150,13 +156,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to save application' })
   }
 
-  // 3b. Auto-add to group members if from recruitment link
-  if (sourceGroupId && applicantId) {
-    try {
-      await supabase.from('worker_group_members').insert({ group_id: sourceGroupId, worker_id: applicantId })
-    } catch (err) {
-      console.error('[submit] Group member insert error:', err)
-    }
+  // 3b. Enroll in master roster + source event group (idempotent)
+  try {
+    await Promise.all([
+      enrollInGroup(supabase, mainGroupId, applicantId),
+      enrollInGroup(supabase, sourceGroupId, applicantId),
+    ])
+  } catch (err) {
+    console.error('[submit] Group member enroll error:', err)
   }
 
   // 3. Upload photo to Supabase Storage if provided
