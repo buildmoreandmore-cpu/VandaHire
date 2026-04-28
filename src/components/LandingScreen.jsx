@@ -3,6 +3,7 @@ import { useNavigate } from '../Router.jsx'
 import VandaLogo from './VandaLogo.jsx'
 import Footer from './Footer.jsx'
 import InstallPrompt from './InstallPrompt.jsx'
+import UpcomingEventsBlock from './UpcomingEventsBlock.jsx'
 
 // SVG icons for roles
 const IconBroom = () => (
@@ -159,6 +160,9 @@ export default function LandingScreen({ onStart }) {
       <div className="max-w-[520px] mx-auto w-full px-6 pt-4">
         <InstallPrompt />
       </div>
+
+      {/* Upcoming events — tap a card to join that event's crew (replaces QR/link flow) */}
+      <UpcomingEventsBlock />
 
       {/* Hero */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
