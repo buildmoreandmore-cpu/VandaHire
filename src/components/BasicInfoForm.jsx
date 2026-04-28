@@ -223,7 +223,7 @@ function Field({ label, error, children }) {
   )
 }
 
-export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError, onBack }) {
+export default function BasicInfoForm({ formData, onChange, onSubmit, submitting, submitError, onBack, bgCheckRequired = false }) {
   const [errors, setErrors] = useState({})
   const [section, setSection] = useState(1) // Progressive disclosure: 1 = basics, 2 = screening
 
@@ -360,6 +360,19 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               selected={formData.roles}
               onChange={val => set('roles', val)}
             />
+            <input
+              type="text"
+              placeholder="Other roles (e.g. Bar Back, VIP Runner) — comma separated"
+              value={formData.other_roles_text || ''}
+              onChange={(e) => {
+                const text = e.target.value
+                const extras = text.split(',').map(s => s.trim()).filter(Boolean)
+                const baseRoles = (formData.roles || []).filter(r => ROLES.includes(r))
+                set('other_roles_text', text)
+                set('roles', [...baseRoles, ...extras])
+              }}
+              className="mt-3 w-full bg-p-surface border border-p-border rounded-lg px-4 py-2.5 text-white text-sm placeholder-p-muted focus:outline-none focus:border-p-green transition-colors"
+            />
           </Field>
 
           <Field label="General Availability" error={errors.availability}>
@@ -492,14 +505,16 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               </button>
             </div>
 
-            <div className="mt-4 px-1">
-              <div className="flex items-start gap-2 bg-[#1a1207] border border-[#3d2e0a] rounded-lg px-4 py-3">
-                <span className="text-yellow-500 text-sm mt-0.5 flex-shrink-0">&#9888;</span>
-                <p className="text-yellow-500/90 text-xs leading-relaxed">
-                  <strong>All workers must pass a background check</strong> before being assigned to shifts. You will be asked to complete a background check consent form as part of onboarding.
-                </p>
+            {bgCheckRequired && (
+              <div className="mt-4 px-1">
+                <div className="flex items-start gap-2 bg-[#1a1207] border border-[#3d2e0a] rounded-lg px-4 py-3">
+                  <span className="text-yellow-500 text-sm mt-0.5 flex-shrink-0">&#9888;</span>
+                  <p className="text-yellow-500/90 text-xs leading-relaxed">
+                    <strong>This event requires a background check.</strong> You'll complete a background check consent form as part of onboarding before being assigned to shifts.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

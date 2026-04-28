@@ -41,6 +41,8 @@ export default function EventRequestForm({ onSuccess }) {
     service_tier: 'labor_supply',
     service_type: 'single_event',
     meeting_point: '', supervisor_name: '', supervisor_phone: '',
+    custom_roles_text: '',
+    bg_check_required: false,
     briefing_required: false,
     briefing_mode: 'fixed', // 'fixed' | 'slots'
     briefing_date: '', briefing_time: '', briefing_location: '',
@@ -101,8 +103,14 @@ export default function EventRequestForm({ onSuccess }) {
     setError(null)
 
     try {
+      const customRoles = form.custom_roles_text
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      const mergedRoles = Array.from(new Set([...(form.role_types || []), ...customRoles]))
       const payload = {
         ...form,
+        role_types: mergedRoles,
         workers_needed: parseInt(form.workers_needed, 10) || 1,
         briefing_slots: form.briefing_mode === 'slots' ? form.briefing_slots : [],
         briefing_date: form.briefing_mode === 'fixed' ? form.briefing_date : null,
@@ -294,8 +302,26 @@ export default function EventRequestForm({ onSuccess }) {
                 </button>
               ))}
             </div>
+            <input
+              className={`${inputCls} mt-3`}
+              placeholder="Add custom roles (e.g. Bar Backs, VIP Runners) — comma separated"
+              value={form.custom_roles_text}
+              onChange={set('custom_roles_text')}
+            />
           </div>
           <input className={inputCls} placeholder="Dress Code / Requirements" value={form.dress_code} onChange={set('dress_code')} />
+          <div className="flex items-center justify-between bg-p-surface border border-p-border rounded-lg px-4 py-3">
+            <span className="text-white text-sm">Background check required for this event?</span>
+            <button
+              type="button"
+              onClick={() => setBool('bg_check_required')(!form.bg_check_required)}
+              className={`w-10 h-5 rounded-full transition-all duration-200 relative ${form.bg_check_required ? 'bg-p-green' : 'bg-p-border'}`}
+              aria-pressed={form.bg_check_required}
+              aria-label="Toggle background check requirement"
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 ${form.bg_check_required ? 'left-5' : 'left-0.5'}`} />
+            </button>
+          </div>
         </Section>
 
         {/* On-Site Info */}

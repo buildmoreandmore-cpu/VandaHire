@@ -37,7 +37,14 @@ export default function App({ groupCode }) {
     if (!groupCode) return
     fetch(`/api/submit?group_code=${encodeURIComponent(groupCode)}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setGroupInfo(data) })
+      .then(data => {
+        if (data) {
+          setGroupInfo(data)
+          // Joining via an event card → skip the marketing landing and drop
+          // straight into the application form for that event.
+          setScreen(SCREENS.APPLICATION)
+        }
+      })
       .catch(() => {})
   }, [groupCode])
 
@@ -84,6 +91,7 @@ export default function App({ groupCode }) {
           submitting={submitting}
           submitError={submitError}
           onBack={() => setScreen(SCREENS.LANDING)}
+          bgCheckRequired={!!groupInfo?.bg_check_required}
         />
       )}
       {screen === SCREENS.SUBMITTED && (

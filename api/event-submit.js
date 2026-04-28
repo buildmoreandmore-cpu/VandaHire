@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     service_type, meeting_point, supervisor_name, supervisor_phone,
     briefing_required, briefing_date, briefing_time, briefing_location, briefing_slots,
     latitude, longitude,
+    bg_check_required,
   } = req.body
 
   const missing = []
@@ -65,11 +66,37 @@ export default async function handler(req, res) {
         latitude: latitude || null,
         longitude: longitude || null,
         organizer_token,
+        bg_check_required: !!bg_check_required,
       })
       .select('id, organizer_token')
       .single()
 
     if (error) throw error
+
+    // Auto-create a featured recruitment group so this event lands on the
+    // public landing page's "Upcoming events" block. Workers tap the card →
+    // /join/<code> → applicant lands in this group automatically.
+    try {
+      const slug = (title || 'event').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+      const dateSlug = event_date ? event_date.slice(0, 7) : ''
+      const rand = Math.random().toString(36).slice(2, 6)
+      const code = [slug, dateSlug, rand].filter(Boolean).join('-')
+      await supabase.from('worker_groups').insert({
+        name: title,
+        code,
+        type: 'recruitment',
+        description: `Crew sign-up for ${title}${event_date ? ` on ${event_date}` : ''}.`,
+        featured: true,
+        archived: false,
+        event_date: event_date || null,
+        event_end_date: null,
+        event_location: location || '',
+        event_city: city || '',
+        bg_check_required: !!bg_check_required,
+      })
+    } catch (gErr) {
+      console.error('[event-submit] auto worker_group error:', gErr)
+    }
 
     // Auto-generate quote using AI quote engine
     let autoQuoteData = null
