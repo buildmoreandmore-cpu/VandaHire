@@ -1,6 +1,26 @@
 import { createClient } from '@supabase/supabase-js'
 
 export default async function handler(req, res) {
+  // GET /api/submit?upcoming=1 — public list of featured upcoming event groups
+  if (req.method === 'GET' && req.query.upcoming) {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const today = new Date().toISOString().slice(0, 10)
+    const { data, error } = await supabase
+      .from('worker_groups')
+      .select('id, code, name, description, event_date, event_end_date, event_location, event_city')
+      .eq('featured', true)
+      .eq('archived', false)
+      .or(`event_date.gte.${today},event_end_date.gte.${today}`)
+      .order('event_date', { ascending: true })
+      .limit(6)
+    if (error) {
+      console.error('[submit] upcoming events error:', error)
+      return res.status(500).json({ error: 'Failed to load upcoming events' })
+    }
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+    return res.status(200).json(data || [])
+  }
+
   // GET /api/submit?group_code=X — public group info for join pages
   if (req.method === 'GET') {
     const { group_code } = req.query

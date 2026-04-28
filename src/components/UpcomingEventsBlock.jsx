@@ -48,7 +48,7 @@ export default function UpcomingEventsBlock() {
 
   useEffect(() => {
     let alive = true
-    fetch('/api/upcoming-events')
+    fetch('/api/submit?upcoming=1')
       .then(r => r.ok ? r.json() : [])
       .then(data => { if (alive) setEvents(Array.isArray(data) ? data : []) })
       .catch(() => { if (alive) setEvents([]) })
