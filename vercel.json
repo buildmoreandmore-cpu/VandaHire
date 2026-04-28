@@ -47,6 +47,6 @@
     { "source": "/api/session-check", "destination": "/api/worker?route=session-check" },
     { "source": "/api/supervisor-dashboard", "destination": "/api/worker?route=supervisor-dashboard" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*).*)", "destination": "/index.html" }
+    { "source": "/((?!api|robots\\.txt|sitemap\\.xml|sw\\.js|sw-custom\\.js|manifest\\.webmanifest|registerSW\\.js|workbox-.*|favicon\\.ico|favicon-.*\\.png|icon-.*\\.png|logo\\.png|og-image\\.png).*)", "destination": "/index.html" }
   ]
 }
