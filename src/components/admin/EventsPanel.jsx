@@ -1247,7 +1247,7 @@ export default function EventsPanel() {
                     <button
                       onClick={() => {
                         setEditingEvent(ev.id)
-                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '' })
+                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types_text: (ev.role_types || []).join(', '), bg_check_required: !!ev.bg_check_required })
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors"
                     >Edit Event</button>
@@ -1318,7 +1318,7 @@ export default function EventsPanel() {
                           { key: 'end_time', label: 'End Time', type: 'time' },
                           { key: 'workers_needed', label: 'Workers Needed', type: 'number' },
                           { key: 'pay_rate', label: 'Pay Rate' },
-                          { key: 'dress_code', label: 'Dress Code' },
+                          { key: 'dress_code', label: 'Dress Code / Uniform' },
                           { key: 'notes', label: 'Notes' },
                         ].map(f => (
                           <div key={f.key}>
@@ -1331,14 +1331,34 @@ export default function EventsPanel() {
                             />
                           </div>
                         ))}
+                        <div className="col-span-2 sm:col-span-3">
+                          <label className="text-p-muted text-[10px]">Role Types (comma separated — e.g. Janitorial, Bar Backs, VIP Runners)</label>
+                          <input
+                            type="text"
+                            value={eventEditForm.role_types_text || ''}
+                            onChange={e => setEventEditForm(prev => ({ ...prev, role_types_text: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5"
+                          />
+                        </div>
+                        <label className="col-span-2 sm:col-span-3 flex items-center gap-2 text-xs text-white mt-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!eventEditForm.bg_check_required}
+                            onChange={e => setEventEditForm(prev => ({ ...prev, bg_check_required: e.target.checked }))}
+                            className="accent-p-green"
+                          />
+                          Background check required for this event
+                        </label>
                       </div>
                       <div className="flex gap-2">
                         <button
                           onClick={async () => {
                             setUpdating(ev.id)
                             try {
-                              const fields = { ...eventEditForm }
+                              const { role_types_text, ...rest } = eventEditForm
+                              const fields = { ...rest }
                               if (fields.workers_needed) fields.workers_needed = parseInt(fields.workers_needed, 10)
+                              fields.role_types = (role_types_text || '').split(',').map(s => s.trim()).filter(Boolean)
                               await updateEvent(ev.id, fields)
                               setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, ...fields } : x))
                               setEditingEvent(null)
