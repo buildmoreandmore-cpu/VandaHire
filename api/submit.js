@@ -6,11 +6,18 @@ async function resolveGroupId(supabase, code) {
   if (!code) return null
   const { data } = await supabase
     .from('worker_groups')
-    .select('id')
+    .select('id, event_date, event_end_date, evergreen')
     .eq('code', code)
     .eq('archived', false)
     .single()
-  return data?.id || null
+  if (!data) return null
+  // Skip past events so stale links can't enroll new applicants
+  if (!data.evergreen) {
+    const today = new Date().toISOString().slice(0, 10)
+    const expiresAfter = data.event_end_date || data.event_date
+    if (expiresAfter && expiresAfter < today) return null
+  }
+  return data.id
 }
 
 async function enrollInGroup(supabase, groupId, workerId) {
@@ -26,11 +33,11 @@ export default async function handler(req, res) {
     const today = new Date().toISOString().slice(0, 10)
     const { data, error } = await supabase
       .from('worker_groups')
-      .select('id, code, name, description, event_date, event_end_date, event_location, event_city')
+      .select('id, code, name, description, event_date, event_end_date, event_location, event_city, evergreen')
       .eq('featured', true)
       .eq('archived', false)
-      .or(`event_date.gte.${today},event_end_date.gte.${today}`)
-      .order('event_date', { ascending: true })
+      .or(`evergreen.eq.true,event_date.gte.${today},event_end_date.gte.${today}`)
+      .order('event_date', { ascending: true, nullsFirst: false })
       .limit(6)
     if (error) {
       console.error('[submit] upcoming events error:', error)
@@ -47,11 +54,20 @@ export default async function handler(req, res) {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const { data, error } = await supabase
       .from('worker_groups')
-      .select('name, description, type, bg_check_required')
+      .select('name, description, type, bg_check_required, event_date, event_end_date, evergreen')
       .eq('code', group_code)
       .eq('archived', false)
       .single()
     if (error || !data) return res.status(404).json({ error: 'Group not found' })
+    // Block past events — evergreen groups never expire; date-bound groups
+    // expire the day after event_end_date (or event_date if single-day).
+    if (!data.evergreen) {
+      const today = new Date().toISOString().slice(0, 10)
+      const expiresAfter = data.event_end_date || data.event_date
+      if (expiresAfter && expiresAfter < today) {
+        return res.status(410).json({ error: 'This event has already ended', ended: true, name: data.name })
+      }
+    }
     return res.status(200).json(data)
   }
 

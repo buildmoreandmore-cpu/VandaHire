@@ -1908,12 +1908,25 @@ async function handleGroups(req, res, supabase) {
   }
 
   if (req.method === 'POST') {
-    const { name, type, description } = req.body
+    const { name, type, description, featured, evergreen, event_date, event_end_date, event_location, event_city, bg_check_required } = req.body
     if (!name || !type) return res.status(400).json({ error: 'name and type required' })
     const code = slugify(name) + '-' + randomSuffix()
     const { data, error } = await supabase
       .from('worker_groups')
-      .insert({ name, code, type, description: description || '', archived: false })
+      .insert({
+        name,
+        code,
+        type,
+        description: description || '',
+        archived: false,
+        featured: !!featured,
+        evergreen: !!evergreen,
+        event_date: event_date || null,
+        event_end_date: event_end_date || null,
+        event_location: event_location || null,
+        event_city: event_city || null,
+        bg_check_required: !!bg_check_required,
+      })
       .select()
       .single()
     if (error) throw error
@@ -1924,9 +1937,8 @@ async function handleGroups(req, res, supabase) {
     const { id, ...fields } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const allowed = {}
-    if (fields.name !== undefined) allowed.name = fields.name
-    if (fields.description !== undefined) allowed.description = fields.description
-    if (fields.archived !== undefined) allowed.archived = fields.archived
+    const editable = ['name', 'description', 'archived', 'featured', 'evergreen', 'event_date', 'event_end_date', 'event_location', 'event_city', 'bg_check_required']
+    for (const f of editable) if (fields[f] !== undefined) allowed[f] = fields[f]
     allowed.updated_at = new Date().toISOString()
     const { data, error } = await supabase.from('worker_groups').update(allowed).eq('id', id).select().single()
     if (error) throw error

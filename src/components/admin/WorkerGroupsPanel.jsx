@@ -28,6 +28,13 @@ export default function WorkerGroupsPanel() {
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState('crew')
   const [newDesc, setNewDesc] = useState('')
+  const [newFeatured, setNewFeatured] = useState(false)
+  const [newEvergreen, setNewEvergreen] = useState(false)
+  const [newEventDate, setNewEventDate] = useState('')
+  const [newEventEndDate, setNewEventEndDate] = useState('')
+  const [newLocation, setNewLocation] = useState('')
+  const [newCity, setNewCity] = useState('')
+  const [newBgCheck, setNewBgCheck] = useState(false)
   const [creating, setCreating] = useState(false)
 
   const load = async () => {
@@ -54,9 +61,21 @@ export default function WorkerGroupsPanel() {
     if (!newName.trim()) return
     setCreating(true)
     try {
-      await createGroup({ name: newName.trim(), type: newType, description: newDesc.trim() })
-      setNewName('')
-      setNewDesc('')
+      await createGroup({
+        name: newName.trim(),
+        type: newType,
+        description: newDesc.trim(),
+        featured: newFeatured,
+        evergreen: newEvergreen,
+        event_date: newEventDate || null,
+        event_end_date: newEventEndDate || null,
+        event_location: newLocation.trim() || null,
+        event_city: newCity.trim() || null,
+        bg_check_required: newBgCheck,
+      })
+      setNewName(''); setNewDesc(''); setNewFeatured(false); setNewEvergreen(false)
+      setNewEventDate(''); setNewEventEndDate(''); setNewLocation(''); setNewCity('')
+      setNewBgCheck(false)
       setShowCreate(false)
       await load()
     } catch (err) {
@@ -335,6 +354,48 @@ export default function WorkerGroupsPanel() {
                   rows={2}
                   className="w-full bg-[#0a0a0a] border border-p-border rounded px-3 py-2 text-white text-sm resize-none"
                 />
+              </div>
+
+              <div className="border-t border-p-border pt-3 mt-1">
+                <p className="text-p-muted text-[11px] uppercase tracking-wider mb-2">Landing-page event card (recruitment groups)</p>
+
+                <label className="flex items-center gap-2 text-white text-xs cursor-pointer mb-2">
+                  <input type="checkbox" checked={newFeatured} onChange={e => setNewFeatured(e.target.checked)} className="accent-p-green" />
+                  Show on the public landing page
+                </label>
+
+                <label className="flex items-center gap-2 text-white text-xs cursor-pointer mb-3">
+                  <input
+                    type="checkbox"
+                    checked={newEvergreen}
+                    onChange={e => { setNewEvergreen(e.target.checked); if (e.target.checked) { setNewEventDate(''); setNewEventEndDate('') } }}
+                    className="accent-p-green"
+                  />
+                  Always hiring (no end date — stays pinned)
+                </label>
+
+                {!newEvergreen && (
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <label className="text-p-muted text-[10px] block mb-1">Start date</label>
+                      <input type="date" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} className="w-full bg-[#0a0a0a] border border-p-border rounded px-2 py-1.5 text-white text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-p-muted text-[10px] block mb-1">End date (optional)</label>
+                      <input type="date" value={newEventEndDate} onChange={e => setNewEventEndDate(e.target.value)} className="w-full bg-[#0a0a0a] border border-p-border rounded px-2 py-1.5 text-white text-xs" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <input value={newLocation} onChange={e => setNewLocation(e.target.value)} placeholder="Venue / Location" className="w-full bg-[#0a0a0a] border border-p-border rounded px-2 py-1.5 text-white text-xs" />
+                  <input value={newCity} onChange={e => setNewCity(e.target.value)} placeholder="City, ST" className="w-full bg-[#0a0a0a] border border-p-border rounded px-2 py-1.5 text-white text-xs" />
+                </div>
+
+                <label className="flex items-center gap-2 text-white text-xs cursor-pointer">
+                  <input type="checkbox" checked={newBgCheck} onChange={e => setNewBgCheck(e.target.checked)} className="accent-p-green" />
+                  Background check required
+                </label>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

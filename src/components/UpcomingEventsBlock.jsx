@@ -75,7 +75,7 @@ export default function UpcomingEventsBlock() {
             <div className="relative">
               <div className="flex items-baseline justify-between gap-3 mb-2">
                 <span className="text-p-green text-[11px] tracking-widest uppercase font-bold">
-                  {formatRange(ev.event_date, ev.event_end_date)}
+                  {ev.evergreen || !ev.event_date ? 'Always hiring' : formatRange(ev.event_date, ev.event_end_date)}
                 </span>
               </div>
               <h3 className="font-inter text-white font-bold text-lg leading-tight mb-2 group-hover:text-p-green transition-colors">
