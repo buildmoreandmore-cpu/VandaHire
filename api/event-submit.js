@@ -86,8 +86,9 @@ export default async function handler(req, res) {
         code,
         type: 'recruitment',
         description: `Crew sign-up for ${title}${event_date ? ` on ${event_date}` : ''}.`,
-        // Public form — admin must opt-in to landing exposure to prevent spam.
-        featured: false,
+        // Auto-post to landing on submission. If spam becomes an issue,
+        // admin can archive via Worker Groups → Archive.
+        featured: true,
         archived: false,
         event_date: event_date || null,
         event_end_date: null,

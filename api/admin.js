@@ -297,7 +297,7 @@ async function handleEvents(req, res, supabase) {
     return res.status(200).json(data)
   }
   if (req.method === 'POST') {
-    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, contact_name, contact_email, contact_phone } = req.body
+    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, contact_name, contact_email, contact_phone, bg_check_required } = req.body
     if (!title) return res.status(400).json({ error: 'title required' })
     const insert = { title, status: 'pending' }
     if (organizer) insert.organizer = organizer
@@ -316,8 +316,34 @@ async function handleEvents(req, res, supabase) {
     if (contact_name) insert.contact_name = contact_name
     if (contact_email) insert.contact_email = contact_email
     if (contact_phone) insert.contact_phone = contact_phone
+    if (bg_check_required !== undefined) insert.bg_check_required = !!bg_check_required
     const { data, error } = await supabase.from('events').insert(insert).select().single()
     if (error) throw error
+
+    // Admin-created events are trusted — auto-create a featured recruitment
+    // worker_group so this event lands on the public Upcoming Events block
+    // immediately (joinable via /join/<code>).
+    try {
+      const slug = (title || 'event').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+      const dateSlug = event_date ? event_date.slice(0, 7) : ''
+      const code = [slug, dateSlug, randomSuffix()].filter(Boolean).join('-')
+      await supabase.from('worker_groups').insert({
+        name: title,
+        code,
+        type: 'recruitment',
+        description: `Crew sign-up for ${title}${event_date ? ` on ${event_date}` : ''}.`,
+        featured: true,
+        archived: false,
+        event_date: event_date || null,
+        event_end_date: null,
+        event_location: location || '',
+        event_city: city || '',
+        bg_check_required: !!bg_check_required,
+      })
+    } catch (gErr) {
+      console.error('[admin/events POST] auto worker_group error:', gErr)
+    }
+
     return res.status(200).json(data)
   }
   if (req.method === 'PATCH') {
