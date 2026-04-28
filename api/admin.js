@@ -381,6 +381,16 @@ async function handleEvents(req, res, supabase) {
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
     const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single()
     if (error) throw error
+    // If event was cancelled or completed, archive the matching landing card
+    if (updates.status === 'cancelled' || updates.status === 'completed') {
+      try {
+        let q = supabase.from('worker_groups').update({ archived: true, updated_at: new Date().toISOString() }).eq('name', data.title).eq('type', 'recruitment')
+        if (data.event_date) q = q.eq('event_date', data.event_date)
+        await q
+      } catch (gErr) {
+        console.error('[admin/events PATCH] archive worker_group error:', gErr)
+      }
+    }
     // Auto-notify matching workers when event moves to staffing
     if (updates.status === 'staffing') {
       try {
@@ -407,6 +417,8 @@ async function handleEvents(req, res, supabase) {
   if (req.method === 'DELETE') {
     const { id } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
+    // Look up the event so we can also archive its landing-page card
+    const { data: ev } = await supabase.from('events').select('title, event_date').eq('id', id).single()
     // Delete related records first, then the event
     await supabase.from('assignments').delete().eq('event_id', id)
     await supabase.from('bench_assignments').delete().eq('event_id', id)
@@ -416,6 +428,16 @@ async function handleEvents(req, res, supabase) {
     await supabase.from('payments').delete().eq('event_id', id)
     const { error } = await supabase.from('events').delete().eq('id', id)
     if (error) throw error
+    // Archive any matching landing-page worker_group so the card disappears
+    if (ev?.title) {
+      try {
+        let q = supabase.from('worker_groups').update({ archived: true, updated_at: new Date().toISOString() }).eq('name', ev.title).eq('type', 'recruitment')
+        if (ev.event_date) q = q.eq('event_date', ev.event_date)
+        await q
+      } catch (gErr) {
+        console.error('[admin/events DELETE] archive worker_group error:', gErr)
+      }
+    }
     return res.status(200).json({ success: true })
   }
   return res.status(405).json({ error: 'Method not allowed' })
