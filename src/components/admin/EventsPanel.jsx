@@ -135,6 +135,10 @@ export default function EventsPanel() {
   // Create-event modal
   const [showCreateModal, setShowCreateModal] = useState(false)
 
+  // Drag state for assign-workers DnD
+  const [dragWorker, setDragWorker] = useState(null)
+  const [dragAssignmentId, setDragAssignmentId] = useState(null)
+
   // Batch operations (Features 3, 8)
   const [batchingShifts, setBatchingShifts] = useState(false)
   const [batchingSurveys, setBatchingSurveys] = useState(false)
@@ -369,6 +373,40 @@ export default function EventsPanel() {
       console.error('Failed to assign:', err)
     }
     setAssigning(false)
+  }
+
+  // Assign a single worker (DnD or +button) and update both lists optimistically.
+  const assignWorker = async (workerId) => {
+    if (!expanded || !workerId) return
+    const worker = availableWorkers.find(w => w.id === workerId)
+    if (!worker) return
+    setAvailableWorkers(prev => prev.filter(w => w.id !== workerId))
+    try {
+      await createAssignments(expanded, [workerId])
+      const data = await fetchAssignments({ event_id: expanded })
+      setAssignments(data)
+    } catch (err) {
+      console.error('Failed to assign:', err)
+      setAvailableWorkers(prev => [worker, ...prev])
+    }
+  }
+
+  // Remove an assignment (DnD or ×button) and put the worker back in the pool.
+  const unassignWorker = async (assignmentId) => {
+    if (!assignmentId) return
+    const a = assignments.find(x => x.id === assignmentId)
+    if (!a) return
+    setAssignments(prev => prev.filter(x => x.id !== assignmentId))
+    try {
+      await deleteAssignment(assignmentId)
+      if (a.applicants) {
+        const w = { ...a.applicants, match_score: null }
+        setAvailableWorkers(prev => prev.some(x => x.id === w.id) ? prev : [w, ...prev])
+      }
+    } catch (err) {
+      console.error('Failed to unassign:', err)
+      setAssignments(prev => [a, ...prev])
+    }
   }
 
   const handleAssignmentStatus = async (assignmentId, status) => {
@@ -1463,72 +1501,125 @@ export default function EventsPanel() {
                     )}
                   </div>
 
-                  {/* Assign Modal */}
+                  {/* Assign Modal — drag-and-drop two-column board */}
                   {showAssignModal && (
-                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" onClick={() => setShowAssignModal(false)}>
-                      <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-md max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowAssignModal(false)}>
+                      <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
-                          <h3 className="text-white font-semibold text-sm">Assign Workers to {ev.title}</h3>
+                          <div>
+                            <h3 className="text-white font-semibold text-sm">Assign Workers · {ev.title}</h3>
+                            <p className="text-p-muted text-[10px] mt-0.5">Drag workers between columns, or use + / × buttons.</p>
+                          </div>
                           <button onClick={() => setShowAssignModal(false)} className="text-p-muted hover:text-white text-lg">×</button>
                         </div>
-                        <div className="p-4 overflow-y-auto max-h-[60vh]">
-                          {availableWorkers.length === 0 ? (
-                            <p className="text-p-muted text-xs text-center py-4">No approved workers available</p>
-                          ) : (
-                            <div className="space-y-1">
-                              {availableWorkers.map(w => {
-                                const score = w.match_score
-                                const scoreBadgeColor = score >= 5 ? 'bg-green-500/20 text-green-400' : score >= 3 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/10 text-p-muted'
-                                return (
-                                  <label key={w.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.03] cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedWorkers.includes(w.id)}
-                                      onChange={() => {
-                                        setSelectedWorkers(prev =>
-                                          prev.includes(w.id) ? prev.filter(id => id !== w.id) : [...prev, w.id]
-                                        )
-                                      }}
-                                      className="accent-[#ffffff]"
-                                    />
-                                    {w.photo_url ? (
-                                      <img src={w.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                    ) : (
-                                      <div className="w-8 h-8 rounded-full bg-p-border flex items-center justify-center">
-                                        <span className="text-p-muted text-xs">{w.first_name?.[0]}{w.last_name?.[0]}</span>
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-white text-xs font-medium">{w.first_name} {w.last_name}</span>
-                                        {score != null && (
-                                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${scoreBadgeColor}`}>
-                                            Match: {score}
-                                          </span>
-                                        )}
-                                        {w.avg_rating != null && (
-                                          <span className="text-[9px] text-yellow-400">★ {w.avg_rating}</span>
-                                        )}
-                                      </div>
-                                      <div className="text-p-muted text-[10px]">{w.city} · {w.roles?.join(', ')}</div>
-                                    </div>
-                                  </label>
-                                )
-                              })}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 overflow-hidden flex-1 min-h-0">
+                          {/* AVAILABLE POOL */}
+                          <div
+                            onDragOver={e => { if (dragAssignmentId) e.preventDefault() }}
+                            onDrop={() => { if (dragAssignmentId) { unassignWorker(dragAssignmentId); setDragAssignmentId(null) } }}
+                            className="bg-p-bg/40 border border-p-border rounded-lg flex flex-col min-h-0"
+                          >
+                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between">
+                              <span className="text-white text-xs font-semibold uppercase tracking-wider">Available pool</span>
+                              <span className="text-p-muted text-[10px]">{availableWorkers.length}</span>
                             </div>
-                          )}
-                        </div>
-                        {availableWorkers.length > 0 && (
-                          <div className="px-4 py-3 border-t border-p-border">
-                            <button
-                              onClick={handleAssign}
-                              disabled={!selectedWorkers.length || assigning}
-                              className="w-full bg-p-green text-black rounded-lg py-2.5 text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition-all"
-                            >
-                              {assigning ? 'Assigning...' : `Assign ${selectedWorkers.length} Worker${selectedWorkers.length !== 1 ? 's' : ''}`}
-                            </button>
+                            <div className="overflow-y-auto p-2 space-y-1 flex-1">
+                              {availableWorkers.length === 0 ? (
+                                <p className="text-p-muted text-xs text-center py-6">No available workers for this event</p>
+                              ) : (
+                                availableWorkers.map(w => {
+                                  const score = w.match_score
+                                  const scoreBadgeColor = score >= 5 ? 'bg-green-500/20 text-green-400' : score >= 3 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/10 text-p-muted'
+                                  return (
+                                    <div
+                                      key={w.id}
+                                      draggable
+                                      onDragStart={() => setDragWorker(w.id)}
+                                      onDragEnd={() => setDragWorker(null)}
+                                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg bg-p-surface border border-p-border hover:border-p-muted cursor-grab active:cursor-grabbing transition-colors ${dragWorker === w.id ? 'opacity-40' : ''}`}
+                                    >
+                                      {w.photo_url ? (
+                                        <img src={w.photo_url} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-p-border flex items-center justify-center flex-shrink-0">
+                                          <span className="text-p-muted text-[10px]">{w.first_name?.[0]}{w.last_name?.[0]}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-white text-xs font-medium truncate">{w.first_name} {w.last_name}</span>
+                                          {score != null && (
+                                            <span className={`px-1 py-0.5 rounded text-[9px] font-semibold ${scoreBadgeColor}`}>{score}</span>
+                                          )}
+                                        </div>
+                                        <div className="text-p-muted text-[10px] truncate">{w.city}</div>
+                                      </div>
+                                      <button
+                                        onClick={() => assignWorker(w.id)}
+                                        className="flex-shrink-0 w-6 h-6 rounded bg-p-green/20 text-p-green hover:bg-p-green/30 text-sm font-bold leading-none"
+                                        title="Assign"
+                                      >+</button>
+                                    </div>
+                                  )
+                                })
+                              )}
+                            </div>
                           </div>
-                        )}
+
+                          {/* ASSIGNED COLUMN */}
+                          <div
+                            onDragOver={e => { if (dragWorker) e.preventDefault() }}
+                            onDrop={() => { if (dragWorker) { assignWorker(dragWorker); setDragWorker(null) } }}
+                            className="bg-p-bg/40 border border-p-border rounded-lg flex flex-col min-h-0"
+                          >
+                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between">
+                              <span className="text-white text-xs font-semibold uppercase tracking-wider">Assigned to this event</span>
+                              <span className="text-p-muted text-[10px]">{assignments.length}{ev.workers_needed ? ` / ${ev.workers_needed}` : ''}</span>
+                            </div>
+                            <div className="overflow-y-auto p-2 space-y-1 flex-1">
+                              {assignments.length === 0 ? (
+                                <p className="text-p-muted text-xs text-center py-6">Drag workers here to assign</p>
+                              ) : (
+                                assignments.map(a => {
+                                  const w = a.applicants || {}
+                                  const statusColor = ASSIGNMENT_COLORS[a.status] || 'bg-white/10 text-p-muted'
+                                  return (
+                                    <div
+                                      key={a.id}
+                                      draggable
+                                      onDragStart={() => setDragAssignmentId(a.id)}
+                                      onDragEnd={() => setDragAssignmentId(null)}
+                                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg bg-p-surface border border-p-border hover:border-p-muted cursor-grab active:cursor-grabbing transition-colors ${dragAssignmentId === a.id ? 'opacity-40' : ''}`}
+                                    >
+                                      {w.photo_url ? (
+                                        <img src={w.photo_url} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-p-border flex items-center justify-center flex-shrink-0">
+                                          <span className="text-p-muted text-[10px]">{w.first_name?.[0]}{w.last_name?.[0]}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-white text-xs font-medium truncate">{w.first_name} {w.last_name}</span>
+                                          <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${statusColor}`}>{a.status?.replace(/_/g, ' ')}</span>
+                                        </div>
+                                        <div className="text-p-muted text-[10px] truncate">{w.city || ''}</div>
+                                      </div>
+                                      <button
+                                        onClick={() => unassignWorker(a.id)}
+                                        className="flex-shrink-0 w-6 h-6 rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 text-sm font-bold leading-none"
+                                        title="Remove"
+                                      >×</button>
+                                    </div>
+                                  )
+                                })
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3 border-t border-p-border flex justify-end">
+                          <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold hover:opacity-90 transition-opacity">Done</button>
+                        </div>
                       </div>
                     </div>
                   )}
