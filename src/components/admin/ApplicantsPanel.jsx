@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
@@ -289,6 +289,20 @@ export default function ApplicantsPanel() {
           <option value="all">All Availability</option>
           {availabilities.map(av => <option key={av} value={av}>{av}</option>)}
         </select>
+        <button
+          onClick={async () => {
+            try { await downloadW9Csv() } catch (err) { alert('Export failed: ' + err.message) }
+          }}
+          className="ml-auto inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
+          title="Download all signed W-9s as CSV (includes decrypted TIN)"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 2v9" />
+            <polyline points="4 7 8 11 12 7" />
+            <line x1="3" y1="14" x2="13" y2="14" />
+          </svg>
+          Export W-9 CSV
+        </button>
       </div>
 
       {/* Bulk Assign Bar */}
@@ -405,6 +419,17 @@ export default function ApplicantsPanel() {
                             Booked · {a.active_booking.event_title}
                           </span>
                         )}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${a.w9_signed_at ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}
+                          title={a.w9_signed_at ? `W-9 signed ${new Date(a.w9_signed_at).toLocaleDateString()}` : 'W-9 not on file'}
+                        >
+                          W-9
+                          {a.w9_signed_at ? (
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="3 8 7 12 13 4" /></svg>
+                          ) : (
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="4" y1="8" x2="12" y2="8" /></svg>
+                          )}
+                        </span>
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                           {a.status?.replace(/_/g, ' ')}
                         </span>
@@ -434,6 +459,23 @@ export default function ApplicantsPanel() {
                             {a.notes && <Detail label="Notes" value={a.notes} />}
                           </div>
                         </div>
+
+                        {/* W-9 details */}
+                        {a.w9_signed_at && (
+                          <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-p-muted text-xs">W-9 on file</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">Signed {new Date(a.w9_signed_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              <Detail label="Legal name" value={a.w9_legal_name} />
+                              {a.w9_business_name && <Detail label="Business" value={a.w9_business_name} />}
+                              <Detail label="Tax class" value={a.w9_tax_class} />
+                              <Detail label="TIN" value={a.w9_tin_last4 ? `••• •• ${a.w9_tin_last4}` : null} />
+                              <Detail label="Address" value={[a.w9_address, a.w9_city, a.w9_state, a.w9_zip].filter(Boolean).join(', ')} />
+                            </div>
+                          </div>
+                        )}
 
                         {/* Verification Video */}
                         {a.video_url ? (

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { checkAdmin } from '../_lib/auth.js'
 import { findByPhone } from '../_lib/phone.js'
@@ -109,7 +110,7 @@ async function handleStats(req, res, supabase) {
 
 async function handleApplicants(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url').order('created_at', { ascending: false })
+    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
     const { status } = req.query
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
@@ -1603,6 +1604,7 @@ export default async function handler(req, res) {
       case 'templates': return await handleTemplates(req, res, supabase)
       case 'groups': return await handleGroups(req, res, supabase)
       case 'group-members': return await handleGroupMembers(req, res, supabase)
+      case 'w9s': return await handleW9s(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2101,4 +2103,72 @@ async function handleGroupMembers(req, res, supabase) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── W-9 VIEWER / EXPORT ─────────────────────────────────────────────────────
+
+function decryptW9Tin(encrypted) {
+  if (!encrypted) return null
+  const key = process.env.W9_ENCRYPTION_KEY
+  if (!key) return null
+  try {
+    const [ivHex, tagHex, encHex] = encrypted.split(':')
+    if (!ivHex || !tagHex || !encHex) return null
+    const iv = Buffer.from(ivHex, 'hex')
+    const tag = Buffer.from(tagHex, 'hex')
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv)
+    decipher.setAuthTag(tag)
+    let decrypted = decipher.update(encHex, 'hex', 'utf8')
+    decrypted += decipher.final('utf8')
+    return decrypted
+  } catch (e) {
+    console.error('[admin/w9s] decrypt failed:', e.message)
+    return null
+  }
+}
+
+function csvEscape(v) {
+  if (v == null) return ''
+  const s = String(v)
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+}
+
+async function handleW9s(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const { export: exportFmt, signed_only } = req.query
+  const wantCsv = exportFmt === 'csv'
+
+  let query = supabase.from('applicants')
+    .select('id, first_name, last_name, email, phone, city, status, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4, w9_tin_encrypted, w9_signed_at, w9_ip')
+    .order('w9_signed_at', { ascending: false, nullsFirst: false })
+
+  if (signed_only === '1' || wantCsv) query = query.not('w9_signed_at', 'is', null)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  if (wantCsv) {
+    const headers = ['signed_at', 'legal_name', 'business_name', 'tax_class', 'address', 'city', 'state', 'zip', 'tin', 'first_name', 'last_name', 'email', 'phone', 'worker_status', 'ip']
+    const rows = [headers.join(',')]
+    for (const a of (data || [])) {
+      const tin = decryptW9Tin(a.w9_tin_encrypted)
+      rows.push([
+        a.w9_signed_at, a.w9_legal_name, a.w9_business_name, a.w9_tax_class,
+        a.w9_address, a.w9_city, a.w9_state, a.w9_zip, tin,
+        a.first_name, a.last_name, a.email, a.phone, a.status, a.w9_ip,
+      ].map(csvEscape).join(','))
+    }
+    const filename = `w9-export-${new Date().toISOString().slice(0, 10)}.csv`
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    return res.status(200).send(rows.join('\n'))
+  }
+
+  // JSON list — never include the encrypted blob or decrypted TIN.
+  const safe = (data || []).map(a => {
+    const { w9_tin_encrypted, ...rest } = a
+    return rest
+  })
+  return res.status(200).json(safe)
 }

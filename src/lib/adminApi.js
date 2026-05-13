@@ -329,3 +329,27 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     method: 'POST',
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
+
+// W-9 viewer / export
+export const fetchW9s = (signedOnly = false) =>
+  adminFetch(`/api/admin/w9s${signedOnly ? '?signed_only=1' : ''}`)
+
+export async function downloadW9Csv() {
+  const token = getToken()
+  const res = await fetch('/api/admin/w9s?export=csv', {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Export failed (${res.status})`)
+  const blob = await res.blob()
+  const cd = res.headers.get('content-disposition') || ''
+  const m = cd.match(/filename="([^"]+)"/)
+  const filename = m ? m[1] : `w9-export-${new Date().toISOString().slice(0, 10)}.csv`
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
