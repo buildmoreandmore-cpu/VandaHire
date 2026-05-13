@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS public.events (
   contact_email               text        NOT NULL,
   contact_phone               text        NOT NULL,
   event_date                  date        NOT NULL,
+  event_end_date              date,                                       -- end of multi-day events; null = single-day or ongoing
+  is_ongoing                  boolean     NOT NULL DEFAULT false,         -- permanent / ongoing position
   start_time                  time        NOT NULL,
   end_time                    time        NOT NULL,
   location                    text        NOT NULL,

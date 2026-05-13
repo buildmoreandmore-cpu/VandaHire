@@ -828,7 +828,13 @@ export default function EventsPanel() {
                   <div className="text-p-muted text-xs truncate">{ev.organizer} · {ev.city}</div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className="text-white text-xs">{formatDate(ev.event_date)}</div>
+                  <div className="text-white text-xs">
+                    {ev.is_ongoing
+                      ? `${formatDate(ev.event_date)} · Ongoing`
+                      : ev.event_end_date && ev.event_end_date !== ev.event_date
+                        ? `${formatDate(ev.event_date)} – ${formatDate(ev.event_end_date)}`
+                        : formatDate(ev.event_date)}
+                  </div>
                   <div className="text-p-muted text-xs">{ev.workers_needed} workers</div>
                 </div>
                 <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${STATUS_COLORS[ev.status] || 'bg-p-border text-p-muted'}`}>
@@ -1299,7 +1305,7 @@ export default function EventsPanel() {
                     <button
                       onClick={() => {
                         setEditingEvent(ev.id)
-                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types: ev.role_types || [], bg_check_required: !!ev.bg_check_required })
+                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', event_end_date: ev.event_end_date || '', is_ongoing: !!ev.is_ongoing, start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types: ev.role_types || [], bg_check_required: !!ev.bg_check_required })
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors"
                     >Edit Event</button>
@@ -1365,11 +1371,12 @@ export default function EventsPanel() {
                           { key: 'contact_phone', label: 'Contact Phone' },
                           { key: 'location', label: 'Location' },
                           { key: 'city', label: 'City' },
-                          { key: 'event_date', label: 'Date', type: 'date' },
+                          { key: 'event_date', label: 'Start Date', type: 'date' },
+                          { key: 'event_end_date', label: 'End Date (blank = same day)', type: 'date' },
                           { key: 'start_time', label: 'Start Time', type: 'time' },
                           { key: 'end_time', label: 'End Time', type: 'time' },
                           { key: 'workers_needed', label: 'Workers Needed', type: 'number' },
-                          { key: 'pay_rate', label: 'Pay Rate' },
+                          { key: 'pay_rate', label: 'Pay Range' },
                           { key: 'dress_code', label: 'Dress Code / Uniform' },
                           { key: 'notes', label: 'Notes' },
                         ].map(f => (
@@ -1390,6 +1397,15 @@ export default function EventsPanel() {
                             onChange={(roles) => setEventEditForm(prev => ({ ...prev, role_types: roles }))}
                           />
                         </div>
+                        <label className="col-span-2 sm:col-span-3 flex items-center gap-2 text-xs text-white mt-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!eventEditForm.is_ongoing}
+                            onChange={e => setEventEditForm(prev => ({ ...prev, is_ongoing: e.target.checked, event_end_date: e.target.checked ? '' : prev.event_end_date }))}
+                            className="accent-p-green"
+                          />
+                          Ongoing / permanent position (no end date)
+                        </label>
                         <label className="col-span-2 sm:col-span-3 flex items-center gap-2 text-xs text-white mt-1 cursor-pointer">
                           <input
                             type="checkbox"
@@ -2018,7 +2034,8 @@ function RolesSelector({ value, onChange }) {
 function EventCreateModal({ onClose, onCreated }) {
   const empty = {
     title: '', organizer: '', contact_name: '', contact_email: '', contact_phone: '',
-    event_date: '', start_time: '', end_time: '', location: '', city: '',
+    event_date: '', event_end_date: '', is_ongoing: false,
+    start_time: '', end_time: '', location: '', city: '',
     workers_needed: '', role_types: [], pay_rate: '', dress_code: '', notes: '',
     service_tier: 'labor_supply', meeting_point: '', bg_check_required: false,
   }
@@ -2061,10 +2078,30 @@ function EventCreateModal({ onClose, onCreated }) {
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2"><label className={lbl}>Title *</label><input className={fld} value={form.title} onChange={set('title')} /></div>
               <div className="col-span-2"><label className={lbl}>Organizer *</label><input className={fld} value={form.organizer} onChange={set('organizer')} /></div>
-              <div><label className={lbl}>Date *</label><input type="date" className={fld} value={form.event_date} onChange={set('event_date')} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><label className={lbl}>Start *</label><input type="time" className={fld} value={form.start_time} onChange={set('start_time')} /></div>
-                <div><label className={lbl}>End *</label><input type="time" className={fld} value={form.end_time} onChange={set('end_time')} /></div>
+              <div><label className={lbl}>Start date *</label><input type="date" className={fld} value={form.event_date} onChange={set('event_date')} /></div>
+              <div>
+                <label className={lbl}>End date</label>
+                <input
+                  type="date"
+                  className={fld}
+                  value={form.event_end_date}
+                  onChange={set('event_end_date')}
+                  disabled={form.is_ongoing}
+                  placeholder="Same day if blank"
+                />
+              </div>
+              <label className="col-span-2 flex items-center gap-2 text-xs text-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_ongoing}
+                  onChange={e => setForm(prev => ({ ...prev, is_ongoing: e.target.checked, event_end_date: e.target.checked ? '' : prev.event_end_date }))}
+                  className="accent-p-green"
+                />
+                Ongoing / permanent position (no end date)
+              </label>
+              <div className="grid grid-cols-2 gap-2 col-span-2">
+                <div><label className={lbl}>Start time *</label><input type="time" className={fld} value={form.start_time} onChange={set('start_time')} /></div>
+                <div><label className={lbl}>End time *</label><input type="time" className={fld} value={form.end_time} onChange={set('end_time')} /></div>
               </div>
               <div><label className={lbl}>Location *</label><input className={fld} value={form.location} onChange={set('location')} /></div>
               <div><label className={lbl}>City *</label><input className={fld} value={form.city} onChange={set('city')} /></div>
@@ -2083,7 +2120,7 @@ function EventCreateModal({ onClose, onCreated }) {
           <Section title="Staffing">
             <div className="grid grid-cols-2 gap-2 mb-2">
               <div><label className={lbl}>Workers needed *</label><input type="number" min="1" className={fld} value={form.workers_needed} onChange={set('workers_needed')} /></div>
-              <div><label className={lbl}>Pay rate</label><input className={fld} value={form.pay_rate} onChange={set('pay_rate')} placeholder="$18/hr" /></div>
+              <div><label className={lbl}>Pay range</label><input className={fld} value={form.pay_rate} onChange={set('pay_rate')} placeholder="e.g. $15–$20/hr" /></div>
             </div>
             <label className={lbl}>Roles</label>
             <RolesSelector value={form.role_types} onChange={(roles) => setForm(prev => ({ ...prev, role_types: roles }))} />

@@ -334,7 +334,7 @@ async function handleEvents(req, res, supabase) {
     return res.status(200).json(data)
   }
   if (req.method === 'POST') {
-    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, contact_name, contact_email, contact_phone, bg_check_required } = req.body
+    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, event_end_date, is_ongoing, contact_name, contact_email, contact_phone, bg_check_required } = req.body
     if (!title) return res.status(400).json({ error: 'title required' })
     const insert = { title, status: 'pending' }
     if (organizer) insert.organizer = organizer
@@ -350,6 +350,8 @@ async function handleEvents(req, res, supabase) {
     if (service_tier) insert.service_tier = service_tier
     if (meeting_point) insert.meeting_point = meeting_point
     if (event_date) insert.event_date = event_date
+    if (event_end_date) insert.event_end_date = event_end_date
+    if (is_ongoing !== undefined) insert.is_ongoing = !!is_ongoing
     if (contact_name) insert.contact_name = contact_name
     if (contact_email) insert.contact_email = contact_email
     if (contact_phone) insert.contact_phone = contact_phone
@@ -411,7 +413,7 @@ async function handleEvents(req, res, supabase) {
     const { service_tier } = req.body
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     // Free-form editable fields
-    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types']
+    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types']
     for (const f of editableFields) {
       if (req.body[f] !== undefined) updates[f] = req.body[f]
     }
