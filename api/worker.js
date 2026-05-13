@@ -778,7 +778,7 @@ async function handleExitReply(req, res, supabase) {
 async function handleVerifyVideo(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { phone, video_base64 } = req.body || {}
+  const { phone, video_base64, mime_type } = req.body || {}
   if (!phone || !video_base64) return res.status(400).json({ error: 'phone and video_base64 required' })
 
   const digits = phone.replace(/\D/g, '').slice(-10)
@@ -788,10 +788,13 @@ async function handleVerifyVideo(req, res, supabase) {
   const worker = (allWorkers || []).find(w => w.phone && w.phone.replace(/\D/g, '').slice(-10) === digits) || null
   if (wErr || !worker) return res.status(404).json({ error: 'Worker not found' })
 
-  // Upload video to Supabase Storage
+  // Upload video to Supabase Storage. iOS Safari records MP4, everything
+  // else records WebM — pick the extension off the mime type the client sent.
   const videoBuffer = Buffer.from(video_base64, 'base64')
+  const contentType = (mime_type || '').startsWith('video/mp4') ? 'video/mp4' : 'video/webm'
+  const ext = contentType === 'video/mp4' ? 'mp4' : 'webm'
   const bucketName = 'applicant-photos'
-  const fileName = `verification-videos/${worker.id}_${Date.now()}.webm`
+  const fileName = `verification-videos/${worker.id}_${Date.now()}.${ext}`
 
   // Ensure bucket exists (create if missing)
   const { data: buckets } = await supabase.storage.listBuckets()
@@ -805,11 +808,11 @@ async function handleVerifyVideo(req, res, supabase) {
 
   const { error: uploadErr } = await supabase.storage
     .from(bucketName)
-    .upload(fileName, videoBuffer, { contentType: 'video/webm', upsert: true })
+    .upload(fileName, videoBuffer, { contentType, upsert: true })
 
   if (uploadErr) {
     console.error('[verify-video] Upload error:', uploadErr)
-    return res.status(500).json({ error: 'Failed to upload video' })
+    return res.status(500).json({ error: `Storage upload failed: ${uploadErr.message || 'unknown'}` })
   }
 
   const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(fileName)
@@ -1444,6 +1447,7 @@ async function handleIdUpload(req, res, supabase) {
     const { phone, photo_base64 } = req.body
     if (!phone || !photo_base64) return res.status(400).json({ error: 'phone and photo_base64 required' })
 
+    const digits = String(phone).replace(/\D/g, '').slice(-10)
     const worker = await findByPhone(supabase, phone, 'id, first_name, email, phone, id_photo_url, video_url, w9_signed_at, bg_check_signed_at, bg_check_cleared')
 
     if (!worker) return res.status(404).json({ error: 'Worker not found' })
@@ -1562,7 +1566,7 @@ async function handleIdUpload(req, res, supabase) {
       return res.status(200).json({ success: true, id_photo_url: idPhotoUrl })
     } catch (err) {
       console.error('[id-upload] Upload error:', err)
-      return res.status(500).json({ error: 'Upload failed. Please try again.' })
+      return res.status(500).json({ error: `Upload failed: ${err?.message || 'unknown error'}` })
     }
   }
 

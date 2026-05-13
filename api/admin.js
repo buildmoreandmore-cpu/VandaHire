@@ -1607,6 +1607,7 @@ export default async function handler(req, res) {
       case 'groups': return await handleGroups(req, res, supabase)
       case 'group-members': return await handleGroupMembers(req, res, supabase)
       case 'w9s': return await handleW9s(req, res, supabase)
+      case 'upload-id': return await handleAdminUploadId(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2178,4 +2179,48 @@ async function handleW9s(req, res, supabase) {
     return rest
   })
   return res.status(200).json(safe)
+}
+
+// ─── COORDINATOR-SIDE ID UPLOAD ─────────────────────────────────────────────
+// Lets an admin attach a worker's government-ID photo when the worker can't
+// upload it themselves (e.g., they're in person and showing a physical card).
+
+async function handleAdminUploadId(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { worker_id, photo_base64 } = req.body || {}
+  if (!worker_id || !photo_base64) return res.status(400).json({ error: 'worker_id and photo_base64 required' })
+
+  try {
+    const mimeMatch = photo_base64.match(/^data:(image\/\w+);base64,/)
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+    const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg'
+    const base64Data = photo_base64.replace(/^data:image\/\w+;base64,/, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+
+    const bucketName = 'applicant-photos'
+    const filePath = `id-photos/${worker_id}.${ext}`
+
+    const { data: buckets } = await supabase.storage.listBuckets()
+    if (!(buckets || []).find(b => b.name === bucketName)) {
+      try { await supabase.storage.createBucket(bucketName, { public: true }) }
+      catch (bucketErr) { if (!bucketErr.message?.includes('already exists')) throw bucketErr }
+    }
+
+    const { error: upErr } = await supabase.storage.from(bucketName)
+      .upload(filePath, buffer, { contentType, upsert: true })
+    if (upErr) throw upErr
+
+    const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+    const idPhotoUrl = urlData.publicUrl
+
+    const { error: dbErr } = await supabase.from('applicants')
+      .update({ id_photo_url: idPhotoUrl, updated_at: new Date().toISOString() })
+      .eq('id', worker_id)
+    if (dbErr) throw dbErr
+
+    return res.status(200).json({ success: true, id_photo_url: idPhotoUrl })
+  } catch (err) {
+    console.error('[admin/upload-id] failed:', err)
+    return res.status(500).json({ error: `Upload failed: ${err?.message || 'unknown'}` })
+  }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv } from '../../lib/adminApi.js'
+import imageCompression from 'browser-image-compression'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, adminUploadId } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
@@ -43,6 +44,33 @@ export default function ApplicantsPanel() {
 
   // Feature 13: PIN reset
   const [resettingPin, setResettingPin] = useState(null)
+
+  // Coordinator-side ID upload
+  const [uploadingIdFor, setUploadingIdFor] = useState(null)
+
+  const handleAdminUploadId = async (workerId, file) => {
+    if (!file) return
+    setUploadingIdFor(workerId)
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: 'image/jpeg',
+      })
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(compressed)
+      })
+      const { id_photo_url } = await adminUploadId(workerId, base64)
+      setApplicants(prev => prev.map(x => x.id === workerId ? { ...x, id_photo_url } : x))
+    } catch (err) {
+      alert('Upload failed: ' + (err?.message || 'unknown'))
+    }
+    setUploadingIdFor(null)
+  }
 
   const load = async () => {
     setLoading(true)
@@ -467,6 +495,22 @@ export default function ApplicantsPanel() {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.id_photo_url ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                               {a.id_photo_url ? 'Uploaded' : 'Not provided'}
                             </span>
+                            <label className="ml-auto inline-flex items-center gap-1 text-[10px] text-p-green hover:text-white cursor-pointer">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingIdFor === a.id}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  e.target.value = ''
+                                  if (file) handleAdminUploadId(a.id, file)
+                                }}
+                              />
+                              {uploadingIdFor === a.id
+                                ? 'Uploading…'
+                                : (a.id_photo_url ? 'Replace ID' : 'Upload ID')}
+                            </label>
                           </div>
                           {a.id_photo_url ? (
                             <a href={a.id_photo_url} target="_blank" rel="noopener noreferrer" className="inline-block">
@@ -478,7 +522,7 @@ export default function ApplicantsPanel() {
                               <div className="text-p-muted text-[10px] mt-1">Click to open full size</div>
                             </a>
                           ) : (
-                            <p className="text-p-muted text-xs">Worker hasn't uploaded an ID yet.</p>
+                            <p className="text-p-muted text-xs">No ID on file yet — use Upload ID to attach one yourself.</p>
                           )}
                         </div>
 

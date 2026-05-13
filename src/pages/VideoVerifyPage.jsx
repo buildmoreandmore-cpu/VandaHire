@@ -61,18 +61,46 @@ export default function VideoVerifyPage() {
     }
   }
 
+  // iOS Safari only supports MP4 containers (no webm). Pick whatever the
+  // browser actually supports so iPhones can record at all.
+  function pickMimeType() {
+    const candidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4',
+    ]
+    for (const t of candidates) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(t)) return t
+    }
+    return ''
+  }
+
   function startRecording() {
     if (!streamRef.current) return
     chunksRef.current = []
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 500000 })
+    const mimeType = pickMimeType()
+    let recorder
+    try {
+      recorder = mimeType
+        ? new MediaRecorder(streamRef.current, { mimeType, videoBitsPerSecond: 400000 })
+        : new MediaRecorder(streamRef.current, { videoBitsPerSecond: 400000 })
+    } catch (err) {
+      setError(`Your browser couldn't start the recorder (${err.message}). Try Chrome or Safari on a phone.`)
+      return
+    }
+    const containerType = mimeType || 'video/mp4'
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      const blob = new Blob(chunksRef.current, { type: containerType })
       setVideoBlob(blob)
       setVideoUrl(URL.createObjectURL(blob))
       setStep('review')
-      // Stop camera
       streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+    recorder.onerror = (e) => {
+      setError(`Recording error: ${e.error?.message || 'unknown'}`)
     }
     mediaRecorderRef.current = recorder
     recorder.start()
@@ -99,40 +127,40 @@ export default function VideoVerifyPage() {
     setError('')
 
     try {
-      // Split video into chunks if needed (Vercel 4.5MB limit)
-      // Convert to base64 and send in chunks, or send small videos directly
-      const MAX_SIZE = 4 * 1024 * 1024 // 4MB to be safe
-
+      // Vercel serverless function body limit is 4.5MB. Base64 inflates
+      // bytes by ~33%, so cap the raw blob at 3MB to stay safely under.
+      const MAX_SIZE = 3 * 1024 * 1024
       if (videoBlob.size > MAX_SIZE) {
-        // Too large — re-encode at lower quality
-        setError(`Video too large (${(videoBlob.size / 1024 / 1024).toFixed(1)}MB). Please record a shorter video (under 30 seconds).`)
+        setError(`Video is ${(videoBlob.size / 1024 / 1024).toFixed(1)}MB — too large to upload. Please record a shorter video (around 15–20 seconds works).`)
         setStep('review')
         return
       }
 
-      // Convert to base64 for JSON upload
       const reader = new FileReader()
-      const base64 = await new Promise((resolve) => {
+      const base64 = await new Promise((resolve, reject) => {
         reader.onloadend = () => resolve(reader.result.split(',')[1])
+        reader.onerror = () => reject(new Error('Could not read the recorded video'))
         reader.readAsDataURL(videoBlob)
       })
 
       const res = await fetch('/api/verify-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, video_base64: base64 }),
+        body: JSON.stringify({ phone, video_base64: base64, mime_type: videoBlob.type || 'video/webm' }),
       })
 
-      const data = await res.json()
+      let data = {}
+      try { data = await res.json() } catch {}
       if (!res.ok) {
-        setError(data.error || 'Upload failed. Please try again.')
+        const code = res.status === 413 ? ' (file too large for the server)' : ''
+        setError(`${data.error || 'Upload failed'}${code}. Status ${res.status}.`)
         setStep('review')
         return
       }
 
       setStep('done')
     } catch (err) {
-      setError('Upload failed. Please try again.')
+      setError(`Upload error: ${err.message || 'network problem'}. Please try again.`)
       setStep('review')
     }
   }

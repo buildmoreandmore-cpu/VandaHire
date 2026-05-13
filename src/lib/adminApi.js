@@ -330,6 +330,13 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Coordinator-side ID upload (when a worker can't upload themselves)
+export const adminUploadId = (worker_id, photo_base64) =>
+  adminFetch('/api/admin/upload-id', {
+    method: 'POST',
+    body: JSON.stringify({ worker_id, photo_base64 }),
+  })
+
 // W-9 viewer / export
 export const fetchW9s = (signedOnly = false) =>
   adminFetch(`/api/admin/w9s${signedOnly ? '?signed_only=1' : ''}`)
