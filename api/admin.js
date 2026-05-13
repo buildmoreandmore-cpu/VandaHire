@@ -110,7 +110,7 @@ async function handleStats(req, res, supabase) {
 
 async function handleApplicants(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
+    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url, id_photo_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
     const { status } = req.query
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query

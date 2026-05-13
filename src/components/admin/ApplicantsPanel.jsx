@@ -460,6 +460,28 @@ export default function ApplicantsPanel() {
                           </div>
                         </div>
 
+                        {/* ID photo */}
+                        <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-p-muted text-xs">Government ID</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${a.id_photo_url ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                              {a.id_photo_url ? 'Uploaded' : 'Not provided'}
+                            </span>
+                          </div>
+                          {a.id_photo_url ? (
+                            <a href={a.id_photo_url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                              <img
+                                src={a.id_photo_url}
+                                alt="Government ID"
+                                className="max-w-sm max-h-72 rounded-lg border border-p-border object-contain bg-black"
+                              />
+                              <div className="text-p-muted text-[10px] mt-1">Click to open full size</div>
+                            </a>
+                          ) : (
+                            <p className="text-p-muted text-xs">Worker hasn't uploaded an ID yet.</p>
+                          )}
+                        </div>
+
                         {/* W-9 details */}
                         {a.w9_signed_at && (
                           <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
