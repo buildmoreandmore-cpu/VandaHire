@@ -167,7 +167,7 @@ export default function LandingScreen({ onStart }) {
       {/* Hero */}
       <div className="flex-1 flex flex-col justify-center items-center text-center max-w-[520px] mx-auto w-full py-16 px-6">
         <h1 className="font-inter text-5xl font-extrabold text-white leading-none tracking-tighter mb-3 fade-up">
-          Show up.<br />Get paid.
+          On Time.<br />On Task.<br />On Payroll.
         </h1>
 
         <p className="text-[#999] text-sm font-semibold tracking-wide mb-4 fade-up">

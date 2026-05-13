@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: 'V&A Hire',
         short_name: 'V&A Hire',
-        description: 'On-demand event staffing — show up, get paid.',
+        description: 'On-demand event staffing — on time, on task, on payroll.',
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',
         display: 'standalone',

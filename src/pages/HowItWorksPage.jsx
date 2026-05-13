@@ -13,7 +13,7 @@ const WORKER_STEPS = [
   { step: '01', title: 'Apply in minutes', body: 'Submit your application with basic info. No resume needed. Just tell us who you are and what roles you\'re comfortable with.' },
   { step: '02', title: 'Get approved', body: 'Our team reviews your application. If it\'s a fit, you\'ll be added to the approved worker pool within 48 hours.' },
   { step: '03', title: 'Claim shifts & check in with GPS', body: 'When events come up in your area, we SMS you the details. Claim shifts from your phone. On the day, check in via GPS when you arrive at the venue.' },
-  { step: '04', title: 'Show up & get paid', body: 'Your hours are automatically tracked from check-in to check-out. No manual timesheets — your GPS-verified time goes straight to payroll.' },
+  { step: '04', title: 'On time. On task. On payroll.', body: 'Your hours are automatically tracked from check-in to check-out. No manual timesheets — your GPS-verified time goes straight to payroll.' },
 ]
 
 const SERVICE_TIERS = [
