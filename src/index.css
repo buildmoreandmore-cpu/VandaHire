@@ -183,6 +183,75 @@ nav span:first-child,
   to { transform: scaleX(1); }
 }
 
+/* ── Hero tagline: staggered slide-up, then a payroll-green accent ── */
+@keyframes taglineIn {
+  from { opacity: 0; transform: translateY(22px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes payrollColor {
+  from { color: #ffffff; }
+  to   { color: #cc5500; }
+}
+@keyframes payrollUnderline {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes payrollGlow {
+  0%, 100% { text-shadow: 0 0 0 rgba(204, 85, 0, 0); }
+  50%      { text-shadow: 0 0 24px rgba(204, 85, 0, 0.55); }
+}
+@keyframes periodPop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.4); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.tagline-line {
+  opacity: 0;
+  animation: taglineIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.tagline-line-1 { animation-delay: 0s; }
+.tagline-line-2 { animation-delay: 0.18s; }
+.tagline-line-3 { animation-delay: 0.36s; }
+
+.tagline-payroll {
+  position: relative;
+  display: inline-block;
+  /* color animation kicks in after the line itself has entered */
+  animation: taglineIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.36s forwards,
+             payrollColor 0.6s ease-out 0.95s forwards,
+             payrollGlow 1.8s ease-in-out 1.3s 1;
+}
+
+.tagline-payroll::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.12em;
+  height: 3px;
+  background: linear-gradient(90deg, #cc5500 0%, #cc550066 100%);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: payrollUnderline 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.1s forwards;
+}
+
+.tagline-period {
+  display: inline-block;
+  transform-origin: center;
+  opacity: 0;
+  animation: periodPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 1.05s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tagline-line,
+  .tagline-payroll,
+  .tagline-period { animation: none !important; opacity: 1; transform: none; filter: none; }
+  .tagline-payroll { color: #cc5500; }
+  .tagline-payroll::after { transform: scaleX(1); }
+}
+
 .border-t {
   position: relative;
 }
