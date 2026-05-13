@@ -1926,9 +1926,14 @@ async function handleCloneEvent(req, res, supabase) {
     .eq('id', event_id).single()
   if (error || !original) return res.status(404).json({ error: 'Event not found' })
 
-  const clone = { ...original, title: `${original.title} (Copy)`, status: 'pending', event_date: null }
+  // event_date is NOT NULL; default the clone to today so coordinator can edit it.
+  const today = new Date().toISOString().slice(0, 10)
+  const clone = { ...original, title: `${original.title} (Copy)`, status: 'pending', event_date: today, event_end_date: null, is_ongoing: false }
   const { data: newEvent, error: insertErr } = await supabase.from('events').insert(clone).select().single()
-  if (insertErr) throw insertErr
+  if (insertErr) {
+    console.error('[admin/clone-event] insert failed:', insertErr)
+    return res.status(500).json({ error: insertErr.message || 'Clone failed' })
+  }
 
   return res.status(200).json(newEvent)
 }
