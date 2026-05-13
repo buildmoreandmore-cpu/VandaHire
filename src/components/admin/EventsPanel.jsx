@@ -138,6 +138,7 @@ export default function EventsPanel() {
   // Drag state for assign-workers DnD
   const [dragWorker, setDragWorker] = useState(null)
   const [dragAssignmentId, setDragAssignmentId] = useState(null)
+  const [assignCityFilter, setAssignCityFilter] = useState('all')
 
   // Batch operations (Features 3, 8)
   const [batchingShifts, setBatchingShifts] = useState(false)
@@ -344,6 +345,7 @@ export default function EventsPanel() {
   const openAssignModal = async () => {
     setShowAssignModal(true)
     setSelectedWorkers([])
+    setAssignCityFilter('all')
     try {
       let workers
       try {
@@ -1530,20 +1532,34 @@ export default function EventsPanel() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 overflow-hidden flex-1 min-h-0">
                           {/* AVAILABLE POOL */}
+                          {(() => {
+                            const cities = Array.from(new Set(availableWorkers.map(w => w.city).filter(Boolean))).sort()
+                            const filteredPool = assignCityFilter === 'all'
+                              ? availableWorkers
+                              : availableWorkers.filter(w => w.city === assignCityFilter)
+                            return (
                           <div
                             onDragOver={e => { if (dragAssignmentId) e.preventDefault() }}
                             onDrop={() => { if (dragAssignmentId) { unassignWorker(dragAssignmentId); setDragAssignmentId(null) } }}
                             className="bg-p-bg/40 border border-p-border rounded-lg flex flex-col min-h-0"
                           >
-                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between">
-                              <span className="text-white text-xs font-semibold uppercase tracking-wider">Available pool</span>
-                              <span className="text-p-muted text-[10px]">{availableWorkers.length}</span>
+                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between gap-2">
+                              <span className="text-white text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Available pool</span>
+                              <select
+                                value={assignCityFilter}
+                                onChange={e => setAssignCityFilter(e.target.value)}
+                                className="bg-p-surface border border-p-border rounded px-2 py-0.5 text-[10px] text-white max-w-[140px]"
+                              >
+                                <option value="all">All cities</option>
+                                {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                              <span className="text-p-muted text-[10px]">{filteredPool.length}</span>
                             </div>
                             <div className="overflow-y-auto p-2 space-y-1 flex-1">
-                              {availableWorkers.length === 0 ? (
-                                <p className="text-p-muted text-xs text-center py-6">No available workers for this event</p>
+                              {filteredPool.length === 0 ? (
+                                <p className="text-p-muted text-xs text-center py-6">No available workers{assignCityFilter !== 'all' ? ` in ${assignCityFilter}` : ' for this event'}</p>
                               ) : (
-                                availableWorkers.map(w => {
+                                filteredPool.map(w => {
                                   const score = w.match_score
                                   const scoreBadgeColor = score >= 5 ? 'bg-green-500/20 text-green-400' : score >= 3 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/10 text-p-muted'
                                   return (
@@ -1581,6 +1597,8 @@ export default function EventsPanel() {
                               )}
                             </div>
                           </div>
+                            )
+                          })()}
 
                           {/* ASSIGNED COLUMN */}
                           <div
