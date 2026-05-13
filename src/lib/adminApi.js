@@ -330,6 +330,22 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Applicant notes (contact log)
+export const fetchApplicantNotes = (applicant_id) =>
+  adminFetch(`/api/admin/applicant-notes?applicant_id=${encodeURIComponent(applicant_id)}`)
+
+export const createApplicantNote = (applicant_id, author, note) =>
+  adminFetch('/api/admin/applicant-notes', {
+    method: 'POST',
+    body: JSON.stringify({ applicant_id, author, note }),
+  })
+
+export const deleteApplicantNote = (id) =>
+  adminFetch('/api/admin/applicant-notes', {
+    method: 'DELETE',
+    body: JSON.stringify({ id }),
+  })
+
 // Coordinator-side ID upload (when a worker can't upload themselves)
 export const adminUploadId = (worker_id, photo_base64) =>
   adminFetch('/api/admin/upload-id', {

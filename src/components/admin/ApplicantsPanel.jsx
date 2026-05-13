@@ -1,6 +1,34 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, adminUploadId } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote } from '../../lib/adminApi.js'
+
+const COORDINATOR_NAME_KEY = 'vanda_coordinator_name'
+
+function getCoordinatorName() {
+  try { return localStorage.getItem(COORDINATOR_NAME_KEY) || '' } catch { return '' }
+}
+function setCoordinatorName(name) {
+  try { localStorage.setItem(COORDINATOR_NAME_KEY, name) } catch {}
+}
+
+function relativeTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const diff = (Date.now() - d.getTime()) / 1000
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d ago`
+  return d.toLocaleDateString()
+}
+
+function lastContactColor(iso) {
+  if (!iso) return 'bg-white/5 text-p-muted border-p-border'
+  const days = (Date.now() - new Date(iso).getTime()) / 86400000
+  if (days < 7) return 'bg-green-500/15 text-green-400 border-green-500/30'
+  if (days < 30) return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30'
+  return 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+}
 
 const STATUS_OPTIONS = ['all', 'pending', 'qualified', 'needs_review', 'not_a_fit', 'approved', 'rejected', 'removed']
 
@@ -47,6 +75,63 @@ export default function ApplicantsPanel() {
 
   // Coordinator-side ID upload
   const [uploadingIdFor, setUploadingIdFor] = useState(null)
+
+  // Contact notes (per expanded worker)
+  const [notesByWorker, setNotesByWorker] = useState({}) // { [workerId]: [note, ...] }
+  const [newNoteDraft, setNewNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [coordinatorName, setCoordName] = useState(getCoordinatorName())
+
+  const loadNotesFor = async (workerId) => {
+    try {
+      const notes = await fetchApplicantNotes(workerId)
+      setNotesByWorker(prev => ({ ...prev, [workerId]: notes }))
+    } catch (err) {
+      console.error('Failed to load notes:', err)
+    }
+  }
+
+  const addNote = async (workerId) => {
+    const text = newNoteDraft.trim()
+    if (!text) return
+    let author = coordinatorName
+    if (!author) {
+      author = (window.prompt('Your name or initials (saved on this device):') || '').trim()
+      if (!author) return
+      setCoordinatorName(author)
+      setCoordName(author)
+    }
+    setSavingNote(true)
+    try {
+      const created = await createApplicantNote(workerId, author, text)
+      setNotesByWorker(prev => ({ ...prev, [workerId]: [created, ...(prev[workerId] || [])] }))
+      setNewNoteDraft('')
+      setApplicants(prev => prev.map(a => a.id === workerId
+        ? { ...a, last_contact: { at: created.created_at, by: created.author, preview: text.slice(0, 120) } }
+        : a))
+    } catch (err) {
+      alert('Failed to save note: ' + err.message)
+    }
+    setSavingNote(false)
+  }
+
+  const removeNote = async (workerId, noteId) => {
+    if (!confirm('Delete this note?')) return
+    try {
+      await deleteApplicantNote(noteId)
+      setNotesByWorker(prev => ({ ...prev, [workerId]: (prev[workerId] || []).filter(n => n.id !== noteId) }))
+    } catch (err) {
+      alert('Failed to delete: ' + err.message)
+    }
+  }
+
+  const editCoordinatorName = () => {
+    const next = (window.prompt('Your name or initials (saved on this device):', coordinatorName) || '').trim()
+    if (next) {
+      setCoordinatorName(next)
+      setCoordName(next)
+    }
+  }
 
   const handleAdminUploadId = async (workerId, file) => {
     if (!file) return
@@ -420,7 +505,12 @@ export default function ApplicantsPanel() {
                         className="accent-white flex-shrink-0"
                       />
                       <button
-                        onClick={() => setExpanded(expanded === a.id ? null : a.id)}
+                        onClick={() => {
+                          const next = expanded === a.id ? null : a.id
+                          setExpanded(next)
+                          setNewNoteDraft('')
+                          if (next && !notesByWorker[next]) loadNotesFor(next)
+                        }}
                         className="flex-1 flex items-center gap-3 text-left hover:bg-white/[0.02] transition-colors min-w-0"
                       >
                         {a.photo_url ? (
@@ -458,6 +548,16 @@ export default function ApplicantsPanel() {
                             <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="4" y1="8" x2="12" y2="8" /></svg>
                           )}
                         </span>
+                        <span
+                          className={`hidden sm:inline-flex items-center gap-1 border px-2 py-0.5 rounded text-[10px] font-medium flex-shrink-0 max-w-[180px] truncate ${lastContactColor(a.last_contact?.at)}`}
+                          title={a.last_contact
+                            ? `Last touched ${new Date(a.last_contact.at).toLocaleString()} by ${a.last_contact.by || '—'}${a.last_contact.preview ? ' · ' + a.last_contact.preview : ''}`
+                            : 'No contact notes yet'}
+                        >
+                          {a.last_contact
+                            ? `Touched ${relativeTime(a.last_contact.at)}${a.last_contact.by ? ' · ' + a.last_contact.by : ''}`
+                            : 'Never touched'}
+                        </span>
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                           {a.status?.replace(/_/g, ' ')}
                         </span>
@@ -486,6 +586,51 @@ export default function ApplicantsPanel() {
                             <Detail label="Short Notice" value={a.short_notice} />
                             {a.notes && <Detail label="Notes" value={a.notes} />}
                           </div>
+                        </div>
+
+                        {/* Contact notes */}
+                        <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-p-muted text-xs">Contact notes</span>
+                            <span className="text-p-muted text-[10px]">
+                              · stamped as <button onClick={editCoordinatorName} className="underline hover:text-white">{coordinatorName || 'set your name'}</button>
+                            </span>
+                          </div>
+                          <div className="flex gap-2 mb-2">
+                            <textarea
+                              value={newNoteDraft}
+                              onChange={e => setNewNoteDraft(e.target.value)}
+                              placeholder="What did you discuss? Who did you reach? What's next?"
+                              rows={2}
+                              className="flex-1 bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white placeholder-p-muted focus:outline-none focus:border-p-link resize-none"
+                            />
+                            <button
+                              onClick={() => addNote(a.id)}
+                              disabled={savingNote || !newNoteDraft.trim()}
+                              className="self-start px-3 py-1.5 rounded bg-p-green text-black text-xs font-semibold disabled:opacity-40 hover:opacity-90"
+                            >{savingNote ? 'Saving…' : 'Add'}</button>
+                          </div>
+                          {(notesByWorker[a.id] && notesByWorker[a.id].length > 0) ? (
+                            <ul className="space-y-1.5">
+                              {notesByWorker[a.id].map(n => (
+                                <li key={n.id} className="bg-p-bg/50 border border-p-border rounded px-2.5 py-1.5">
+                                  <div className="flex items-center gap-2 text-[10px] text-p-muted mb-0.5">
+                                    <span className="font-medium text-white">{n.author || '—'}</span>
+                                    <span>· {new Date(n.created_at).toLocaleString()}</span>
+                                    <span>· {relativeTime(n.created_at)}</span>
+                                    <button
+                                      onClick={() => removeNote(a.id, n.id)}
+                                      className="ml-auto text-red-400 hover:text-red-300"
+                                      title="Delete note"
+                                    >×</button>
+                                  </div>
+                                  <div className="text-white text-xs whitespace-pre-wrap">{n.note}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-p-muted text-xs">No contact notes yet. Add the first one after you reach out.</p>
+                          )}
                         </div>
 
                         {/* ID photo */}

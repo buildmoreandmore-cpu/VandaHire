@@ -162,10 +162,22 @@ async function handleApplicants(req, res, supabase) {
       }
     }
 
+    // Last contact note per worker (for the touched-by/when indicator).
+    const { data: latestNotes } = await supabase.from('applicant_notes')
+      .select('applicant_id, created_at, author, note')
+      .order('created_at', { ascending: false })
+    const lastContactMap = {}
+    for (const n of (latestNotes || [])) {
+      if (!lastContactMap[n.applicant_id]) {
+        lastContactMap[n.applicant_id] = { at: n.created_at, by: n.author || '', preview: (n.note || '').slice(0, 120) }
+      }
+    }
+
     // Merge rating + booking info into each applicant
     const enriched = data.map(a => {
       const r = ratingMap[a.id]
       const active_booking = bookingMap[a.id] || null
+      const last_contact = lastContactMap[a.id] || null
       const base = r && r.ratings.length > 0
         ? {
             avg_rating: Math.round((r.ratings.reduce((sum, v) => sum + v, 0) / r.ratings.length) * 10) / 10,
@@ -175,7 +187,7 @@ async function handleApplicants(req, res, supabase) {
               : null,
           }
         : { avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
-      return { ...a, ...base, active_booking }
+      return { ...a, ...base, active_booking, last_contact }
     })
 
     return res.status(200).json(enriched)
@@ -1608,6 +1620,7 @@ export default async function handler(req, res) {
       case 'group-members': return await handleGroupMembers(req, res, supabase)
       case 'w9s': return await handleW9s(req, res, supabase)
       case 'upload-id': return await handleAdminUploadId(req, res, supabase)
+      case 'applicant-notes': return await handleApplicantNotes(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2223,4 +2236,42 @@ async function handleAdminUploadId(req, res, supabase) {
     console.error('[admin/upload-id] failed:', err)
     return res.status(500).json({ error: `Upload failed: ${err?.message || 'unknown'}` })
   }
+}
+
+// ─── APPLICANT NOTES (contact log) ──────────────────────────────────────────
+
+async function handleApplicantNotes(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { applicant_id } = req.query
+    if (!applicant_id) return res.status(400).json({ error: 'applicant_id required' })
+    const { data, error } = await supabase.from('applicant_notes')
+      .select('id, created_at, applicant_id, author, note')
+      .eq('applicant_id', applicant_id)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return res.status(200).json(data || [])
+  }
+
+  if (req.method === 'POST') {
+    const { applicant_id, author, note } = req.body || {}
+    if (!applicant_id || !note || !String(note).trim()) {
+      return res.status(400).json({ error: 'applicant_id and note required' })
+    }
+    const { data, error } = await supabase.from('applicant_notes')
+      .insert({ applicant_id, author: (author || '').trim().slice(0, 80), note: String(note).trim().slice(0, 2000) })
+      .select()
+      .single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('applicant_notes').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
 }
