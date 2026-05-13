@@ -132,6 +132,9 @@ export default function EventsPanel() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
 
+  // Create-event modal
+  const [showCreateModal, setShowCreateModal] = useState(false)
+
   // Batch operations (Features 3, 8)
   const [batchingShifts, setBatchingShifts] = useState(false)
   const [batchingSurveys, setBatchingSurveys] = useState(false)
@@ -703,7 +706,18 @@ export default function EventsPanel() {
           onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) loadTemplates() }}
           className="px-3 py-2 rounded-lg text-xs font-medium bg-p-surface text-p-muted border border-p-border hover:text-white transition-colors"
         >Templates</button>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-3 py-2 rounded-lg text-xs font-semibold bg-p-green text-black hover:opacity-90 transition-opacity"
+        >+ Event</button>
       </div>
+
+      {showCreateModal && (
+        <EventCreateModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={async () => { setShowCreateModal(false); await load() }}
+        />
+      )}
 
       {/* Templates Panel (Feature 11) */}
       {showTemplates && (
@@ -1247,7 +1261,7 @@ export default function EventsPanel() {
                     <button
                       onClick={() => {
                         setEditingEvent(ev.id)
-                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types_text: (ev.role_types || []).join(', '), bg_check_required: !!ev.bg_check_required })
+                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types: ev.role_types || [], bg_check_required: !!ev.bg_check_required })
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors"
                     >Edit Event</button>
@@ -1332,12 +1346,10 @@ export default function EventsPanel() {
                           </div>
                         ))}
                         <div className="col-span-2 sm:col-span-3">
-                          <label className="text-p-muted text-[10px]">Role Types (comma separated — e.g. Janitorial, Bar Backs, VIP Runners)</label>
-                          <input
-                            type="text"
-                            value={eventEditForm.role_types_text || ''}
-                            onChange={e => setEventEditForm(prev => ({ ...prev, role_types_text: e.target.value }))}
-                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5"
+                          <label className="text-p-muted text-[10px] mb-1 block">Role Types</label>
+                          <RolesSelector
+                            value={eventEditForm.role_types || []}
+                            onChange={(roles) => setEventEditForm(prev => ({ ...prev, role_types: roles }))}
                           />
                         </div>
                         <label className="col-span-2 sm:col-span-3 flex items-center gap-2 text-xs text-white mt-1 cursor-pointer">
@@ -1355,10 +1367,9 @@ export default function EventsPanel() {
                           onClick={async () => {
                             setUpdating(ev.id)
                             try {
-                              const { role_types_text, ...rest } = eventEditForm
-                              const fields = { ...rest }
+                              const { role_types_text, ...fields } = eventEditForm
                               if (fields.workers_needed) fields.workers_needed = parseInt(fields.workers_needed, 10)
-                              fields.role_types = (role_types_text || '').split(',').map(s => s.trim()).filter(Boolean)
+                              fields.role_types = fields.role_types || []
                               await updateEvent(ev.id, fields)
                               setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, ...fields } : x))
                               setEditingEvent(null)
@@ -1848,6 +1859,188 @@ function MiniStat({ label, value, color = 'text-white' }) {
     <div className="flex-shrink-0">
       <span className={`text-sm font-bold ${color}`}>{value}</span>
       <span className="text-p-muted text-[10px] ml-1">{label}</span>
+    </div>
+  )
+}
+
+const ROLE_PRESETS = [
+  'Janitorial', 'Cleanup', 'Setup & Breakdown', 'Brand Activation',
+  'General Labor', 'Security', 'Registration', 'Catering Support',
+]
+
+function RolesSelector({ value, onChange }) {
+  const [input, setInput] = useState('')
+  const list = value || []
+  const add = (role) => {
+    const r = (role || '').trim()
+    if (!r) return
+    if (!list.includes(r)) onChange([...list, r])
+    setInput('')
+  }
+  const remove = (role) => onChange(list.filter(r => r !== role))
+  const remaining = ROLE_PRESETS.filter(p => !list.includes(p))
+  return (
+    <div className="space-y-2">
+      {list.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {list.map(role => (
+            <span key={role} className="inline-flex items-center gap-1.5 bg-p-green/15 border border-p-green/40 text-p-green rounded-full px-2.5 py-1 text-[11px] font-medium">
+              {role}
+              <button type="button" onClick={() => remove(role)} className="hover:text-white text-[13px] leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {remaining.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {remaining.map(role => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => add(role)}
+              className="bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-full px-2.5 py-1 text-[11px] transition-colors"
+            >
+              + {role}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(input) } }}
+          placeholder="Add custom role and press Enter"
+          className="flex-1 bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white placeholder-p-muted focus:outline-none focus:border-p-link"
+        />
+        <button
+          type="button"
+          onClick={() => add(input)}
+          disabled={!input.trim()}
+          className="px-3 py-1.5 bg-p-green/20 text-p-green rounded text-xs font-medium disabled:opacity-30 hover:bg-p-green/30 transition-colors"
+        >Add</button>
+      </div>
+    </div>
+  )
+}
+
+function EventCreateModal({ onClose, onCreated }) {
+  const empty = {
+    title: '', organizer: '', contact_name: '', contact_email: '', contact_phone: '',
+    event_date: '', start_time: '', end_time: '', location: '', city: '',
+    workers_needed: '', role_types: [], pay_rate: '', dress_code: '', notes: '',
+    service_tier: 'labor_supply', meeting_point: '', bg_check_required: false,
+  }
+  const [form, setForm] = useState(empty)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const set = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }))
+
+  const REQUIRED = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'event_date', 'start_time', 'end_time', 'location', 'city', 'workers_needed']
+
+  const submit = async () => {
+    const missing = REQUIRED.filter(f => !String(form[f] || '').trim())
+    if (missing.length) { setError(`Missing: ${missing.join(', ')}`); return }
+    setSaving(true)
+    setError(null)
+    try {
+      await createEvent({
+        ...form,
+        workers_needed: parseInt(form.workers_needed, 10) || 1,
+      })
+      onCreated()
+    } catch (err) {
+      setError(err.message || 'Create failed')
+    }
+    setSaving(false)
+  }
+
+  const fld = 'w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white placeholder-p-muted focus:outline-none focus:border-p-link'
+  const lbl = 'text-p-muted text-[10px] mb-0.5 block'
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" onClick={onClose}>
+      <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
+          <h3 className="text-white font-semibold text-sm">New Event</h3>
+          <button onClick={onClose} className="text-p-muted hover:text-white text-lg">×</button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-4">
+          <Section title="Event">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2"><label className={lbl}>Title *</label><input className={fld} value={form.title} onChange={set('title')} /></div>
+              <div className="col-span-2"><label className={lbl}>Organizer *</label><input className={fld} value={form.organizer} onChange={set('organizer')} /></div>
+              <div><label className={lbl}>Date *</label><input type="date" className={fld} value={form.event_date} onChange={set('event_date')} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className={lbl}>Start *</label><input type="time" className={fld} value={form.start_time} onChange={set('start_time')} /></div>
+                <div><label className={lbl}>End *</label><input type="time" className={fld} value={form.end_time} onChange={set('end_time')} /></div>
+              </div>
+              <div><label className={lbl}>Location *</label><input className={fld} value={form.location} onChange={set('location')} /></div>
+              <div><label className={lbl}>City *</label><input className={fld} value={form.city} onChange={set('city')} /></div>
+              <div className="col-span-2"><label className={lbl}>Meeting point</label><input className={fld} value={form.meeting_point} onChange={set('meeting_point')} placeholder="e.g. back entrance on Peachtree St" /></div>
+            </div>
+          </Section>
+
+          <Section title="Contact">
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className={lbl}>Name *</label><input className={fld} value={form.contact_name} onChange={set('contact_name')} /></div>
+              <div><label className={lbl}>Phone *</label><input className={fld} value={form.contact_phone} onChange={set('contact_phone')} /></div>
+              <div className="col-span-2"><label className={lbl}>Email *</label><input type="email" className={fld} value={form.contact_email} onChange={set('contact_email')} /></div>
+            </div>
+          </Section>
+
+          <Section title="Staffing">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div><label className={lbl}>Workers needed *</label><input type="number" min="1" className={fld} value={form.workers_needed} onChange={set('workers_needed')} /></div>
+              <div><label className={lbl}>Pay rate</label><input className={fld} value={form.pay_rate} onChange={set('pay_rate')} placeholder="$18/hr" /></div>
+            </div>
+            <label className={lbl}>Roles</label>
+            <RolesSelector value={form.role_types} onChange={(roles) => setForm(prev => ({ ...prev, role_types: roles }))} />
+            <div className="mt-2"><label className={lbl}>Dress code</label><input className={fld} value={form.dress_code} onChange={set('dress_code')} /></div>
+          </Section>
+
+          <Section title="Service tier">
+            <div className="grid grid-cols-2 gap-2">
+              {[{v:'labor_supply',l:'Labor Supply',d:'Workers only, client supervises'},{v:'managed_labor',l:'Managed Labor',d:'Workers + V&A supervisor'}].map(t => (
+                <button
+                  key={t.v}
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, service_tier: t.v }))}
+                  className={`p-2.5 rounded-lg border text-left transition-colors ${form.service_tier === t.v ? 'border-p-green bg-p-green/10' : 'border-p-border bg-p-bg hover:border-p-muted'}`}
+                >
+                  <div className={`text-xs font-semibold ${form.service_tier === t.v ? 'text-p-green' : 'text-white'}`}>{t.l}</div>
+                  <div className="text-p-muted text-[10px] mt-0.5">{t.d}</div>
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Notes">
+            <textarea className={`${fld} h-20 resize-none`} value={form.notes} onChange={set('notes')} placeholder="Special instructions, parking, check-in details..." />
+            <label className="flex items-center gap-2 text-xs text-white cursor-pointer mt-2">
+              <input type="checkbox" checked={form.bg_check_required} onChange={e => setForm(prev => ({ ...prev, bg_check_required: e.target.checked }))} className="accent-p-green" />
+              Background check required
+            </label>
+          </Section>
+
+          {error && <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded px-3 py-2">{error}</div>}
+        </div>
+        <div className="px-4 py-3 border-t border-p-border flex gap-2 justify-end">
+          <button onClick={onClose} className="text-p-muted text-xs hover:text-white px-3 py-2">Cancel</button>
+          <button onClick={submit} disabled={saving} className="px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity">
+            {saving ? 'Creating...' : 'Create event'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Section({ title, children }) {
+  return (
+    <div>
+      <h4 className="text-white text-xs font-semibold uppercase tracking-wider mb-2">{title}</h4>
+      <div className="space-y-2">{children}</div>
     </div>
   )
 }

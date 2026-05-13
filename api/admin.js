@@ -130,15 +130,51 @@ async function handleApplicants(req, res, supabase) {
       if (s.would_work_again != null) ratingMap[s.worker_id].would_work_again.push(s.would_work_again)
     }
 
-    // Merge rating info into each applicant
+    // Active bookings — workers currently committed to an event that hasn't ended.
+    // Used by the Workers tab to badge booked workers and by the picker to hide them.
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
+    const { data: futureEvents } = await supabase.from('events')
+      .select('id, title, event_date, start_time, end_time')
+      .gte('event_date', todayStr)
+    const activeEvents = (futureEvents || []).filter(e => {
+      if (!e.event_date) return false
+      if (e.event_date > todayStr) return true
+      const endsAt = new Date(`${e.event_date}T${e.end_time || '23:59:59'}`)
+      return endsAt > now
+    })
+    const activeEventMap = Object.fromEntries(activeEvents.map(e => [e.id, e]))
+    let bookingMap = {}
+    if (activeEvents.length) {
+      const { data: activeAssigns } = await supabase.from('assignments')
+        .select('worker_id, event_id, status')
+        .in('event_id', activeEvents.map(e => e.id))
+        .in('status', ['invited', 'confirmed', 'checked_in'])
+      for (const a of (activeAssigns || [])) {
+        const ev = activeEventMap[a.event_id]
+        if (!ev) continue
+        // Keep the earliest upcoming booking per worker.
+        const existing = bookingMap[a.worker_id]
+        if (!existing || ev.event_date < existing.event_date) {
+          bookingMap[a.worker_id] = { event_id: ev.id, event_title: ev.title, event_date: ev.event_date, start_time: ev.start_time, end_time: ev.end_time, status: a.status }
+        }
+      }
+    }
+
+    // Merge rating + booking info into each applicant
     const enriched = data.map(a => {
       const r = ratingMap[a.id]
-      if (!r || r.ratings.length === 0) return { ...a, avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
-      const avg_rating = r.ratings.reduce((sum, v) => sum + v, 0) / r.ratings.length
-      const would_hire_again_pct = r.would_work_again.length > 0
-        ? Math.round((r.would_work_again.filter(Boolean).length / r.would_work_again.length) * 100)
-        : null
-      return { ...a, avg_rating: Math.round(avg_rating * 10) / 10, total_shifts: r.ratings.length, would_hire_again_pct }
+      const active_booking = bookingMap[a.id] || null
+      const base = r && r.ratings.length > 0
+        ? {
+            avg_rating: Math.round((r.ratings.reduce((sum, v) => sum + v, 0) / r.ratings.length) * 10) / 10,
+            total_shifts: r.ratings.length,
+            would_hire_again_pct: r.would_work_again.length > 0
+              ? Math.round((r.would_work_again.filter(Boolean).length / r.would_work_again.length) * 100)
+              : null,
+          }
+        : { avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
+      return { ...a, ...base, active_booking }
     })
 
     return res.status(200).json(enriched)
@@ -658,9 +694,32 @@ async function handleSuggestWorkers(req, res, supabase) {
   const { data: event, error: evErr } = await supabase.from('events').select('id, city, role_types, event_date, start_time, end_time').eq('id', event_id).single()
   if (evErr || !event) return res.status(404).json({ error: 'Event not found' })
 
-  // Get already assigned worker IDs
+  // Get already assigned worker IDs (this event)
   const { data: existing } = await supabase.from('assignments').select('worker_id').eq('event_id', event_id)
   const assignedIds = new Set((existing || []).map(a => a.worker_id))
+
+  // Exclude workers actively booked on other events that haven't ended yet.
+  // Worker reappears in the picker once their event finishes.
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
+  const { data: futureEvents } = await supabase.from('events')
+    .select('id, event_date, end_time')
+    .gte('event_date', todayStr)
+    .neq('id', event_id)
+  const activeEventIds = (futureEvents || []).filter(e => {
+    if (!e.event_date) return false
+    if (e.event_date > todayStr) return true
+    const endsAt = new Date(`${e.event_date}T${e.end_time || '23:59:59'}`)
+    return endsAt > now
+  }).map(e => e.id)
+  let busyIds = new Set()
+  if (activeEventIds.length) {
+    const { data: busy } = await supabase.from('assignments')
+      .select('worker_id')
+      .in('event_id', activeEventIds)
+      .in('status', ['invited', 'confirmed', 'checked_in'])
+    busyIds = new Set((busy || []).map(a => a.worker_id))
+  }
 
   // Get all approved workers
   const { data: workers, error: wErr } = await supabase.from('applicants')
@@ -674,6 +733,7 @@ async function handleSuggestWorkers(req, res, supabase) {
 
   const scored = (workers || [])
     .filter(w => !assignedIds.has(w.id))
+    .filter(w => !busyIds.has(w.id))
     .filter(w => isAvailableForEvent(w.availability_windows, event.event_date, event.start_time, event.end_time))
     .map(w => {
       let score = 0

@@ -397,6 +397,14 @@ export default function ApplicantsPanel() {
                         {a.avg_rating != null && (
                           <span className="text-yellow-400 text-[10px] flex-shrink-0 hidden sm:inline">★ {a.avg_rating}</span>
                         )}
+                        {a.active_booking && (
+                          <span
+                            className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300 flex-shrink-0 max-w-[160px] truncate"
+                            title={`Booked: ${a.active_booking.event_title} · ${a.active_booking.event_date}`}
+                          >
+                            Booked · {a.active_booking.event_title}
+                          </span>
+                        )}
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                           {a.status?.replace(/_/g, ' ')}
                         </span>
