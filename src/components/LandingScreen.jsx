@@ -169,8 +169,8 @@ export default function LandingScreen({ onStart }) {
         <h1 className="font-inter text-5xl font-extrabold leading-none tracking-tighter mb-3 text-left">
           <span className="block text-white tagline-line tagline-line-1">On Time.</span>
           <span className="block text-white tagline-line tagline-line-2">On Task.</span>
-          <span className="block tagline-line tagline-line-3 tagline-payroll">
-            On Payroll<span className="tagline-period">.</span>
+          <span className="block text-white tagline-line tagline-line-3">
+            On <span className="tagline-payroll">Payroll<span className="tagline-period">.</span></span>
           </span>
         </h1>
 

@@ -190,15 +190,15 @@ nav span:first-child,
 }
 @keyframes payrollColor {
   from { color: #ffffff; }
-  to   { color: #cc5500; }
+  to   { color: #facc15; }
 }
 @keyframes payrollUnderline {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
 @keyframes payrollGlow {
-  0%, 100% { text-shadow: 0 0 0 rgba(204, 85, 0, 0); }
-  50%      { text-shadow: 0 0 24px rgba(204, 85, 0, 0.55); }
+  0%, 100% { text-shadow: 0 0 0 rgba(250, 204, 21, 0); }
+  50%      { text-shadow: 0 0 24px rgba(250, 204, 21, 0.6); }
 }
 @keyframes periodPop {
   0%   { transform: scale(0.6); opacity: 0; }
@@ -218,8 +218,7 @@ nav span:first-child,
   position: relative;
   display: inline-block;
   /* color animation kicks in after the line itself has entered */
-  animation: taglineIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.36s forwards,
-             payrollColor 0.6s ease-out 0.95s forwards,
+  animation: payrollColor 0.6s ease-out 0.95s forwards,
              payrollGlow 1.8s ease-in-out 1.3s 1;
 }
 
@@ -230,7 +229,7 @@ nav span:first-child,
   right: 0;
   bottom: -0.12em;
   height: 3px;
-  background: linear-gradient(90deg, #cc5500 0%, #cc550066 100%);
+  background: linear-gradient(90deg, #facc15 0%, #facc1566 100%);
   border-radius: 2px;
   transform: scaleX(0);
   transform-origin: left center;
@@ -248,7 +247,7 @@ nav span:first-child,
   .tagline-line,
   .tagline-payroll,
   .tagline-period { animation: none !important; opacity: 1; transform: none; filter: none; }
-  .tagline-payroll { color: #cc5500; }
+  .tagline-payroll { color: #facc15; }
   .tagline-payroll::after { transform: scaleX(1); }
 }
 
