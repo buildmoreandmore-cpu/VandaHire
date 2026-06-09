@@ -173,11 +173,30 @@ async function handleApplicants(req, res, supabase) {
       }
     }
 
+    // Latest email event per recipient (delivery/open tracking), matched by email.
+    let lastEmailMap = {}
+    try {
+      const { data: emailEvents } = await supabase.from('email_events')
+        .select('email, type, created_at')
+        .order('created_at', { ascending: false })
+        .limit(2000)
+      const rank = { sent: 1, delivery_delayed: 2, delivered: 3, opened: 4, clicked: 5, bounced: 6, complained: 7 }
+      for (const ev of (emailEvents || [])) {
+        const key = (ev.email || '').toLowerCase()
+        const cur = lastEmailMap[key]
+        // Keep the most advanced status (clicked > opened > delivered > sent), tiebreak latest.
+        if (!cur || (rank[ev.type] || 0) > (rank[cur.type] || 0)) {
+          lastEmailMap[key] = { type: ev.type, at: ev.created_at }
+        }
+      }
+    } catch { lastEmailMap = {} }
+
     // Merge rating + booking info into each applicant
     const enriched = data.map(a => {
       const r = ratingMap[a.id]
       const active_booking = bookingMap[a.id] || null
       const last_contact = lastContactMap[a.id] || null
+      const last_email = a.email ? (lastEmailMap[a.email.toLowerCase()] || null) : null
       const base = r && r.ratings.length > 0
         ? {
             avg_rating: Math.round((r.ratings.reduce((sum, v) => sum + v, 0) / r.ratings.length) * 10) / 10,
@@ -187,7 +206,7 @@ async function handleApplicants(req, res, supabase) {
               : null,
           }
         : { avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
-      return { ...a, ...base, active_booking, last_contact }
+      return { ...a, ...base, active_booking, last_contact, last_email }
     })
 
     return res.status(200).json(enriched)

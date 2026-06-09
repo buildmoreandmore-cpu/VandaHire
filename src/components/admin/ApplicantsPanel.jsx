@@ -2,6 +2,16 @@ import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
 import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage } from '../../lib/adminApi.js'
 
+const EMAIL_STATUS_COLORS = {
+  sent: 'bg-white/10 text-p-muted',
+  delivered: 'bg-blue-500/15 text-blue-400',
+  opened: 'bg-green-500/15 text-green-400',
+  clicked: 'bg-green-500/25 text-green-300',
+  bounced: 'bg-red-500/15 text-red-400',
+  complained: 'bg-red-500/20 text-red-300',
+  delivery_delayed: 'bg-yellow-500/15 text-yellow-400',
+}
+
 const COORDINATOR_NAME_KEY = 'vanda_coordinator_name'
 
 function getCoordinatorName() {
@@ -708,6 +718,15 @@ export default function ApplicantsPanel() {
                             ? `Touched ${relativeTime(a.last_contact.at)}${a.last_contact.by ? ' · ' + a.last_contact.by : ''}`
                             : 'Never touched'}
                         </span>
+                        {a.last_email && (
+                          <span
+                            className={`hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${EMAIL_STATUS_COLORS[a.last_email.type] || 'bg-white/10 text-p-muted'}`}
+                            title={`Last email ${a.last_email.type} ${new Date(a.last_email.at).toLocaleString()}`}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2.5 4l5.5 4 5.5-4" /></svg>
+                            {a.last_email.type}
+                          </span>
+                        )}
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                           {a.status?.replace(/_/g, ' ')}
                         </span>
