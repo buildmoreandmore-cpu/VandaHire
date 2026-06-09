@@ -26,8 +26,8 @@ const initialFormData = {
   photo: null,
 }
 
-export default function App({ groupCode }) {
-  const [screen, setScreen] = useState(SCREENS.LANDING)
+export default function App({ groupCode, startScreen }) {
+  const [screen, setScreen] = useState(startScreen === 'application' ? SCREENS.APPLICATION : SCREENS.LANDING)
   const [formData, setFormData] = useState(initialFormData)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)

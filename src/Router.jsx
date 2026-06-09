@@ -336,6 +336,8 @@ export default function Router() {
   } else if (path.startsWith('/join/')) {
     const code = path.replace('/join/', '')
     page = <App groupCode={code} />
+  } else if (path === '/apply') {
+    page = <App startScreen="application" />
   } else if (SEO_PAGES[path]) {
     page = <SeoLandingPage {...SEO_PAGES[path]} />
   } else {
