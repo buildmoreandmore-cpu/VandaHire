@@ -42,7 +42,20 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">4. Organizer Terms</h2>
+            <h2 className="text-white font-bold text-lg mb-3">4. SMS / Text Messaging Program</h2>
+            <p className="mb-3">By submitting our job application, you agree to receive recurring SMS text messages from V&A Hire (Varist &amp; Associates of Georgia LLC) at the mobile number you provide, including shift offers, assignment confirmations, scheduling, shift details, and check-in reminders.</p>
+            <ul className="list-disc list-inside space-y-2 ml-2">
+              <li>Message frequency varies based on shift activity.</li>
+              <li>Message and data rates may apply.</li>
+              <li>Reply <strong className="text-white">STOP</strong> to cancel at any time; reply <strong className="text-white">HELP</strong> for help.</li>
+              <li>Consent to receive text messages is not a condition of employment or placement.</li>
+              <li>Carriers are not liable for delayed or undelivered messages.</li>
+              <li>We do not share or sell your mobile number or SMS consent with third parties for their marketing purposes. See our <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">5. Organizer Terms</h2>
             <p className="mb-3">By submitting an event staffing request, you agree to the following:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>All event details provided are accurate, including date, time, location, and staffing requirements</li>
@@ -55,13 +68,13 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">5. Payments</h2>
+            <h2 className="text-white font-bold text-lg mb-3">6. Payments</h2>
             <p className="mb-3">Service fees are charged to event organizers for confirmed staffing engagements. Fees are calculated based on the number of workers, hours, and roles requested.</p>
             <p>Payments are processed securely via Stripe. V&A Hire does not store payment card information. All fees are non-refundable once workers have been dispatched unless otherwise agreed in writing.</p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">6. Limitation of Liability</h2>
+            <h2 className="text-white font-bold text-lg mb-3">7. Limitation of Liability</h2>
             <p className="mb-3">V&A Hire is a coordination and dispatch platform. We are not responsible for:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Worker performance, conduct, or actions while on site</li>
@@ -72,7 +85,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">7. Prohibited Conduct</h2>
+            <h2 className="text-white font-bold text-lg mb-3">8. Prohibited Conduct</h2>
             <p className="mb-3">You may not use the V&A Hire platform to:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Provide false or misleading information</li>
@@ -84,17 +97,17 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">8. Intellectual Property</h2>
+            <h2 className="text-white font-bold text-lg mb-3">9. Intellectual Property</h2>
             <p>All content, trademarks, and materials on the V&A Hire platform are owned by or licensed to V&A Hire. You may not reproduce, distribute, or create derivative works without our written permission.</p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">9. Governing Law</h2>
+            <h2 className="text-white font-bold text-lg mb-3">10. Governing Law</h2>
             <p>These Terms are governed by the laws of the State of Georgia, without regard to its conflict of law principles. Any disputes shall be resolved in the courts located in Fulton County, Georgia.</p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">10. Changes to These Terms</h2>
+            <h2 className="text-white font-bold text-lg mb-3">11. Changes to These Terms</h2>
             <p>We may update these Terms from time to time. We will post updated Terms on this page with a revised effective date. Continued use of the platform after changes are posted constitutes acceptance of the updated Terms.</p>
           </section>
 
