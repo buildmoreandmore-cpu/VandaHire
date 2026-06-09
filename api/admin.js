@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { checkAdmin } from '../_lib/auth.js'
 import { findByPhone } from '../_lib/phone.js'
 import { sendSms } from '../_lib/sms.js'
-import { sendEmail } from '../_lib/email.js'
+import { sendEmail, isEmailSuppressed } from '../_lib/email.js'
 import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
 import { getAgreementHtml } from '../_lib/agreement.js'
 import { sendPushToWorker } from '../_lib/push.js'
@@ -2349,10 +2349,15 @@ async function handleBulkMessage(req, res, supabase) {
       catch (e) { smsFailed++; if (errors.length < 5) errors.push(`SMS ${w.first_name}: ${e.message}`) }
     }
     if ((channel === 'email' || channel === 'both') && w.email) {
-      try {
-        await sendEmail({ to: w.email, subject: subject?.trim() || 'Message from V&A Hire', html: `<p>${body.replace(/\n/g, '<br>')}</p>` })
-        emailSent++
-      } catch (e) { emailFailed++; if (errors.length < 5) errors.push(`Email ${w.first_name}: ${e.message}`) }
+      if (await isEmailSuppressed(supabase, w.email)) {
+        emailFailed++
+        if (errors.length < 5) errors.push(`Email ${w.first_name}: unsubscribed`)
+      } else {
+        try {
+          await sendEmail({ to: w.email, subject: subject?.trim() || 'Message from V&A Hire', html: `<p>${body.replace(/\n/g, '<br>')}</p>`, branded: true, unsubscribeEmail: w.email })
+          emailSent++
+        } catch (e) { emailFailed++; if (errors.length < 5) errors.push(`Email ${w.first_name}: ${e.message}`) }
+      }
     }
   }
 

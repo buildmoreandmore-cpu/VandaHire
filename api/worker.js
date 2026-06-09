@@ -6,7 +6,7 @@ import { hashPin, verifyPin, isLocked, createSession, verifySession, MAX_ATTEMPT
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
-import { sendEmail } from '../_lib/email.js'
+import { sendEmail, readUnsubToken } from '../_lib/email.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -34,6 +34,7 @@ export default async function handler(req, res) {
     if (route === 'my-crew-status') return await handleMyCrewStatus(req, res, supabase)
     if (route === 'w9') return await handleW9(req, res, supabase)
     if (route === 'bg-check') return await handleBgCheck(req, res, supabase)
+    if (route === 'unsubscribe') return await handleUnsubscribe(req, res, supabase)
     if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
     if (route === 'push-subscribe') return await handlePushSubscribe(req, res, supabase)
     if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
@@ -2128,4 +2129,27 @@ async function handlePushNotifyShift(req, res, supabase) {
     }
   }
   return res.status(200).json({ sent, failed })
+}
+
+// ─── EMAIL UNSUBSCRIBE ───────────────────────────────────────────────────────
+async function handleUnsubscribe(req, res, supabase) {
+  const token = req.query.t || req.body?.t
+  const email = readUnsubToken(token)
+  const page = (title, msg) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+    <body style="margin:0;background:#0a0a0a;font-family:Arial,sans-serif;color:#ddd;display:flex;min-height:100vh;align-items:center;justify-content:center;">
+      <div style="max-width:440px;padding:32px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:16px;">V&amp;A Hire</div>
+        <p style="font-size:15px;line-height:1.6;">${msg}</p>
+      </div></body></html>`
+  if (!email) {
+    res.setHeader('Content-Type', 'text/html')
+    return res.status(400).send(page('Invalid link', 'This unsubscribe link is invalid or expired.'))
+  }
+  try {
+    await supabase.from('email_suppressions').upsert({ email: email.toLowerCase(), reason: 'unsubscribe' }, { onConflict: 'email' })
+  } catch (e) {
+    console.error('[unsubscribe] failed:', e.message)
+  }
+  res.setHeader('Content-Type', 'text/html')
+  return res.status(200).send(page('Unsubscribed', `<strong style="color:#fff">${email}</strong> has been unsubscribed from V&A Hire emails. You'll no longer receive shift-offer or update emails. You can still receive SMS unless you reply STOP.`))
 }
