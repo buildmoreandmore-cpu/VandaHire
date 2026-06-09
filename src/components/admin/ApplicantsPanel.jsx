@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
+import MessageTemplates from './MessageTemplates.jsx'
 import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage } from '../../lib/adminApi.js'
 
 const EMAIL_STATUS_COLORS = {
@@ -568,6 +569,12 @@ export default function ApplicantsPanel() {
               <button onClick={() => setShowBulkMsg(false)} className="text-p-muted hover:text-white text-lg">×</button>
             </div>
             <div className="p-4 space-y-3">
+              <div className="relative flex justify-end">
+                <MessageTemplates
+                  current={{ channel: bulkMsgChannel, subject: bulkMsgSubject, body: bulkMsgText }}
+                  onApply={(t) => { setBulkMsgChannel(t.channel || 'both'); setBulkMsgSubject(t.subject || ''); setBulkMsgText(t.body || '') }}
+                />
+              </div>
               <select value={bulkMsgChannel} onChange={e => setBulkMsgChannel(e.target.value)} className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white">
                 <option value="both">SMS + Email</option>
                 <option value="sms">SMS Only</option>

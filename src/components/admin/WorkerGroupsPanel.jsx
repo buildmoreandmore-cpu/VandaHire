@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import MessageTemplates from './MessageTemplates.jsx'
 import {
   fetchGroups, createGroup, updateGroup, deleteGroup,
   fetchGroupMembers, updateGroupMembers,
@@ -551,6 +552,12 @@ export default function WorkerGroupsPanel() {
                     <button onClick={() => setShowGroupMsg(false)} className="text-p-muted hover:text-white text-lg">×</button>
                   </div>
                   <div className="p-4 space-y-3">
+                    <div className="relative flex justify-end">
+                      <MessageTemplates
+                        current={{ channel: gMsgChannel, subject: gMsgSubject, body: gMsgText }}
+                        onApply={(t) => { setGMsgChannel(t.channel || 'both'); setGMsgSubject(t.subject || ''); setGMsgText(t.body || '') }}
+                      />
+                    </div>
                     <select value={gMsgChannel} onChange={e => setGMsgChannel(e.target.value)} className="w-full bg-[#0a0a0a] border border-p-border rounded-lg px-3 py-2 text-xs text-white">
                       <option value="both">SMS + Email</option>
                       <option value="sms">SMS Only</option>

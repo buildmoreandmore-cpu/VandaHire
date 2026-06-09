@@ -330,6 +330,13 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Message templates (reusable snippets)
+export const fetchMessageTemplates = () => adminFetch('/api/admin/message-templates')
+export const createMessageTemplate = (data) =>
+  adminFetch('/api/admin/message-templates', { method: 'POST', body: JSON.stringify(data) })
+export const deleteMessageTemplate = (id) =>
+  adminFetch('/api/admin/message-templates', { method: 'DELETE', body: JSON.stringify({ id }) })
+
 // Bulk message to many selected workers
 export const bulkMessage = (worker_ids, message, channel = 'both', subject) =>
   adminFetch('/api/admin/bulk-message', {

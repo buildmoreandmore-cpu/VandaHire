@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage } from '../../lib/adminApi.js'
+import MessageTemplates from './MessageTemplates.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -1495,6 +1496,12 @@ export default function EventsPanel() {
                             <button onClick={() => setShowCrewMsg(false)} className="text-p-muted hover:text-white text-lg">×</button>
                           </div>
                           <div className="p-4 space-y-3">
+                            <div className="relative flex justify-end">
+                              <MessageTemplates
+                                current={{ channel: crewMsgChannel, subject: crewMsgSubject, body: crewMsgText }}
+                                onApply={(t) => { setCrewMsgChannel(t.channel || 'both'); setCrewMsgSubject(t.subject || ''); setCrewMsgText(t.body || '') }}
+                              />
+                            </div>
                             <select value={crewMsgChannel} onChange={e => setCrewMsgChannel(e.target.value)} className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white">
                               <option value="both">SMS + Email</option>
                               <option value="sms">SMS Only</option>

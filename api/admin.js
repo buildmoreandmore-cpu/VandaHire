@@ -1642,6 +1642,7 @@ export default async function handler(req, res) {
       case 'applicant-notes': return await handleApplicantNotes(req, res, supabase)
       case 'workers-export': return await handleWorkersExport(req, res, supabase)
       case 'bulk-message': return await handleBulkMessage(req, res, supabase)
+      case 'message-templates': return await handleMessageTemplates(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2387,4 +2388,31 @@ async function handleBulkMessage(req, res, supabase) {
     email: { sent: emailSent, failed: emailFailed },
     errors,
   })
+}
+
+// ─── MESSAGE TEMPLATES (reusable SMS/email snippets) ────────────────────────
+async function handleMessageTemplates(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('message_templates').select('*').order('created_at', { ascending: false })
+    if (error) throw error
+    return res.status(200).json(data || [])
+  }
+  if (req.method === 'POST') {
+    const { name, channel = 'both', subject = '', body = '' } = req.body || {}
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' })
+    if (!String(body).trim()) return res.status(400).json({ error: 'body required' })
+    const { data, error } = await supabase.from('message_templates')
+      .insert({ name: name.trim().slice(0, 120), channel, subject: String(subject).slice(0, 200), body: String(body).slice(0, 4000) })
+      .select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('message_templates').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
 }
