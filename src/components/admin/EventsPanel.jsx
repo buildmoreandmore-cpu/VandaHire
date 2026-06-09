@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage } from '../../lib/adminApi.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -134,6 +134,28 @@ export default function EventsPanel() {
 
   // Create-event modal
   const [showCreateModal, setShowCreateModal] = useState(false)
+
+  // Message-crew composer (assigned workers of the expanded event)
+  const [showCrewMsg, setShowCrewMsg] = useState(false)
+  const [crewMsgText, setCrewMsgText] = useState('')
+  const [crewMsgSubject, setCrewMsgSubject] = useState('')
+  const [crewMsgChannel, setCrewMsgChannel] = useState('both')
+  const [crewMsgSending, setCrewMsgSending] = useState(false)
+  const [crewMsgResult, setCrewMsgResult] = useState(null)
+
+  const handleCrewMessage = async () => {
+    const ids = assignments.map(a => a.worker_id).filter(Boolean)
+    if (!crewMsgText.trim() || ids.length === 0) return
+    setCrewMsgSending(true)
+    setCrewMsgResult(null)
+    try {
+      const res = await bulkMessage(ids, crewMsgText, crewMsgChannel, crewMsgSubject)
+      setCrewMsgResult(res)
+    } catch (err) {
+      setCrewMsgResult({ error: err.message })
+    }
+    setCrewMsgSending(false)
+  }
 
   // Drag state for assign-workers DnD
   const [dragWorker, setDragWorker] = useState(null)
@@ -1446,13 +1468,61 @@ export default function EventsPanel() {
                       <h4 className="text-white text-sm font-medium">
                         Assigned Workers ({assignments.length}/{ev.workers_needed})
                       </h4>
-                      <button
-                        onClick={openAssignModal}
-                        className="text-xs text-p-green font-medium hover:opacity-80 transition-opacity"
-                      >
-                        + Assign Workers
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {assignments.length > 0 && (
+                          <button
+                            onClick={() => { setShowCrewMsg(true); setCrewMsgResult(null) }}
+                            className="text-xs text-p-link font-medium hover:opacity-80 transition-opacity"
+                          >
+                            Message crew
+                          </button>
+                        )}
+                        <button
+                          onClick={openAssignModal}
+                          className="text-xs text-p-green font-medium hover:opacity-80 transition-opacity"
+                        >
+                          + Assign Workers
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Message-crew composer */}
+                    {showCrewMsg && (
+                      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowCrewMsg(false)}>
+                        <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-lg max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                          <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
+                            <h3 className="text-white font-semibold text-sm">Message crew · {ev.title} ({assignments.length})</h3>
+                            <button onClick={() => setShowCrewMsg(false)} className="text-p-muted hover:text-white text-lg">×</button>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            <select value={crewMsgChannel} onChange={e => setCrewMsgChannel(e.target.value)} className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white">
+                              <option value="both">SMS + Email</option>
+                              <option value="sms">SMS Only</option>
+                              <option value="email">Email Only</option>
+                            </select>
+                            {(crewMsgChannel === 'email' || crewMsgChannel === 'both') && (
+                              <input value={crewMsgSubject} onChange={e => setCrewMsgSubject(e.target.value)} placeholder="Email subject (defaults to 'Message from V&A Hire')" className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white placeholder-p-muted focus:outline-none focus:border-p-link" />
+                            )}
+                            <textarea value={crewMsgText} onChange={e => setCrewMsgText(e.target.value)} rows={5} placeholder="Message to everyone assigned to this event… Use {first_name} to personalize." className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-sm text-white placeholder-p-muted focus:outline-none focus:border-p-link resize-none" />
+                            <p className="text-p-muted text-[10px]">Sends to all {assignments.length} assigned worker{assignments.length !== 1 ? 's' : ''}. <span className="text-white">{'{first_name}'}</span> is personalized. SMS only to those with a phone; email only to those with an address.</p>
+                            {crewMsgResult && (
+                              crewMsgResult.error ? (
+                                <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded px-3 py-2">{crewMsgResult.error}</div>
+                              ) : (
+                                <div className="text-green-400 text-xs bg-green-500/10 border border-green-500/30 rounded px-3 py-2">
+                                  Sent to {crewMsgResult.recipients} · SMS {crewMsgResult.sms.sent} ok{crewMsgResult.sms.failed ? `, ${crewMsgResult.sms.failed} failed` : ''} · Email {crewMsgResult.email.sent} ok{crewMsgResult.email.failed ? `, ${crewMsgResult.email.failed} failed` : ''}
+                                  {crewMsgResult.errors?.length > 0 && <div className="text-p-muted text-[10px] mt-1">{crewMsgResult.errors.join(' · ')}</div>}
+                                </div>
+                              )
+                            )}
+                          </div>
+                          <div className="px-4 py-3 border-t border-p-border flex justify-end gap-2">
+                            <button onClick={() => setShowCrewMsg(false)} className="text-p-muted text-xs hover:text-white px-3 py-2">Close</button>
+                            <button onClick={handleCrewMessage} disabled={crewMsgSending || !crewMsgText.trim()} className="px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity">{crewMsgSending ? 'Sending…' : `Send to ${assignments.length}`}</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {assignLoading ? (
                       <p className="text-p-muted text-xs">Loading...</p>
