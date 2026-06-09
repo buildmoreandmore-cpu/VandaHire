@@ -1643,6 +1643,7 @@ export default async function handler(req, res) {
       case 'workers-export': return await handleWorkersExport(req, res, supabase)
       case 'bulk-message': return await handleBulkMessage(req, res, supabase)
       case 'message-templates': return await handleMessageTemplates(req, res, supabase)
+      case 'segments': return await handleSavedSegments(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2411,6 +2412,32 @@ async function handleMessageTemplates(req, res, supabase) {
     const { id } = req.body || {}
     if (!id) return res.status(400).json({ error: 'id required' })
     const { error } = await supabase.from('message_templates').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── SAVED SEGMENTS (worker-list filter presets) ────────────────────────────
+async function handleSavedSegments(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('saved_segments').select('*').order('created_at', { ascending: false })
+    if (error) throw error
+    return res.status(200).json(data || [])
+  }
+  if (req.method === 'POST') {
+    const { name, filters } = req.body || {}
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' })
+    const { data, error } = await supabase.from('saved_segments')
+      .insert({ name: name.trim().slice(0, 120), filters: filters || {} })
+      .select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('saved_segments').delete().eq('id', id)
     if (error) throw error
     return res.status(200).json({ success: true })
   }

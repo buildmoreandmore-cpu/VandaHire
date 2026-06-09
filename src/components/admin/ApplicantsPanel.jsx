@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
 import MessageTemplates from './MessageTemplates.jsx'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment } from '../../lib/adminApi.js'
 
 const EMAIL_STATUS_COLORS = {
   sent: 'bg-white/10 text-p-muted',
@@ -113,6 +113,35 @@ export default function ApplicantsPanel() {
 
   // Feature 13: PIN reset
   const [resettingPin, setResettingPin] = useState(null)
+
+  // Saved segments (filter presets)
+  const [segments, setSegments] = useState([])
+  const [segmentsLoaded, setSegmentsLoaded] = useState(false)
+
+  const loadSegments = async () => {
+    try { setSegments(await fetchSegments()); setSegmentsLoaded(true) } catch (e) { console.error(e) }
+  }
+  const applySegment = (seg) => {
+    const f = seg.filters || {}
+    setFilter(f.status || 'all')
+    setCityFilter(f.city || 'all')
+    setStateFilter(f.state || 'all')
+    setRoleFilter(f.role || 'all')
+    setAvailFilter(f.availability || 'all')
+    setSearch(f.search || '')
+  }
+  const saveSegment = async () => {
+    const name = window.prompt('Name this segment:')
+    if (!name || !name.trim()) return
+    try {
+      const seg = await createSegment(name.trim(), { status: filter, city: cityFilter, state: stateFilter, role: roleFilter, availability: availFilter, search })
+      setSegments(prev => [seg, ...prev])
+    } catch (e) { alert('Save failed: ' + e.message) }
+  }
+  const removeSegment = async (id) => {
+    try { await deleteSegment(id); setSegments(prev => prev.filter(s => s.id !== id)) }
+    catch (e) { alert('Delete failed: ' + e.message) }
+  }
 
   // Bulk message
   const [showBulkMsg, setShowBulkMsg] = useState(false)
@@ -482,6 +511,26 @@ export default function ApplicantsPanel() {
         <select value={availFilter} onChange={e => setAvailFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
           <option value="all">All Availability</option>
           {availabilities.map(av => <option key={av} value={av}>{av}</option>)}
+        </select>
+        <select
+          value=""
+          onClick={() => { if (!segmentsLoaded) loadSegments() }}
+          onChange={e => {
+            const v = e.target.value
+            if (v === '__save') { saveSegment(); return }
+            if (v.startsWith('__del:')) { removeSegment(v.slice(6)); return }
+            const seg = segments.find(s => s.id === v)
+            if (seg) applySegment(seg)
+          }}
+          className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white"
+          title="Saved segments"
+        >
+          <option value="">Segments…</option>
+          <option value="__save">+ Save current filters</option>
+          {segments.length > 0 && <option disabled>──────────</option>}
+          {segments.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {segments.length > 0 && <option disabled>── delete ──</option>}
+          {segments.map(s => <option key={'d'+s.id} value={'__del:'+s.id}>✕ {s.name}</option>)}
         </select>
         <div className="ml-auto flex gap-2">
           <button

@@ -330,6 +330,13 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Saved segments (worker filter presets)
+export const fetchSegments = () => adminFetch('/api/admin/segments')
+export const createSegment = (name, filters) =>
+  adminFetch('/api/admin/segments', { method: 'POST', body: JSON.stringify({ name, filters }) })
+export const deleteSegment = (id) =>
+  adminFetch('/api/admin/segments', { method: 'DELETE', body: JSON.stringify({ id }) })
+
 // Message templates (reusable snippets)
 export const fetchMessageTemplates = () => adminFetch('/api/admin/message-templates')
 export const createMessageTemplate = (data) =>
