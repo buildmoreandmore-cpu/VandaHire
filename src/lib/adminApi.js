@@ -330,6 +330,13 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Bulk message to many selected workers
+export const bulkMessage = (worker_ids, message, channel = 'both', subject) =>
+  adminFetch('/api/admin/bulk-message', {
+    method: 'POST',
+    body: JSON.stringify({ worker_ids, message, channel, subject }),
+  })
+
 // Applicant notes (contact log)
 export const fetchApplicantNotes = (applicant_id) =>
   adminFetch(`/api/admin/applicant-notes?applicant_id=${encodeURIComponent(applicant_id)}`)

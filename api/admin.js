@@ -1622,6 +1622,7 @@ export default async function handler(req, res) {
       case 'upload-id': return await handleAdminUploadId(req, res, supabase)
       case 'applicant-notes': return await handleApplicantNotes(req, res, supabase)
       case 'workers-export': return await handleWorkersExport(req, res, supabase)
+      case 'bulk-message': return await handleBulkMessage(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2319,4 +2320,47 @@ async function handleWorkersExport(req, res, supabase) {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   return res.status(200).send(rows.join('\n'))
+}
+
+// ─── BULK MESSAGE (SMS / email to many selected workers) ────────────────────
+
+async function handleBulkMessage(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { worker_ids, message, channel = 'both', subject } = req.body || {}
+  if (!Array.isArray(worker_ids) || !worker_ids.length || !message || !String(message).trim()) {
+    return res.status(400).json({ error: 'worker_ids[] and message required' })
+  }
+
+  const { data: workers, error } = await supabase.from('applicants')
+    .select('id, first_name, phone, email')
+    .in('id', worker_ids)
+  if (error) throw error
+
+  const personalize = (text, w) =>
+    text.replace(/\{first_name\}/gi, w.first_name || 'there').replace(/\{name\}/gi, w.first_name || 'there')
+
+  let smsSent = 0, smsFailed = 0, emailSent = 0, emailFailed = 0
+  const errors = []
+
+  for (const w of (workers || [])) {
+    const body = personalize(String(message), w)
+    if ((channel === 'sms' || channel === 'both') && w.phone) {
+      try { await sendSms(w.phone, body); smsSent++ }
+      catch (e) { smsFailed++; if (errors.length < 5) errors.push(`SMS ${w.first_name}: ${e.message}`) }
+    }
+    if ((channel === 'email' || channel === 'both') && w.email) {
+      try {
+        await sendEmail({ to: w.email, subject: subject?.trim() || 'Message from V&A Hire', html: `<p>${body.replace(/\n/g, '<br>')}</p>` })
+        emailSent++
+      } catch (e) { emailFailed++; if (errors.length < 5) errors.push(`Email ${w.first_name}: ${e.message}`) }
+    }
+  }
+
+  return res.status(200).json({
+    success: true,
+    recipients: workers?.length || 0,
+    sms: { sent: smsSent, failed: smsFailed },
+    email: { sent: emailSent, failed: emailFailed },
+    errors,
+  })
 }

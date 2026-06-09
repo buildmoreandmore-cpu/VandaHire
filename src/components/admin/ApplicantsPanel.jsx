@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage } from '../../lib/adminApi.js'
 
 const COORDINATOR_NAME_KEY = 'vanda_coordinator_name'
 
@@ -102,6 +102,27 @@ export default function ApplicantsPanel() {
 
   // Feature 13: PIN reset
   const [resettingPin, setResettingPin] = useState(null)
+
+  // Bulk message
+  const [showBulkMsg, setShowBulkMsg] = useState(false)
+  const [bulkMsgText, setBulkMsgText] = useState('')
+  const [bulkMsgSubject, setBulkMsgSubject] = useState('')
+  const [bulkMsgChannel, setBulkMsgChannel] = useState('both')
+  const [bulkMsgSending, setBulkMsgSending] = useState(false)
+  const [bulkMsgResult, setBulkMsgResult] = useState(null)
+
+  const handleBulkMessage = async () => {
+    if (!bulkMsgText.trim() || selected.size === 0) return
+    setBulkMsgSending(true)
+    setBulkMsgResult(null)
+    try {
+      const res = await bulkMessage([...selected], bulkMsgText, bulkMsgChannel, bulkMsgSubject)
+      setBulkMsgResult(res)
+    } catch (err) {
+      setBulkMsgResult({ error: err.message })
+    }
+    setBulkMsgSending(false)
+  }
 
   // Coordinator-side ID upload
   const [uploadingIdFor, setUploadingIdFor] = useState(null)
@@ -503,7 +524,71 @@ export default function ApplicantsPanel() {
               className="px-3 py-1.5 rounded-lg text-xs font-medium text-black bg-p-green hover:opacity-90 transition-all disabled:opacity-40"
             >{bulkUpdating ? 'Updating...' : 'Apply'}</button>
           </div>
+          <div className="border-l border-p-border pl-3">
+            <button
+              onClick={() => { setShowBulkMsg(true); setBulkMsgResult(null) }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white border border-p-border bg-p-bg hover:border-p-muted transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2 4h12v8H2z" /><path d="M2 4l6 4 6-4" />
+              </svg>
+              Message {selected.size}
+            </button>
+          </div>
           <button onClick={() => setSelected(new Set())} className="text-p-muted text-xs hover:text-white">Clear</button>
+        </div>
+      )}
+
+      {/* Bulk Message Modal */}
+      {showBulkMsg && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" onClick={() => setShowBulkMsg(false)}>
+          <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-lg max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
+              <h3 className="text-white font-semibold text-sm">Message {selected.size} worker{selected.size !== 1 ? 's' : ''}</h3>
+              <button onClick={() => setShowBulkMsg(false)} className="text-p-muted hover:text-white text-lg">×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <select value={bulkMsgChannel} onChange={e => setBulkMsgChannel(e.target.value)} className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white">
+                <option value="both">SMS + Email</option>
+                <option value="sms">SMS Only</option>
+                <option value="email">Email Only</option>
+              </select>
+              {(bulkMsgChannel === 'email' || bulkMsgChannel === 'both') && (
+                <input
+                  value={bulkMsgSubject}
+                  onChange={e => setBulkMsgSubject(e.target.value)}
+                  placeholder="Email subject (defaults to 'Message from V&A Hire')"
+                  className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white placeholder-p-muted focus:outline-none focus:border-p-link"
+                />
+              )}
+              <textarea
+                value={bulkMsgText}
+                onChange={e => setBulkMsgText(e.target.value)}
+                rows={5}
+                placeholder="Type your message… Use {first_name} to personalize each one."
+                className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-sm text-white placeholder-p-muted focus:outline-none focus:border-p-link resize-none"
+              />
+              <p className="text-p-muted text-[10px]">Tip: <span className="text-white">{'{first_name}'}</span> is replaced with each worker's name. SMS only sends to workers with a phone; email only to those with an address. STOP/HELP handling is automatic.</p>
+              {bulkMsgResult && (
+                bulkMsgResult.error ? (
+                  <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded px-3 py-2">{bulkMsgResult.error}</div>
+                ) : (
+                  <div className="text-green-400 text-xs bg-green-500/10 border border-green-500/30 rounded px-3 py-2">
+                    Sent to {bulkMsgResult.recipients} · SMS {bulkMsgResult.sms.sent} ok{bulkMsgResult.sms.failed ? `, ${bulkMsgResult.sms.failed} failed` : ''} · Email {bulkMsgResult.email.sent} ok{bulkMsgResult.email.failed ? `, ${bulkMsgResult.email.failed} failed` : ''}
+                    {bulkMsgResult.errors?.length > 0 && <div className="text-p-muted text-[10px] mt-1">{bulkMsgResult.errors.join(' · ')}</div>}
+                  </div>
+                )
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-p-border flex justify-end gap-2">
+              <button onClick={() => setShowBulkMsg(false)} className="text-p-muted text-xs hover:text-white px-3 py-2">Close</button>
+              <button
+                onClick={handleBulkMessage}
+                disabled={bulkMsgSending || !bulkMsgText.trim()}
+                className="px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
+              >{bulkMsgSending ? 'Sending…' : `Send to ${selected.size}`}</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -521,7 +606,7 @@ export default function ApplicantsPanel() {
             type="checkbox"
             checked={filtered.every(a => selected.has(a.id))}
             onChange={toggleSelectAll}
-            className="accent-white"
+            className="accent-green-500 w-4 h-4 cursor-pointer"
           />
           <span className="text-p-muted text-xs">Select all ({filtered.length})</span>
         </div>
@@ -541,7 +626,7 @@ export default function ApplicantsPanel() {
                   type="checkbox"
                   checked={workers.every(a => selected.has(a.id))}
                   onChange={() => toggleSelectCity(workers)}
-                  className="accent-white"
+                  className="accent-green-500 w-4 h-4 cursor-pointer"
                 />
                 <h3 className="text-white text-sm font-semibold">{city}</h3>
                 <span className="text-p-muted text-xs">{workers.length} worker{workers.length !== 1 ? 's' : ''}</span>
@@ -557,7 +642,7 @@ export default function ApplicantsPanel() {
                         checked={selected.has(a.id)}
                         onChange={() => toggleSelect(a.id)}
                         onClick={e => e.stopPropagation()}
-                        className="accent-white flex-shrink-0"
+                        className="accent-green-500 w-4 h-4 flex-shrink-0 cursor-pointer"
                       />
                       <button
                         onClick={() => {
