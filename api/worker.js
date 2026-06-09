@@ -1725,6 +1725,57 @@ async function handleW9(req, res, supabase) {
 
 // ─── BACKGROUND CHECK ────────────────────────────────────────────────────────
 
+// Sends the signed authorization to PCG Screening — called only after the
+// worker confirms payment. Idempotent via bg_check_authorization_sent_at.
+async function sendPcgAuthorization(supabase, workerId) {
+  const { data: w, error } = await supabase.from('applicants')
+    .select('id, first_name, last_name, email, phone, bg_check_legal_name, bg_check_address, bg_check_city, bg_check_state, bg_check_zip, bg_check_sex, bg_check_race, bg_check_dob, bg_check_ssn_encrypted, bg_check_consent_type, bg_check_signature_name, bg_check_signed_at, bg_check_paid_at, bg_check_authorization_sent_at')
+    .eq('id', workerId).single()
+  if (error || !w) { console.error('[pcg] worker not found'); return false }
+  if (w.bg_check_authorization_sent_at) return true // already sent
+
+  let ssn = ''
+  try { ssn = decryptTin(w.bg_check_ssn_encrypted) } catch (e) { console.error('[pcg] SSN decrypt failed:', e.message); return false }
+  const formattedSsn = ssn.length === 9 ? `${ssn.slice(0,3)}-${ssn.slice(3,5)}-${ssn.slice(5)}` : ssn
+  const consentLabel = w.bg_check_consent_type === 'employment_duration' ? 'Duration of employment' : 'Valid for 90 days from signature'
+  const digits = String(w.phone || '').replace(/\D/g, '').slice(-10)
+
+  try {
+    await sendEmail({
+      to: 'info@pcgscreening.com',
+      subject: `Background Check Authorization — ${w.bg_check_legal_name} — from V&A Hire`,
+      html: `<div style="font-family:system-ui,sans-serif;max-width:620px;margin:0 auto;padding:32px;background:#ffffff;color:#333;">
+        <div style="background:#0a0a0a;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;">
+          <div style="font-size:18px;font-weight:800;">V&A Hire</div>
+          <div style="font-size:12px;color:#bbb;">Requested by Varist &amp; Associates of Georgia LLC · 470 16th Street NW, Unit 2024, Atlanta, GA 30363 · info@vassoc.com</div>
+        </div>
+        <h2 style="color:#000;margin:20px 0 16px;border-bottom:2px solid #000;padding-bottom:12px;">Background Check Authorization — PAID</h2>
+        <p style="color:#166534;font-weight:600;font-size:13px;margin:0 0 16px;">✓ Worker payment confirmed before submission.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Full Legal Name</td><td style="padding:8px 0;border-bottom:1px solid #eee;"><strong>${w.bg_check_legal_name}</strong></td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Current Address</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${w.bg_check_address}, ${w.bg_check_city}, ${w.bg_check_state} ${w.bg_check_zip}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Sex/Gender</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${w.bg_check_sex}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Race</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${w.bg_check_race}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date of Birth</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${w.bg_check_dob}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Social Security Number</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${formattedSsn}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Purpose Code</td><td style="padding:8px 0;border-bottom:1px solid #eee;">E — Regular Employment/Housing/Volunteer</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Consent Type</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${consentLabel}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Signed By</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-style:italic;">${w.bg_check_signature_name || w.bg_check_legal_name}</td></tr>
+          <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date Signed</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${w.bg_check_signed_at}</td></tr>
+        </table>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #ddd;">
+        <p style="color:#888;font-size:12px;">Submitted via V&A Hire worker onboarding · Worker Phone: ${digits} · Worker Email: ${w.email || 'N/A'}</p>
+      </div>`,
+    })
+  } catch (e) {
+    console.error('[pcg] authorization email failed:', e.message)
+    return false
+  }
+
+  await supabase.from('applicants').update({ bg_check_authorization_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', workerId)
+  return true
+}
+
 async function handleBgCheck(req, res, supabase) {
   // GET — check bg check status
   if (req.method === 'GET') {
@@ -1741,6 +1792,23 @@ async function handleBgCheck(req, res, supabase) {
       first_name: worker.first_name,
       last_name: worker.last_name,
     })
+  }
+
+  // POST with action=confirm_payment — worker confirms they paid PCG; only
+  // then do we email the authorization to PCG (Option B payment gate).
+  if (req.method === 'POST' && req.body?.action === 'confirm_payment') {
+    const digits = String(req.body.phone || '').replace(/\D/g, '').slice(-10)
+    if (!digits) return res.status(400).json({ error: 'phone required' })
+    const worker = await findByPhone(supabase, digits, 'id, first_name, email, phone, bg_check_signed_at, bg_check_authorization_sent_at')
+    if (!worker) return res.status(404).json({ error: 'Worker not found' })
+    if (!worker.bg_check_signed_at) return res.status(400).json({ error: 'Complete and sign the consent form first.' })
+    if (worker.bg_check_authorization_sent_at) {
+      return res.status(200).json({ success: true, already_sent: true })
+    }
+    await supabase.from('applicants').update({ bg_check_paid_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', worker.id)
+    const sent = await sendPcgAuthorization(supabase, worker.id)
+    if (!sent) return res.status(500).json({ error: 'Could not submit authorization to PCG. Please try again.' })
+    return res.status(200).json({ success: true })
   }
 
   // POST — submit bg check consent
@@ -1785,6 +1853,7 @@ async function handleBgCheck(req, res, supabase) {
       bg_check_ssn_encrypted: encryptTin(ssnDigits),
       bg_check_ssn_last4: ssnDigits.slice(-4),
       bg_check_consent_type: consent_type || '90_days',
+      bg_check_signature_name: signature_name,
       bg_check_signed_at: now,
       bg_check_ip: ip,
       updated_at: now,
@@ -1795,39 +1864,11 @@ async function handleBgCheck(req, res, supabase) {
       return res.status(500).json({ error: 'Failed to save background check consent' })
     }
 
-    // Decrypt SSN for PCG email
-    const fullSsn = ssnDigits
-    const formattedSsn = `${fullSsn.slice(0, 3)}-${fullSsn.slice(3, 5)}-${fullSsn.slice(5)}`
-    const consentLabel = consent_type === 'employment_duration' ? 'Duration of employment' : 'Valid for 90 days from signature'
+    // NOTE: the PCG authorization email is NOT sent here. It is held until the
+    // worker confirms payment (Option B) — see the confirm_payment branch above
+    // and sendPcgAuthorization(). This guarantees PCG only receives paid checks.
 
-    // Send consent form email to PCG Screening Services
-    try {
-      await sendEmail({
-        to: 'info@pcgscreening.com',
-        subject: `Background Check Consent — ${legal_name} — V&A Hire`,
-        html: `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:32px;background:#ffffff;color:#333;">
-          <h2 style="color:#000;margin:0 0 20px;border-bottom:2px solid #000;padding-bottom:12px;">PCG Screening Services — Background Check Authorization</h2>
-          <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Full Legal Name</td><td style="padding:8px 0;border-bottom:1px solid #eee;"><strong>${legal_name}</strong></td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Current Address</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${address}, ${city}, ${state} ${zip}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Sex/Gender</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${sex}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Race</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${race}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date of Birth</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${dob}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Social Security Number</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${formattedSsn}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Purpose Code</td><td style="padding:8px 0;border-bottom:1px solid #eee;">E — Regular Employment/Housing/Volunteer</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Consent Type</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${consentLabel}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Signed By</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-style:italic;">${signature_name}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">Date Signed</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${now}</td></tr>
-            <tr><td style="color:#666;padding:8px 12px 8px 0;border-bottom:1px solid #eee;font-weight:600;">IP Address</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${ip}</td></tr>
-          </table>
-          <hr style="margin:24px 0;border:none;border-top:1px solid #ddd;">
-          <p style="color:#888;font-size:12px;">Submitted via V&A Hire worker onboarding</p>
-          <p style="color:#888;font-size:12px;">Worker Phone: ${digits} | Worker Email: ${worker.email || 'N/A'}</p>
-        </div>`,
-      })
-    } catch (e) {
-      console.error('[bg-check] PCG email failed:', e.message)
-    }
+    const consentLabel = consent_type === 'employment_duration' ? 'Duration of employment' : 'Valid for 90 days from signature'
 
     // Send admin notification
     const adminEmail = process.env.ADMIN_EMAIL || 'crew@vandahire.com'
@@ -1846,7 +1887,7 @@ async function handleBgCheck(req, res, supabase) {
               <tr><td style="color:#888;padding:8px 12px 8px 0;border-bottom:1px solid #1e1e1e;">Consent Type</td><td style="color:#fff;padding:8px 0;border-bottom:1px solid #1e1e1e;">${consentLabel}</td></tr>
               <tr><td style="color:#888;padding:8px 12px 8px 0;">Signed At</td><td style="color:#fff;padding:8px 0;">${now}</td></tr>
             </table>
-            <p style="color:#888;font-size:12px;margin-top:16px;">Consent form also sent to info@pcgscreening.com</p>
+            <p style="color:#888;font-size:12px;margin-top:16px;">Authorization is held until the worker confirms PCG payment, then auto-sent to info@pcgscreening.com.</p>
             <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire — Background Check Auto-Notification</p>
           </div>`,
       })
@@ -1888,7 +1929,7 @@ async function handleBgCheck(req, res, supabase) {
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2>Background Check Consent Received!</h2>
             <p>Hi ${worker.first_name},</p>
-            <p>Your background check authorization has been submitted to PCG Screening Services. Please complete the payment to finalize your screening.</p>
+            <p>Your background check consent is signed. <strong>Complete the payment below, then return to the bg-check page and confirm</strong> — your authorization is sent to PCG Screening Services only after payment.</p>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:16px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Complete Payment &rarr;</a></td></tr></table>
             ${stepsHtml}
             ${incompleteMsg}

@@ -68,6 +68,28 @@ export default function BgCheckPage({ phone: phoneParam }) {
   // Status after submission
   const [bgData, setBgData] = useState(null)
 
+  // Payment confirmation (Option B — authorization sent to PCG only after pay)
+  const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+
+  async function confirmPayment() {
+    setConfirmingPayment(true)
+    setError('')
+    try {
+      const res = await fetch('/api/bg-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm_payment', phone: phone.replace(/\D/g, '') }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Could not confirm. Please try again.'); setConfirmingPayment(false); return }
+      setPaymentConfirmed(true)
+    } catch {
+      setError('Connection error. Please try again.')
+    }
+    setConfirmingPayment(false)
+  }
+
   useEffect(() => {
     if (phoneParam) lookupWorker(phoneParam)
   }, [])
@@ -411,40 +433,65 @@ export default function BgCheckPage({ phone: phoneParam }) {
           </form>
         )}
 
-        {/* Step: Success — redirect to payment */}
+        {/* Step: Success — pay, then confirm so authorization is sent to PCG */}
         {step === 'success' && (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32, color: '#000' }}>
               &#10003;
             </div>
-            <h2 style={{ marginBottom: 8 }}>Consent Form Submitted</h2>
-            <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-              Your background check authorization has been securely submitted to PCG Screening Services.
-            </p>
 
-            <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 12, padding: 20, marginBottom: 24, textAlign: 'left' }}>
-              <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Next Step: Complete Payment</p>
-              <p style={{ color: '#aaa', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-                Please complete the background check payment to finalize your screening. Click the button below to proceed to the secure payment page.
-              </p>
-            </div>
+            {!paymentConfirmed ? (
+              <>
+                <h2 style={{ marginBottom: 8 }}>Consent Signed</h2>
+                <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                  Two quick steps to finish. Your authorization is sent to PCG Screening <strong style={{ color: '#fff' }}>only after</strong> you complete payment.
+                </p>
 
-            <a
-              href={PCG_PAYMENT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'inline-block', padding: '16px 32px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 16, marginBottom: 16 }}
-            >
-              Complete Payment &rarr;
-            </a>
+                <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 12, padding: 20, marginBottom: 16, textAlign: 'left' }}>
+                  <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Step 1 — Complete payment</p>
+                  <p style={{ color: '#aaa', fontSize: 13, lineHeight: 1.6, margin: '0 0 14px' }}>
+                    Pay the background check fee on PCG's secure page (opens in a new tab).
+                  </p>
+                  <a
+                    href={PCG_PAYMENT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-block', padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 15 }}
+                  >
+                    Pay on PCG &rarr;
+                  </a>
+                </div>
 
-            <p style={{ color: '#666', fontSize: 12, marginTop: 16 }}>
-              Payment is processed securely by Stripe on behalf of PCG Screening Services.
-            </p>
+                <div style={{ background: '#141414', border: '1px solid #1e1e1e', borderRadius: 12, padding: 20, marginBottom: 16, textAlign: 'left' }}>
+                  <p style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Step 2 — Confirm payment</p>
+                  <p style={{ color: '#aaa', fontSize: 13, lineHeight: 1.6, margin: '0 0 14px' }}>
+                    Once you've paid, tap below and we'll submit your authorization to PCG.
+                  </p>
+                  <button
+                    onClick={confirmPayment}
+                    disabled={confirmingPayment}
+                    style={{ padding: '14px 28px', background: confirmingPayment ? '#333' : '#22c55e', color: confirmingPayment ? '#888' : '#000', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: confirmingPayment ? 'default' : 'pointer' }}
+                  >
+                    {confirmingPayment ? 'Submitting…' : "I've completed the payment"}
+                  </button>
+                </div>
 
-            <a href="/" style={{ display: 'inline-block', marginTop: 20, color: '#666', fontSize: 14, textDecoration: 'none' }}>
-              Back to Home
-            </a>
+                {error && <p style={{ color: '#ff6b6b', fontSize: 13, marginBottom: 8 }}>{error}</p>}
+                <p style={{ color: '#666', fontSize: 12, marginTop: 8 }}>
+                  Payment is processed securely by Stripe on behalf of PCG Screening Services.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 style={{ marginBottom: 8 }}>Authorization Submitted</h2>
+                <p style={{ color: '#aaa', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                  Thanks — your paid background check authorization has been sent to PCG Screening Services. Results are typically returned within 2–3 business days.
+                </p>
+                <a href="/" style={{ display: 'inline-block', padding: '14px 28px', background: '#ffffff', color: '#000', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+                  Back to Home
+                </a>
+              </>
+            )}
           </div>
         )}
 
