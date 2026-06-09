@@ -1644,6 +1644,8 @@ export default async function handler(req, res) {
       case 'bulk-message': return await handleBulkMessage(req, res, supabase)
       case 'message-templates': return await handleMessageTemplates(req, res, supabase)
       case 'segments': return await handleSavedSegments(req, res, supabase)
+      case 'campaigns': return await handleCampaigns(req, res, supabase)
+      case 'resend-unopened': return await handleResendUnopened(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2362,6 +2364,7 @@ async function handleBulkMessage(req, res, supabase) {
 
   let smsSent = 0, smsFailed = 0, emailSent = 0, emailFailed = 0
   const errors = []
+  const emailedTo = []
 
   for (const w of (workers || [])) {
     const body = personalize(String(message), w)
@@ -2377,9 +2380,23 @@ async function handleBulkMessage(req, res, supabase) {
         try {
           await sendEmail({ to: w.email, subject: subject?.trim() || 'Message from V&A Hire', html: `<p>${body.replace(/\n/g, '<br>')}</p>`, branded: true, unsubscribeEmail: w.email })
           emailSent++
+          emailedTo.push(w.email.toLowerCase())
         } catch (e) { emailFailed++; if (errors.length < 5) errors.push(`Email ${w.first_name}: ${e.message}`) }
       }
     }
+  }
+
+  // Record the campaign so we can resend to non-openers later.
+  if (emailedTo.length > 0) {
+    try {
+      await supabase.from('email_campaigns').insert({
+        subject: subject?.trim() || 'Message from V&A Hire',
+        body: String(message),
+        channel,
+        recipients: emailedTo,
+        sent_count: emailedTo.length,
+      })
+    } catch (e) { console.error('[bulk-message] campaign record failed:', e.message) }
   }
 
   return res.status(200).json({
@@ -2389,6 +2406,63 @@ async function handleBulkMessage(req, res, supabase) {
     email: { sent: emailSent, failed: emailFailed },
     errors,
   })
+}
+
+// ─── EMAIL CAMPAIGNS + RESEND TO NON-OPENERS ────────────────────────────────
+async function handleCampaigns(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' })
+  const { data: campaigns, error } = await supabase.from('email_campaigns')
+    .select('*').order('created_at', { ascending: false }).limit(50)
+  if (error) throw error
+
+  // Compute opened counts per campaign from email_events.
+  const out = []
+  for (const c of (campaigns || [])) {
+    const recips = Array.isArray(c.recipients) ? c.recipients : []
+    let opened = 0
+    if (recips.length) {
+      const { data: opens } = await supabase.from('email_events')
+        .select('email')
+        .in('email', recips)
+        .in('type', ['opened', 'clicked'])
+        .gte('created_at', c.created_at)
+      const openedSet = new Set((opens || []).map(o => o.email))
+      opened = openedSet.size
+    }
+    out.push({ id: c.id, created_at: c.created_at, subject: c.subject, channel: c.channel, sent_count: c.sent_count, recipients_count: recips.length, opened, not_opened: Math.max(0, recips.length - opened) })
+  }
+  return res.status(200).json(out)
+}
+
+async function handleResendUnopened(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { campaign_id } = req.body || {}
+  if (!campaign_id) return res.status(400).json({ error: 'campaign_id required' })
+  const { data: c, error } = await supabase.from('email_campaigns').select('*').eq('id', campaign_id).single()
+  if (error || !c) return res.status(404).json({ error: 'Campaign not found' })
+
+  const recips = Array.isArray(c.recipients) ? c.recipients : []
+  if (!recips.length) return res.status(400).json({ error: 'No recipients on this campaign' })
+
+  const { data: opens } = await supabase.from('email_events')
+    .select('email').in('email', recips).in('type', ['opened', 'clicked']).gte('created_at', c.created_at)
+  const openedSet = new Set((opens || []).map(o => o.email))
+  const nonOpeners = recips.filter(e => !openedSet.has(e))
+
+  let sent = 0, failed = 0
+  for (const email of nonOpeners) {
+    if (await isEmailSuppressed(supabase, email)) { failed++; continue }
+    try {
+      await sendEmail({ to: email, subject: `Reminder: ${c.subject}`, html: `<p>${String(c.body).replace(/\n/g, '<br>')}</p>`, branded: true, unsubscribeEmail: email })
+      sent++
+    } catch (e) { failed++ }
+  }
+  if (sent > 0) {
+    try {
+      await supabase.from('email_campaigns').insert({ subject: `Reminder: ${c.subject}`, body: c.body, channel: 'email', recipients: nonOpeners.filter(e => !openedSet.has(e)), sent_count: sent })
+    } catch {}
+  }
+  return res.status(200).json({ success: true, non_openers: nonOpeners.length, sent, failed })
 }
 
 // ─── MESSAGE TEMPLATES (reusable SMS/email snippets) ────────────────────────

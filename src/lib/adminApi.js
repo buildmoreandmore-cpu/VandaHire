@@ -330,6 +330,11 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Email campaigns + resend to non-openers
+export const fetchCampaigns = () => adminFetch('/api/admin/campaigns')
+export const resendUnopened = (campaign_id) =>
+  adminFetch('/api/admin/resend-unopened', { method: 'POST', body: JSON.stringify({ campaign_id }) })
+
 // Saved segments (worker filter presets)
 export const fetchSegments = () => adminFetch('/api/admin/segments')
 export const createSegment = (name, filters) =>

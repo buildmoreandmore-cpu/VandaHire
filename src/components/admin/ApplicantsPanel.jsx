@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
 import MessageTemplates from './MessageTemplates.jsx'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment, fetchCampaigns, resendUnopened } from '../../lib/adminApi.js'
 
 const EMAIL_STATUS_COLORS = {
   sent: 'bg-white/10 text-p-muted',
@@ -141,6 +141,28 @@ export default function ApplicantsPanel() {
   const removeSegment = async (id) => {
     try { await deleteSegment(id); setSegments(prev => prev.filter(s => s.id !== id)) }
     catch (e) { alert('Delete failed: ' + e.message) }
+  }
+
+  // Email campaigns (resend to non-openers)
+  const [showCampaigns, setShowCampaigns] = useState(false)
+  const [campaigns, setCampaigns] = useState([])
+  const [campaignsLoading, setCampaignsLoading] = useState(false)
+  const [resendingId, setResendingId] = useState(null)
+
+  const openCampaigns = async () => {
+    setShowCampaigns(true)
+    setCampaignsLoading(true)
+    try { setCampaigns(await fetchCampaigns()) } catch (e) { console.error(e) }
+    setCampaignsLoading(false)
+  }
+  const doResendUnopened = async (id) => {
+    setResendingId(id)
+    try {
+      const r = await resendUnopened(id)
+      alert(`Resent to ${r.sent} non-opener${r.sent !== 1 ? 's' : ''}${r.failed ? ` (${r.failed} skipped/failed)` : ''}.`)
+      setCampaigns(await fetchCampaigns())
+    } catch (e) { alert('Resend failed: ' + e.message) }
+    setResendingId(null)
   }
 
   // Bulk message
@@ -534,6 +556,14 @@ export default function ApplicantsPanel() {
         </select>
         <div className="ml-auto flex gap-2">
           <button
+            onClick={openCampaigns}
+            className="inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
+            title="Email campaigns — resend to non-openers"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5" /><path d="M2.5 4l5.5 4 5.5-4" /></svg>
+            Campaigns
+          </button>
+          <button
             onClick={async () => {
               try { await downloadWorkersCsv(filter) } catch (err) { alert('Export failed: ' + err.message) }
             }}
@@ -606,6 +636,47 @@ export default function ApplicantsPanel() {
             </button>
           </div>
           <button onClick={() => setSelected(new Set())} className="text-p-muted text-xs hover:text-white">Clear</button>
+        </div>
+      )}
+
+      {/* Campaigns Modal — resend to non-openers */}
+      {showCampaigns && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" onClick={() => setShowCampaigns(false)}>
+          <div className="bg-p-surface border border-p-border rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-p-border flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-semibold text-sm">Email Campaigns</h3>
+                <p className="text-p-muted text-[10px] mt-0.5">Each bulk email send is recorded here. Resend to whoever hasn't opened yet.</p>
+              </div>
+              <button onClick={() => setShowCampaigns(false)} className="text-p-muted hover:text-white text-lg">×</button>
+            </div>
+            <div className="p-4">
+              {campaignsLoading ? (
+                <p className="text-p-muted text-xs text-center py-6">Loading…</p>
+              ) : campaigns.length === 0 ? (
+                <p className="text-p-muted text-xs text-center py-6">No email campaigns yet. Send a bulk/group/crew email and it'll appear here.</p>
+              ) : (
+                <div className="space-y-2">
+                  {campaigns.map(c => (
+                    <div key={c.id} className="bg-p-bg/50 border border-p-border rounded-lg px-3 py-2.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-xs font-medium truncate">{c.subject}</div>
+                        <div className="text-p-muted text-[10px]">{new Date(c.created_at).toLocaleString()} · {c.recipients_count} sent · <span className="text-green-400">{c.opened} opened</span> · <span className="text-yellow-400">{c.not_opened} not opened</span></div>
+                      </div>
+                      <button
+                        onClick={() => doResendUnopened(c.id)}
+                        disabled={resendingId === c.id || c.not_opened === 0}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-p-green text-black text-[11px] font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity"
+                        title={c.not_opened === 0 ? 'Everyone opened' : `Resend to ${c.not_opened} non-openers`}
+                      >
+                        {resendingId === c.id ? 'Resending…' : `Resend to ${c.not_opened}`}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
