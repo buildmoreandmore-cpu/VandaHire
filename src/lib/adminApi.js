@@ -357,16 +357,14 @@ export const adminUploadId = (worker_id, photo_base64) =>
 export const fetchW9s = (signedOnly = false) =>
   adminFetch(`/api/admin/w9s${signedOnly ? '?signed_only=1' : ''}`)
 
-export async function downloadW9Csv() {
+async function downloadCsv(path, fallbackName) {
   const token = getToken()
-  const res = await fetch('/api/admin/w9s?export=csv', {
-    headers: { 'Authorization': `Bearer ${token}` },
-  })
+  const res = await fetch(path, { headers: { 'Authorization': `Bearer ${token}` } })
   if (!res.ok) throw new Error(`Export failed (${res.status})`)
   const blob = await res.blob()
   const cd = res.headers.get('content-disposition') || ''
   const m = cd.match(/filename="([^"]+)"/)
-  const filename = m ? m[1] : `w9-export-${new Date().toISOString().slice(0, 10)}.csv`
+  const filename = m ? m[1] : fallbackName
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -375,4 +373,13 @@ export async function downloadW9Csv() {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+}
+
+export function downloadW9Csv() {
+  return downloadCsv('/api/admin/w9s?export=csv', `w9-export-${new Date().toISOString().slice(0, 10)}.csv`)
+}
+
+export function downloadWorkersCsv(status) {
+  const qs = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : ''
+  return downloadCsv(`/api/admin/workers-export${qs}`, `workers-export-${new Date().toISOString().slice(0, 10)}.csv`)
 }

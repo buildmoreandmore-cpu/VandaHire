@@ -1621,6 +1621,7 @@ export default async function handler(req, res) {
       case 'w9s': return await handleW9s(req, res, supabase)
       case 'upload-id': return await handleAdminUploadId(req, res, supabase)
       case 'applicant-notes': return await handleApplicantNotes(req, res, supabase)
+      case 'workers-export': return await handleWorkersExport(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2274,4 +2275,48 @@ async function handleApplicantNotes(req, res, supabase) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── FULL WORKER ROSTER EXPORT ──────────────────────────────────────────────
+// Exports every worker (optionally filtered by status) as CSV. Does NOT
+// include the encrypted/decrypted TIN — use the W-9 export for that.
+
+async function handleWorkersExport(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const { status } = req.query
+
+  let query = supabase.from('applicants')
+    .select('id, created_at, first_name, last_name, email, phone, city, zip, status, roles, availability, availability_windows, experience_types, has_transportation, short_notice, video_url, video_verified, id_photo_url, bg_check_signed_at, bg_check_cleared, w9_signed_at, w9_legal_name, notes')
+    .order('created_at', { ascending: false })
+  if (status && status !== 'all') query = query.eq('status', status)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const arr = (v) => Array.isArray(v) ? v.join('; ') : (v || '')
+  const yn = (v) => v ? 'yes' : 'no'
+
+  const headers = [
+    'created_at', 'first_name', 'last_name', 'email', 'phone', 'city', 'zip', 'status',
+    'roles', 'availability', 'shift_windows', 'experience', 'has_transportation', 'short_notice',
+    'video_uploaded', 'video_verified', 'id_uploaded', 'bg_check_signed', 'bg_check_cleared',
+    'w9_signed', 'w9_legal_name', 'notes',
+  ]
+  const rows = [headers.join(',')]
+  for (const a of (data || [])) {
+    rows.push([
+      a.created_at, a.first_name, a.last_name, a.email, a.phone, a.city, a.zip, a.status,
+      arr(a.roles), arr(a.availability), arr(a.availability_windows), arr(a.experience_types),
+      a.has_transportation || '', a.short_notice || '',
+      yn(a.video_url), yn(a.video_verified), yn(a.id_photo_url),
+      yn(a.bg_check_signed_at), yn(a.bg_check_cleared),
+      yn(a.w9_signed_at), a.w9_legal_name || '', a.notes || '',
+    ].map(csvEscape).join(','))
+  }
+
+  const tag = status && status !== 'all' ? `-${status}` : ''
+  const filename = `workers${tag}-export-${new Date().toISOString().slice(0, 10)}.csv`
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+  return res.status(200).send(rows.join('\n'))
 }

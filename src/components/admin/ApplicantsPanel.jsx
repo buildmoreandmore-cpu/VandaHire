@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote } from '../../lib/adminApi.js'
 
 const COORDINATOR_NAME_KEY = 'vanda_coordinator_name'
 
@@ -9,6 +9,35 @@ function getCoordinatorName() {
 }
 function setCoordinatorName(name) {
   try { localStorage.setItem(COORDINATOR_NAME_KEY, name) } catch {}
+}
+
+// Derive US state from a ZIP code's leading 3 digits. No schema change —
+// works on existing worker data. Returns '' if unknown.
+const ZIP_PREFIX_STATE = [
+  [['005','005'],'NY'],[['006','009'],'PR'],[['010','027'],'MA'],[['028','029'],'RI'],
+  [['030','038'],'NH'],[['039','049'],'ME'],[['050','059'],'VT'],[['060','069'],'CT'],
+  [['070','089'],'NJ'],[['100','149'],'NY'],[['150','196'],'PA'],[['197','199'],'DE'],
+  [['200','205'],'DC'],[['206','219'],'MD'],[['220','246'],'VA'],[['247','268'],'WV'],
+  [['270','289'],'NC'],[['290','299'],'SC'],[['300','319'],'GA'],[['320','349'],'FL'],
+  [['350','369'],'AL'],[['370','385'],'TN'],[['386','397'],'MS'],[['398','399'],'GA'],
+  [['400','427'],'KY'],[['430','459'],'OH'],[['460','479'],'IN'],[['480','499'],'MI'],
+  [['500','528'],'IA'],[['530','549'],'WI'],[['550','567'],'MN'],[['570','577'],'SD'],
+  [['580','588'],'ND'],[['590','599'],'MT'],[['600','629'],'IL'],[['630','658'],'MO'],
+  [['660','679'],'KS'],[['680','693'],'NE'],[['700','714'],'LA'],[['716','729'],'AR'],
+  [['730','749'],'OK'],[['750','799'],'TX'],[['800','816'],'CO'],[['820','831'],'WY'],
+  [['832','838'],'ID'],[['840','847'],'UT'],[['850','865'],'AZ'],[['870','884'],'NM'],
+  [['889','898'],'NV'],[['900','961'],'CA'],[['967','968'],'HI'],[['970','979'],'OR'],
+  [['980','994'],'WA'],[['995','999'],'AK'],
+]
+
+function zipToState(zip) {
+  const digits = String(zip || '').replace(/\D/g, '')
+  if (digits.length < 3) return ''
+  const p = digits.slice(0, 3)
+  for (const [[lo, hi], st] of ZIP_PREFIX_STATE) {
+    if (p >= lo && p <= hi) return st
+  }
+  return ''
 }
 
 function relativeTime(iso) {
@@ -46,6 +75,7 @@ export default function ApplicantsPanel() {
   const [applicants, setApplicants] = useState([])
   const [filter, setFilter] = useState('all')
   const [cityFilter, setCityFilter] = useState('all')
+  const [stateFilter, setStateFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
   const [availFilter, setAvailFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -175,18 +205,22 @@ export default function ApplicantsPanel() {
     fetchEvents().then(setEvents).catch(() => {})
   }, [])
 
-  // Derive unique cities, roles, availability from data
-  const { cities, roles, availabilities } = useMemo(() => {
+  // Derive unique cities, states, roles, availability from data
+  const { cities, states, roles, availabilities } = useMemo(() => {
     const citySet = new Set()
+    const stateSet = new Set()
     const roleSet = new Set()
     const availSet = new Set()
     for (const a of applicants) {
       if (a.city) citySet.add(a.city)
+      const st = zipToState(a.zip)
+      if (st) stateSet.add(st)
       for (const r of (a.roles || [])) roleSet.add(r)
       for (const av of (a.availability || [])) availSet.add(av)
     }
     return {
       cities: [...citySet].sort(),
+      states: [...stateSet].sort(),
       roles: [...roleSet].sort(),
       availabilities: [...availSet].sort(),
     }
@@ -197,6 +231,7 @@ export default function ApplicantsPanel() {
     const q = search.trim().toLowerCase()
     return applicants.filter(a => {
       if (cityFilter !== 'all' && a.city !== cityFilter) return false
+      if (stateFilter !== 'all' && zipToState(a.zip) !== stateFilter) return false
       if (roleFilter !== 'all' && !(a.roles || []).includes(roleFilter)) return false
       if (availFilter !== 'all' && !(a.availability || []).includes(availFilter)) return false
       if (q) {
@@ -207,7 +242,7 @@ export default function ApplicantsPanel() {
       }
       return true
     })
-  }, [applicants, cityFilter, roleFilter, availFilter, search])
+  }, [applicants, cityFilter, stateFilter, roleFilter, availFilter, search])
 
   // Group by city
   const grouped = useMemo(() => {
@@ -394,6 +429,10 @@ export default function ApplicantsPanel() {
           <option value="all">All Cities</option>
           {cities.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
+          <option value="all">All States</option>
+          {states.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
           <option value="all">All Roles</option>
           {roles.map(r => <option key={r} value={r}>{r}</option>)}
@@ -402,20 +441,36 @@ export default function ApplicantsPanel() {
           <option value="all">All Availability</option>
           {availabilities.map(av => <option key={av} value={av}>{av}</option>)}
         </select>
-        <button
-          onClick={async () => {
-            try { await downloadW9Csv() } catch (err) { alert('Export failed: ' + err.message) }
-          }}
-          className="ml-auto inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
-          title="Download all signed W-9s as CSV (includes decrypted TIN)"
-        >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M8 2v9" />
-            <polyline points="4 7 8 11 12 7" />
-            <line x1="3" y1="14" x2="13" y2="14" />
-          </svg>
-          Export W-9 CSV
-        </button>
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={async () => {
+              try { await downloadWorkersCsv(filter) } catch (err) { alert('Export failed: ' + err.message) }
+            }}
+            className="inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
+            title={`Download workers as CSV${filter !== 'all' ? ` (status: ${filter})` : ' (all)'}`}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 2v9" />
+              <polyline points="4 7 8 11 12 7" />
+              <line x1="3" y1="14" x2="13" y2="14" />
+            </svg>
+            Export Workers
+          </button>
+          <button
+            onClick={async () => {
+              try { await downloadW9Csv() } catch (err) { alert('Export failed: ' + err.message) }
+            }}
+            className="inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
+            title="Download all signed W-9s as CSV (includes decrypted TIN)"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 2v9" />
+              <polyline points="4 7 8 11 12 7" />
+              <line x1="3" y1="14" x2="13" y2="14" />
+            </svg>
+            Export W-9 CSV
+          </button>
+        </div>
       </div>
 
       {/* Bulk Assign Bar */}
