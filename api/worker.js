@@ -35,6 +35,7 @@ export default async function handler(req, res) {
     if (route === 'w9') return await handleW9(req, res, supabase)
     if (route === 'bg-check') return await handleBgCheck(req, res, supabase)
     if (route === 'unsubscribe') return await handleUnsubscribe(req, res, supabase)
+    if (route === 'resend-webhook') return await handleResendWebhook(req, res, supabase)
     if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
     if (route === 'push-subscribe') return await handlePushSubscribe(req, res, supabase)
     if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
@@ -2193,4 +2194,29 @@ async function handleUnsubscribe(req, res, supabase) {
   }
   res.setHeader('Content-Type', 'text/html')
   return res.status(200).send(page('Unsubscribed', `<strong style="color:#fff">${email}</strong> has been unsubscribed from V&A Hire emails. You'll no longer receive shift-offer or update emails. You can still receive SMS unless you reply STOP.`))
+}
+
+// ─── RESEND EMAIL EVENT WEBHOOK ──────────────────────────────────────────────
+// Receives delivered/opened/clicked/bounced events; secured by ?key=.
+async function handleResendWebhook(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const expected = process.env.RESEND_WEBHOOK_KEY
+  if (expected && req.query.key !== expected) return res.status(401).json({ error: 'Unauthorized' })
+  const evt = req.body || {}
+  const type = String(evt.type || '').replace(/^email\./, '')
+  const data = evt.data || {}
+  const to = Array.isArray(data.to) ? data.to[0] : data.to
+  if (!type || !to) return res.status(200).json({ ignored: true })
+  try {
+    await supabase.from('email_events').insert({
+      resend_id: data.email_id || null,
+      email: String(to).toLowerCase(),
+      type,
+      subject: data.subject || null,
+      meta: data,
+    })
+  } catch (e) {
+    console.error('[resend-webhook] insert failed:', e.message)
+  }
+  return res.status(200).json({ received: true })
 }
