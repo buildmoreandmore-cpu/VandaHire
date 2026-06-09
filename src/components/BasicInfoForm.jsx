@@ -505,6 +505,17 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               </button>
             </div>
 
+            {/* SMS consent — required for carrier (toll-free) compliance */}
+            <p className="mt-4 px-1 text-[#777] text-[11px] leading-relaxed">
+              By submitting this application, you agree to receive SMS text messages
+              from V&amp;A Hire (Varist &amp; Associates of Georgia LLC) about shift
+              offers, assignments, and scheduling at the phone number provided. Message
+              frequency varies. Message &amp; data rates may apply. Reply STOP to opt out
+              or HELP for help. Consent is not a condition of employment. See our{' '}
+              <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
+              and <a href="/terms" className="underline hover:text-white">Terms</a>.
+            </p>
+
             {bgCheckRequired && (
               <div className="mt-4 px-1">
                 <div className="flex items-start gap-2 bg-[#1a1207] border border-[#3d2e0a] rounded-lg px-4 py-3">
