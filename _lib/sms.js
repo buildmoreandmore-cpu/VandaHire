@@ -1,10 +1,16 @@
 import twilio from 'twilio'
 
 function getClient() {
-  return twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN,
-  )
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const apiKeySid = process.env.TWILIO_API_KEY_SID
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET
+
+  // Prefer a scoped, revocable API Key when configured; fall back to the
+  // account's Auth Token otherwise.
+  if (apiKeySid && apiKeySecret && accountSid) {
+    return twilio(apiKeySid, apiKeySecret, { accountSid })
+  }
+  return twilio(accountSid, process.env.TWILIO_AUTH_TOKEN)
 }
 
 export async function sendSms(to, body) {
