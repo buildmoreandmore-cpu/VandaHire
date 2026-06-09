@@ -247,6 +247,16 @@ export default function ApplicantsPanel() {
     }
   }, [applicants])
 
+  // Cities shown in the dropdown — narrowed to the selected state.
+  const visibleCities = useMemo(() => {
+    if (stateFilter === 'all') return cities
+    const set = new Set()
+    for (const a of applicants) {
+      if (a.city && zipToState(a.zip) === stateFilter) set.add(a.city)
+    }
+    return [...set].sort()
+  }, [applicants, stateFilter, cities])
+
   // Apply client-side filters + search
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -446,13 +456,13 @@ export default function ApplicantsPanel() {
 
       {/* Secondary Filters */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <select value={cityFilter} onChange={e => setCityFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
-          <option value="all">All Cities</option>
-          {cities.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
+        <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setCityFilter('all') }} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
           <option value="all">All States</option>
           {states.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={cityFilter} onChange={e => setCityFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
+          <option value="all">{stateFilter === 'all' ? 'All Cities' : `All Cities in ${stateFilter}`}</option>
+          {visibleCities.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="bg-p-surface border border-p-border rounded-lg px-3 py-1.5 text-xs text-white">
           <option value="all">All Roles</option>
