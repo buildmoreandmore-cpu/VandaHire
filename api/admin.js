@@ -445,8 +445,17 @@ async function handleEvents(req, res, supabase) {
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     // Free-form editable fields
     const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types']
+    // NOT NULL date/time/number columns must not receive '' — skip when blank.
+    const skipIfBlank = new Set(['event_date', 'start_time', 'end_time', 'workers_needed'])
+    // Nullable date columns: coerce '' → null so Postgres accepts it.
+    const blankToNull = new Set(['event_end_date'])
     for (const f of editableFields) {
-      if (req.body[f] !== undefined) updates[f] = req.body[f]
+      if (req.body[f] === undefined) continue
+      let v = req.body[f]
+      if (blankToNull.has(f) && (v === '' || v == null)) { updates[f] = null; continue }
+      if (skipIfBlank.has(f) && (v === '' || v == null)) continue
+      if (f === 'workers_needed') { const n = parseInt(v, 10); if (Number.isNaN(n)) continue; v = n }
+      updates[f] = v
     }
     if (Object.keys(updates).length === 1) return res.status(400).json({ error: 'No fields to update' })
     const { data, error } = await supabase.from('events').update(updates).eq('id', id).select().single()
