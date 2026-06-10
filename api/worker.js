@@ -1006,17 +1006,19 @@ async function handleGeofenceCheck(req, res, supabase) {
 
   const payRate = parseFloat(event.pay_rate?.replace(/[^0-9.]/g, '')) || 0
 
-  const { data: exitRecord } = await supabase.from('exit_records').insert({
+  // Only insert columns that exist on exit_records (scheduled_hours/exit_lat/
+  // exit_lng don't exist — this insert was never reached before geofence-check
+  // started actually running).
+  const { data: exitRecord, error: exitErr } = await supabase.from('exit_records').insert({
     event_id: event.id,
     worker_id: worker.id,
     assignment_id: assignment.id,
     exit_reason: 'no_response',
     hours_worked: hoursWorked,
-    scheduled_hours: scheduledHours,
     pay_rate: payRate,
-    exit_lat: latitude,
-    exit_lng: longitude,
+    geofence_exit_at: now.toISOString(),
   }).select('id').single()
+  if (exitErr) console.error('[geofence-check] exit_record insert failed:', exitErr.message)
 
   // Send push notification to worker
   try {
