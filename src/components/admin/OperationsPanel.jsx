@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react'
-import { fetchEvents, fetchAssignments } from '../../lib/adminApi.js'
+import { fetchEvents, fetchAssignments, runCron } from '../../lib/adminApi.js'
 
 export default function OperationsPanel({ stats }) {
   const [events, setEvents] = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [ranNote, setRanNote] = useState('')
+
+  const runAutomations = async () => {
+    setRunning(true); setRanNote('')
+    try {
+      const r = await runCron('all')
+      const sm = r.result?.scheduled_messages
+      const re = r.result?.reengagement
+      setRanNote(`Done — ${sm?.processed ?? 0} scheduled sent, ${re?.nudged ?? 0} re-engagement emails.`)
+    } catch (e) { setRanNote('Failed: ' + e.message) }
+    setRunning(false)
+  }
 
   useEffect(() => {
     Promise.all([fetchEvents(), fetchAssignments()])
@@ -198,6 +211,19 @@ export default function OperationsPanel({ stats }) {
           </div>
         )}
       </Section>
+
+      {/* Automations — one control; scheduled sends, reminders, re-engagement */}
+      <div className="flex items-center justify-between bg-p-surface border border-p-border rounded-lg px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-white text-sm font-medium">Automations</div>
+          <div className="text-p-muted text-[11px]">{ranNote || 'Runs scheduled messages, shift/briefing reminders, and re-engagement. Auto-runs daily; run on demand here.'}</div>
+        </div>
+        <button
+          onClick={runAutomations}
+          disabled={running}
+          className="flex-shrink-0 px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
+        >{running ? 'Running…' : 'Run now'}</button>
+      </div>
     </div>
   )
 }

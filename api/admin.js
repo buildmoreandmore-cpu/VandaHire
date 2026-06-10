@@ -1647,6 +1647,7 @@ export default async function handler(req, res) {
       case 'campaigns': return await handleCampaigns(req, res, supabase)
       case 'resend-unopened': return await handleResendUnopened(req, res, supabase)
       case 'scheduled-messages': return await handleScheduledMessages(req, res, supabase)
+      case 'run-cron': return await handleRunCron(req, res)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2547,4 +2548,22 @@ async function handleScheduledMessages(req, res, supabase) {
     return res.status(200).json({ success: true })
   }
   return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── RUN AUTOMATIONS NOW (admin-triggered cron) ──────────────────────────────
+// Lets the coordinator fire the daily automation batch on demand. Runs the
+// cron endpoint server-side with the secret; defaults to job=all.
+async function handleRunCron(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const job = (req.body && req.body.job) || 'all'
+  const secret = process.env.CRON_SECRET || ''
+  const base = process.env.VITE_APP_URL || 'https://vandahire.com'
+  try {
+    const r = await fetch(`${base}/api/cron?job=${encodeURIComponent(job)}&key=${encodeURIComponent(secret)}`)
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) return res.status(502).json({ error: data.error || `Cron returned ${r.status}` })
+    return res.status(200).json({ success: true, job, result: data })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
 }

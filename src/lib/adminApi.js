@@ -330,6 +330,10 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Run automations now (admin-triggered cron batch)
+export const runCron = (job = 'all') =>
+  adminFetch('/api/admin/run-cron', { method: 'POST', body: JSON.stringify({ job }) })
+
 // Scheduled messages
 export const fetchScheduledMessages = () => adminFetch('/api/admin/scheduled-messages')
 export const createScheduledMessage = (worker_ids, message, channel, subject, send_at) =>
