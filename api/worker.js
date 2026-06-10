@@ -936,7 +936,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   const event = assignment.events
   if (!event?.latitude || !event?.longitude) return res.status(200).json({ status: 'no_geofence' })
 
-  const inside = isWithinGeofence(
+  const { within: inside } = isWithinGeofence(
     parseFloat(latitude), parseFloat(longitude),
     parseFloat(event.latitude), parseFloat(event.longitude),
     parseFloat(event.geofence_radius_meters) || 150
