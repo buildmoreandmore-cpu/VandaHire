@@ -330,6 +330,13 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Scheduled messages
+export const fetchScheduledMessages = () => adminFetch('/api/admin/scheduled-messages')
+export const createScheduledMessage = (worker_ids, message, channel, subject, send_at) =>
+  adminFetch('/api/admin/scheduled-messages', { method: 'POST', body: JSON.stringify({ worker_ids, message, channel, subject, send_at }) })
+export const cancelScheduledMessage = (id) =>
+  adminFetch('/api/admin/scheduled-messages', { method: 'DELETE', body: JSON.stringify({ id }) })
+
 // Email campaigns + resend to non-openers
 export const fetchCampaigns = () => adminFetch('/api/admin/campaigns')
 export const resendUnopened = (campaign_id) =>

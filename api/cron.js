@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from '../_lib/email.js'
+import { sendEmail, isEmailSuppressed } from '../_lib/email.js'
+import { sendSms } from '../_lib/sms.js'
 import { sendPushToWorker } from '../_lib/push.js'
 
 // Single cron function — dispatches by ?job= parameter
@@ -1746,6 +1747,70 @@ async function monthlyNewsletter(supabase) {
 
 // ─── DISPATCHER ──────────────────────────────────────────────────────────────
 
+// ─── SCHEDULED MESSAGES (#16) ────────────────────────────────────────────────
+// Sends any pending scheduled messages whose send_at has passed. On the Hobby
+// plan the cron runs once daily, so a message goes out on the run on/after its
+// scheduled time.
+async function processScheduledMessages(supabase) {
+  const nowIso = new Date().toISOString()
+  const { data: due } = await supabase.from('scheduled_messages')
+    .select('*').eq('status', 'pending').lte('send_at', nowIso).limit(50)
+  let processed = 0, totalSms = 0, totalEmail = 0
+  for (const m of (due || [])) {
+    const ids = Array.isArray(m.worker_ids) ? m.worker_ids : []
+    if (!ids.length) { await supabase.from('scheduled_messages').update({ status: 'sent', sent_at: nowIso, result: { skipped: 'no recipients' } }).eq('id', m.id); continue }
+    const { data: workers } = await supabase.from('applicants').select('id, first_name, phone, email').in('id', ids)
+    let smsSent = 0, emailSent = 0
+    for (const w of (workers || [])) {
+      const body = String(m.body).replace(/\{first_name\}/gi, w.first_name || 'there').replace(/\{name\}/gi, w.first_name || 'there')
+      if ((m.channel === 'sms' || m.channel === 'both') && w.phone) {
+        try { await sendSms(w.phone, body); smsSent++ } catch (e) { /* skip */ }
+      }
+      if ((m.channel === 'email' || m.channel === 'both') && w.email) {
+        if (!(await isEmailSuppressed(supabase, w.email))) {
+          try { await sendEmail({ to: w.email, subject: m.subject || 'Message from V&A Hire', html: `<p>${body.replace(/\n/g, '<br>')}</p>`, branded: true, unsubscribeEmail: w.email }); emailSent++ } catch (e) { /* skip */ }
+        }
+      }
+    }
+    await supabase.from('scheduled_messages').update({ status: 'sent', sent_at: nowIso, result: { sms: smsSent, email: emailSent } }).eq('id', m.id)
+    processed++; totalSms += smsSent; totalEmail += emailSent
+  }
+  return { processed, sms: totalSms, email: totalEmail }
+}
+
+// ─── RE-ENGAGEMENT TRIGGER (#18) ─────────────────────────────────────────────
+// Emails approved workers who haven't been assigned to anything in 45+ days a
+// gentle "still available?" nudge. Runs daily; each worker is nudged at most
+// once per 30 days (tracked via reengaged_at).
+async function reEngagementNudge(supabase) {
+  const cutoff = new Date(Date.now() - 45 * 86400000).toISOString()
+  const reCutoff = new Date(Date.now() - 30 * 86400000).toISOString()
+  const { data: workers } = await supabase.from('applicants')
+    .select('id, first_name, email, reengaged_at')
+    .eq('status', 'approved')
+  let nudged = 0
+  for (const w of (workers || [])) {
+    if (!w.email) continue
+    if (w.reengaged_at && w.reengaged_at > reCutoff) continue
+    const { data: recent } = await supabase.from('assignments')
+      .select('id').eq('worker_id', w.id).gte('created_at', cutoff).limit(1)
+    if (recent && recent.length) continue // worked recently
+    if (await isEmailSuppressed(supabase, w.email)) continue
+    try {
+      await sendEmail({
+        to: w.email,
+        subject: 'Still available for shifts? — V&A Hire',
+        html: `<p>Hi ${w.first_name || 'there'},</p><p>We haven't matched you to a shift in a while and wanted to check in — are you still available for event work? New shifts come up often. Just reply and let us know, or watch your texts for the next opportunity.</p>`,
+        branded: true,
+        unsubscribeEmail: w.email,
+      })
+      await supabase.from('applicants').update({ reengaged_at: new Date().toISOString() }).eq('id', w.id)
+      nudged++
+    } catch (e) { /* skip */ }
+  }
+  return { nudged }
+}
+
 export default async function handler(req, res) {
   // Verify cron secret (Vercel sets CRON_SECRET automatically for cron jobs)
   const authHeader = req.headers['authorization']
@@ -1797,6 +1862,10 @@ export default async function handler(req, res) {
         return res.status(200).json(await crewShortfallEscalation(supabase))
       case 'newsletter':
         return res.status(200).json(await monthlyNewsletter(supabase))
+      case 'scheduled-messages':
+        return res.status(200).json(await processScheduledMessages(supabase))
+      case 'reengagement':
+        return res.status(200).json(await reEngagementNudge(supabase))
       case 'all': {
         // Run all jobs — daily cron
         const results = {}
@@ -1818,6 +1887,8 @@ export default async function handler(req, res) {
         results.organizer_summary = await postEventOrganizerSummary(supabase)
         results.crew_shortfall = await crewShortfallEscalation(supabase)
         results.newsletter = await monthlyNewsletter(supabase)
+        results.scheduled_messages = await processScheduledMessages(supabase)
+        results.reengagement = await reEngagementNudge(supabase)
         return res.status(200).json(results)
       }
       default:

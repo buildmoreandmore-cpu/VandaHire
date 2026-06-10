@@ -1646,6 +1646,7 @@ export default async function handler(req, res) {
       case 'segments': return await handleSavedSegments(req, res, supabase)
       case 'campaigns': return await handleCampaigns(req, res, supabase)
       case 'resend-unopened': return await handleResendUnopened(req, res, supabase)
+      case 'scheduled-messages': return await handleScheduledMessages(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2512,6 +2513,36 @@ async function handleSavedSegments(req, res, supabase) {
     const { id } = req.body || {}
     if (!id) return res.status(400).json({ error: 'id required' })
     const { error } = await supabase.from('saved_segments').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ success: true })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// ─── SCHEDULED MESSAGES ─────────────────────────────────────────────────────
+async function handleScheduledMessages(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('scheduled_messages')
+      .select('id, created_at, send_at, channel, subject, body, worker_ids, status, sent_at')
+      .order('send_at', { ascending: true }).limit(100)
+    if (error) throw error
+    return res.status(200).json((data || []).map(m => ({ ...m, recipients_count: Array.isArray(m.worker_ids) ? m.worker_ids.length : 0 })))
+  }
+  if (req.method === 'POST') {
+    const { worker_ids, message, channel = 'both', subject, send_at } = req.body || {}
+    if (!Array.isArray(worker_ids) || !worker_ids.length) return res.status(400).json({ error: 'worker_ids[] required' })
+    if (!message || !String(message).trim()) return res.status(400).json({ error: 'message required' })
+    if (!send_at) return res.status(400).json({ error: 'send_at required' })
+    const { data, error } = await supabase.from('scheduled_messages')
+      .insert({ send_at, channel, subject: subject || '', body: String(message), worker_ids, status: 'pending' })
+      .select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('scheduled_messages').update({ status: 'cancelled' }).eq('id', id).eq('status', 'pending')
     if (error) throw error
     return res.status(200).json({ success: true })
   }

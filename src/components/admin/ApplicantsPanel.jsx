@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
 import MessageTemplates from './MessageTemplates.jsx'
-import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment, fetchCampaigns, resendUnopened } from '../../lib/adminApi.js'
+import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment, fetchCampaigns, resendUnopened, createScheduledMessage } from '../../lib/adminApi.js'
 
 const EMAIL_STATUS_COLORS = {
   sent: 'bg-white/10 text-p-muted',
@@ -173,13 +173,20 @@ export default function ApplicantsPanel() {
   const [bulkMsgSending, setBulkMsgSending] = useState(false)
   const [bulkMsgResult, setBulkMsgResult] = useState(null)
 
+  const [bulkMsgSendAt, setBulkMsgSendAt] = useState('')
+
   const handleBulkMessage = async () => {
     if (!bulkMsgText.trim() || selected.size === 0) return
     setBulkMsgSending(true)
     setBulkMsgResult(null)
     try {
-      const res = await bulkMessage([...selected], bulkMsgText, bulkMsgChannel, bulkMsgSubject)
-      setBulkMsgResult(res)
+      if (bulkMsgSendAt) {
+        await createScheduledMessage([...selected], bulkMsgText, bulkMsgChannel, bulkMsgSubject, new Date(bulkMsgSendAt).toISOString())
+        setBulkMsgResult({ scheduled: true, at: bulkMsgSendAt })
+      } else {
+        const res = await bulkMessage([...selected], bulkMsgText, bulkMsgChannel, bulkMsgSubject)
+        setBulkMsgResult(res)
+      }
     } catch (err) {
       setBulkMsgResult({ error: err.message })
     }
@@ -716,9 +723,23 @@ export default function ApplicantsPanel() {
                 className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-sm text-white placeholder-p-muted focus:outline-none focus:border-p-link resize-none"
               />
               <p className="text-p-muted text-[10px]">Tip: <span className="text-white">{'{first_name}'}</span> is replaced with each worker's name. SMS only sends to workers with a phone; email only to those with an address. STOP/HELP handling is automatic.</p>
+              <div>
+                <label className="text-p-muted text-[10px] mb-1 block">Schedule for later (optional)</label>
+                <input
+                  type="datetime-local"
+                  value={bulkMsgSendAt}
+                  onChange={e => setBulkMsgSendAt(e.target.value)}
+                  className="w-full bg-p-bg border border-p-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-p-link"
+                />
+                {bulkMsgSendAt && <p className="text-p-muted text-[10px] mt-1">Processed by the daily run — goes out on/after the chosen date.</p>}
+              </div>
               {bulkMsgResult && (
                 bulkMsgResult.error ? (
                   <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded px-3 py-2">{bulkMsgResult.error}</div>
+                ) : bulkMsgResult.scheduled ? (
+                  <div className="text-green-400 text-xs bg-green-500/10 border border-green-500/30 rounded px-3 py-2">
+                    Scheduled for {new Date(bulkMsgResult.at).toLocaleString()} to {selected.size} worker{selected.size !== 1 ? 's' : ''}.
+                  </div>
                 ) : (
                   <div className="text-green-400 text-xs bg-green-500/10 border border-green-500/30 rounded px-3 py-2">
                     Sent to {bulkMsgResult.recipients} · SMS {bulkMsgResult.sms.sent} ok{bulkMsgResult.sms.failed ? `, ${bulkMsgResult.sms.failed} failed` : ''} · Email {bulkMsgResult.email.sent} ok{bulkMsgResult.email.failed ? `, ${bulkMsgResult.email.failed} failed` : ''}
@@ -733,7 +754,7 @@ export default function ApplicantsPanel() {
                 onClick={handleBulkMessage}
                 disabled={bulkMsgSending || !bulkMsgText.trim()}
                 className="px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
-              >{bulkMsgSending ? 'Sending…' : `Send to ${selected.size}`}</button>
+              >{bulkMsgSending ? (bulkMsgSendAt ? 'Scheduling…' : 'Sending…') : (bulkMsgSendAt ? `Schedule for ${selected.size}` : `Send to ${selected.size}`)}</button>
             </div>
           </div>
         </div>
