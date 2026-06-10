@@ -1811,6 +1811,41 @@ async function reEngagementNudge(supabase) {
   return { nudged }
 }
 
+// ─── GEOFENCE RE-ENTRY FOLLOW-UPS ────────────────────────────────────────────
+// 30 min after a worker re-enters the geofence, email both the worker and ops.
+// For precise timing, hit this via an external cron every ~10 min:
+//   https://vandahire.com/api/cron?job=geofence-followups&key=<CRON_SECRET>
+async function geofenceFollowups(supabase) {
+  const cutoff = new Date(Date.now() - 30 * 60000).toISOString()
+  const { data: records } = await supabase.from('exit_records')
+    .select('id, worker_id, event_id, reentered_at')
+    .not('reentered_at', 'is', null)
+    .lte('reentered_at', cutoff)
+    .is('followup_sent_at', null)
+    .limit(50)
+  if (!records?.length) return { sent: 0 }
+  const opsEmail = process.env.GEOFENCE_ALERT_EMAIL || 'info@vassoc.com'
+  let sent = 0
+  for (const r of records) {
+    const { data: w } = await supabase.from('applicants').select('first_name, email').eq('id', r.worker_id).single()
+    const { data: ev } = await supabase.from('events').select('title, location').eq('id', r.event_id).single()
+    const title = ev?.title || 'your shift'
+    if (w?.email && !(await isEmailSuppressed(supabase, w.email))) {
+      try {
+        await sendEmail({ to: w.email, subject: `Welcome back — ${title}`, branded: true,
+          html: `<p>Hi ${w.first_name || 'there'}, thanks for returning to ${title}. You've been back inside the venue for 30 minutes — all good. Check out from <a href="https://vandahire.com/my-shifts">My Shifts</a> when your shift ends.</p>` })
+      } catch (e) { console.error('[geofence-followups] worker email failed:', e.message) }
+    }
+    try {
+      await sendEmail({ to: opsEmail, subject: `Returned: ${w?.first_name || 'Worker'} back at ${title}`, branded: true,
+        html: `<p><strong>${w?.first_name || 'A worker'}</strong> re-entered the geofence for <strong>${title}</strong>${ev?.location ? ` (${ev.location})` : ''} and has been back 30+ minutes.</p>` })
+    } catch (e) { console.error('[geofence-followups] ops email failed:', e.message) }
+    await supabase.from('exit_records').update({ followup_sent_at: new Date().toISOString() }).eq('id', r.id)
+    sent++
+  }
+  return { sent }
+}
+
 export default async function handler(req, res) {
   // Verify cron secret. Vercel sends it as a Bearer header for scheduled runs;
   // external cron services / manual runs can pass ?key= instead.
@@ -1867,6 +1902,8 @@ export default async function handler(req, res) {
         return res.status(200).json(await processScheduledMessages(supabase))
       case 'reengagement':
         return res.status(200).json(await reEngagementNudge(supabase))
+      case 'geofence-followups':
+        return res.status(200).json(await geofenceFollowups(supabase))
       case 'all': {
         // Run all jobs — daily cron
         const results = {}
@@ -1890,6 +1927,7 @@ export default async function handler(req, res) {
         results.newsletter = await monthlyNewsletter(supabase)
         results.scheduled_messages = await processScheduledMessages(supabase)
         results.reengagement = await reEngagementNudge(supabase)
+        results.geofence_followups = await geofenceFollowups(supabase)
         return res.status(200).json(results)
       }
       default:

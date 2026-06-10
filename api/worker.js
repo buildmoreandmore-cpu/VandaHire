@@ -36,6 +36,7 @@ export default async function handler(req, res) {
     if (route === 'bg-check') return await handleBgCheck(req, res, supabase)
     if (route === 'unsubscribe') return await handleUnsubscribe(req, res, supabase)
     if (route === 'resend-webhook') return await handleResendWebhook(req, res, supabase)
+    if (route === 'geofence-reply') return await handleGeofenceReply(req, res, supabase)
     if (route === 'id-upload') return await handleIdUpload(req, res, supabase)
     if (route === 'push-subscribe') return await handlePushSubscribe(req, res, supabase)
     if (route === 'push-vapid-key') return await handlePushVapidKey(req, res)
@@ -951,7 +952,15 @@ async function handleGeofenceCheck(req, res, supabase) {
   )
   const inside = distance <= radius + acc
 
-  if (inside) return res.status(200).json({ status: 'inside_geofence' })
+  if (inside) {
+    // Re-entry detection: if they had left (open exit with no re-entry yet),
+    // stamp reentered_at once. A cron sends the 30-min follow-up.
+    await supabase.from('exit_records')
+      .update({ reentered_at: new Date().toISOString() })
+      .eq('assignment_id', assignment.id)
+      .is('reentered_at', null)
+    return res.status(200).json({ status: 'inside_geofence' })
+  }
 
   // Worker is outside geofence — check how many exit records exist (for escalation)
   const { data: exitRecords } = await supabase
@@ -1038,14 +1047,13 @@ async function handleGeofenceCheck(req, res, supabase) {
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
           <h2>${warningCount === 0 ? 'Geofence Warning' : '⚠️ Final Warning'} — ${event.title}</h2>
           <p>Hi ${worker.first_name},</p>
-          <p>It looks like you've left the event venue at ${event.location}.</p>
-          ${warningCount > 0 ? '<p style="color:#ef4444;font-weight:600">This is your final warning. Your supervisor has been notified. Please return to the venue immediately.</p>' : ''}
-          <ul>
-            <li><strong>On a break?</strong> — Head back to the venue when ready</li>
-            <li><strong>Done for the day?</strong> — Contact your supervisor</li>
-            <li><strong>Emergency?</strong> — Take care of yourself, we understand</li>
-          </ul>
-          <p style="color:#888;font-size:12px">V&A Hire Staffing • vandahire.com</p>
+          <p>It looks like you've left the event venue at ${event.location}. Let us know what's going on:</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" style="margin:16px 0"><tr>
+            <td style="padding-right:10px"><a href="https://vandahire.com/api/worker?route=geofence-reply&id=${exitRecord?.id}&reply=break" style="background:#1e1e1e;color:#fff;border:1px solid #444;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">I'm on a break</a></td>
+            <td><a href="https://vandahire.com/api/worker?route=geofence-reply&id=${exitRecord?.id}&reply=returning" style="background:#ffffff;color:#000;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">I'm heading back now</a></td>
+          </tr></table>
+          ${warningCount > 0 ? '<p style="color:#ef4444;font-weight:600">This is your final warning. Your supervisor has been notified. Please return to the venue.</p>' : ''}
+          <p style="color:#888;font-size:12px">When you return, we'll confirm you're back. V&A Hire Staffing • vandahire.com</p>
         </div>`,
       })
     } catch (e) { console.error('[geofence-check] Email failed:', e.message) }
@@ -2270,4 +2278,26 @@ async function handleResendWebhook(req, res, supabase) {
     console.error('[resend-webhook] insert failed:', e.message)
   }
   return res.status(200).json({ received: true })
+}
+
+// ─── GEOFENCE EMAIL REPLY (worker clicks button in exit warning email) ───────
+async function handleGeofenceReply(req, res, supabase) {
+  const id = req.query.id
+  const reply = req.query.reply
+  const page = (title, msg) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+    <body style="margin:0;background:#0a0a0a;font-family:Arial,sans-serif;color:#ddd;display:flex;min-height:100vh;align-items:center;justify-content:center">
+      <div style="max-width:440px;padding:32px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:16px">V&amp;A Hire</div>
+        <p style="font-size:15px;line-height:1.6">${msg}</p>
+      </div></body></html>`
+  const valid = { break: "Got it — you're on a break", returning: "Thanks — see you back at the venue" }
+  if (!id || !valid[reply]) {
+    res.setHeader('Content-Type', 'text/html')
+    return res.status(400).send(page('Invalid link', 'This link is invalid or expired.'))
+  }
+  try {
+    await supabase.from('exit_records').update({ reply, reply_at: new Date().toISOString() }).eq('id', id)
+  } catch (e) { console.error('[geofence-reply] update failed:', e.message) }
+  res.setHeader('Content-Type', 'text/html')
+  return res.status(200).send(page('Got it', `${valid[reply]}. Your coordinator has been notified. We'll confirm once you're back inside the venue area.`))
 }
