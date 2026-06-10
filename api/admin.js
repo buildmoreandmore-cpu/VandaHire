@@ -7,6 +7,7 @@ import { sendEmail, isEmailSuppressed } from '../_lib/email.js'
 import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
 import { getAgreementHtml } from '../_lib/agreement.js'
 import { sendPushToWorker } from '../_lib/push.js'
+import { calculateDistance } from '../_lib/geo.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -1657,6 +1658,7 @@ export default async function handler(req, res) {
       case 'resend-unopened': return await handleResendUnopened(req, res, supabase)
       case 'scheduled-messages': return await handleScheduledMessages(req, res, supabase)
       case 'run-cron': return await handleRunCron(req, res)
+      case 'geofence-status': return await handleGeofenceStatus(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2575,4 +2577,54 @@ async function handleRunCron(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
+}
+
+// ─── GEOFENCE STATUS (are all workers inside the venue?) ────────────────────
+async function handleGeofenceStatus(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' })
+  const { event_id } = req.query
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: event } = await supabase.from('events')
+    .select('id, title, latitude, longitude, geofence_radius_meters').eq('id', event_id).single()
+  if (!event) return res.status(404).json({ error: 'Event not found' })
+
+  const { data: assigns } = await supabase.from('assignments')
+    .select('id, status, last_ping_lat, last_ping_lng, last_ping_at, check_in_time, applicants ( first_name, last_name, phone )')
+    .eq('event_id', event_id)
+    .in('status', ['checked_in', 'confirmed'])
+
+  const radius = event.geofence_radius_meters || 200
+  const hasGeofence = event.latitude != null && event.longitude != null
+  const now = Date.now()
+
+  const workers = (assigns || []).map(a => {
+    const w = a.applicants || {}
+    let geofence = 'unknown', distance = null
+    if (hasGeofence && a.last_ping_lat != null && a.last_ping_lng != null) {
+      distance = Math.round(calculateDistance(a.last_ping_lat, a.last_ping_lng, event.latitude, event.longitude))
+      geofence = distance <= radius ? 'inside' : 'outside'
+    }
+    const stale = a.last_ping_at ? (now - new Date(a.last_ping_at).getTime()) > 5 * 60000 : true
+    return {
+      name: `${w.first_name || ''} ${w.last_name || ''}`.trim(),
+      phone: w.phone || '',
+      status: a.status,
+      checked_in: a.status === 'checked_in',
+      geofence,
+      distance,
+      last_ping_at: a.last_ping_at,
+      stale,
+    }
+  })
+
+  const checkedIn = workers.filter(w => w.checked_in)
+  const summary = {
+    total: workers.length,
+    checked_in: checkedIn.length,
+    inside: checkedIn.filter(w => w.geofence === 'inside').length,
+    outside: checkedIn.filter(w => w.geofence === 'outside').length,
+    unknown: checkedIn.filter(w => w.geofence === 'unknown').length,
+  }
+  return res.status(200).json({ event: { id: event.id, title: event.title, has_geofence: hasGeofence, radius }, summary, workers })
 }

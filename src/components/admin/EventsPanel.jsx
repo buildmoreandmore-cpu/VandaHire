@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
@@ -113,6 +113,13 @@ export default function EventsPanel() {
 
   // Collapsible section state (geofence, billing, quote, bench default closed; assignments default open)
   const [showGeofence, setShowGeofence] = useState(false)
+  const [geoStatus, setGeoStatus] = useState(null)
+  const [geoStatusLoading, setGeoStatusLoading] = useState(false)
+  const loadGeoStatus = async (eventId) => {
+    setGeoStatusLoading(true)
+    try { setGeoStatus(await fetchGeofenceStatus(eventId)) } catch (e) { setGeoStatus({ error: e.message }) }
+    setGeoStatusLoading(false)
+  }
   const [showBilling, setShowBilling] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
   const [showBench, setShowBench] = useState(false)
@@ -961,6 +968,45 @@ export default function EventsPanel() {
                           <span className="text-white">{ev.latitude}, {ev.longitude} <span className="text-p-muted">({ev.geofence_radius_meters || 200}m radius)</span></span>
                         ) : (
                           <span className="text-p-muted">No coordinates set — workers can check in from anywhere</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Live geofence status — who's inside */}
+                    {ev.latitude && ev.longitude && (
+                      <div className="mt-3 border-t border-p-border pt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-p-muted text-[10px] uppercase tracking-wider">Live status</span>
+                          <button onClick={() => loadGeoStatus(ev.id)} disabled={geoStatusLoading} className="text-p-link text-[10px] hover:text-white disabled:opacity-50">
+                            {geoStatusLoading ? 'Checking…' : 'Refresh'}
+                          </button>
+                        </div>
+                        {!geoStatus ? (
+                          <p className="text-p-muted text-[10px]">Tap Refresh to see who's inside the venue (from each worker's last GPS ping).</p>
+                        ) : geoStatus.error ? (
+                          <p className="text-red-400 text-[10px]">{geoStatus.error}</p>
+                        ) : (
+                          <div>
+                            <div className="flex gap-3 text-[10px] mb-1.5">
+                              <span className="text-green-400">{geoStatus.summary.inside} inside</span>
+                              <span className="text-red-400">{geoStatus.summary.outside} outside</span>
+                              <span className="text-p-muted">{geoStatus.summary.unknown} no GPS</span>
+                              <span className="text-p-muted">· {geoStatus.summary.checked_in} checked in</span>
+                            </div>
+                            <div className="space-y-0.5">
+                              {geoStatus.workers.filter(w => w.checked_in).map((w, i) => (
+                                <div key={i} className="flex items-center gap-2 text-[11px]">
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${w.geofence === 'inside' ? 'bg-green-400' : w.geofence === 'outside' ? 'bg-red-400' : 'bg-p-muted'}`} />
+                                  <span className="text-white truncate">{w.name}</span>
+                                  <span className={`${w.geofence === 'inside' ? 'text-green-400' : w.geofence === 'outside' ? 'text-red-400' : 'text-p-muted'}`}>
+                                    {w.geofence === 'unknown' ? 'no GPS yet' : `${w.geofence}${w.distance != null ? ` · ${w.distance}m` : ''}`}
+                                  </span>
+                                  {w.stale && w.geofence !== 'unknown' && <span className="text-p-muted text-[9px]">(stale)</span>}
+                                </div>
+                              ))}
+                              {geoStatus.summary.checked_in === 0 && <p className="text-p-muted text-[10px]">No workers checked in yet.</p>}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

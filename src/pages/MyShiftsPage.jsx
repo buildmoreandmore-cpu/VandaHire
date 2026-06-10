@@ -409,10 +409,12 @@ export default function MyShiftsPage() {
 
     const ping = () => {
       if (geo.latitude && geo.longitude) {
-        fetch('/api/worker?route=gps-ping', {
+        // geofence-check stores the ping AND runs exit detection (with GPS
+        // accuracy tolerance) so the coordinator gets a live status and alerts.
+        fetch('/api/worker?route=geofence-check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, latitude: geo.latitude, longitude: geo.longitude }),
+          body: JSON.stringify({ phone, latitude: geo.latitude, longitude: geo.longitude, accuracy: geo.accuracy }),
         }).catch(() => {})
       }
     }
@@ -564,6 +566,7 @@ export default function MyShiftsPage() {
           action,
           latitude: geo.latitude,
           longitude: geo.longitude,
+          accuracy: geo.accuracy,
         }),
       })
       const data = await res.json()

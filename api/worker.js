@@ -133,12 +133,10 @@ async function handleCheckin(req, res, supabase) {
     if (eErr || !event) return res.status(404).json({ error: 'Event not found' })
 
     if (event.latitude != null && event.longitude != null) {
-      const { within, distance } = isWithinGeofence(
-        latitude, longitude,
-        event.latitude, event.longitude,
-        event.geofence_radius_meters || 200
-      )
-      if (!within) {
+      const radius = event.geofence_radius_meters || 200
+      const acc = Math.min(parseFloat(req.body.accuracy) || 0, 150)
+      const { distance } = isWithinGeofence(latitude, longitude, event.latitude, event.longitude, radius)
+      if (distance > radius + acc) {
         return res.status(403).json({
           error: 'outside_geofence',
           distance,
@@ -915,7 +913,7 @@ async function handleVerifyVideo(req, res, supabase) {
 async function handleGeofenceCheck(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { phone, latitude, longitude } = req.body
+  const { phone, latitude, longitude, accuracy } = req.body
   if (!phone || !latitude || !longitude) return res.status(400).json({ error: 'phone, latitude, longitude required' })
 
   const digits = phone.replace(/\D/g, '').slice(-10)
@@ -925,7 +923,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   // Find active checked-in assignment
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, event_id, events ( id, title, location, latitude, longitude, geofence_radius_meters, start_time, end_time, event_date, pay_rate )')
+    .select('id, event_id, check_in_time, events ( id, title, location, latitude, longitude, geofence_radius_meters, start_time, end_time, event_date, pay_rate )')
     .eq('worker_id', worker.id)
     .eq('status', 'checked_in')
     .limit(1)
@@ -933,14 +931,25 @@ async function handleGeofenceCheck(req, res, supabase) {
 
   if (!assignment) return res.status(200).json({ status: 'no_active_shift' })
 
+  // Store the latest ping so the coordinator's live geofence view has data.
+  await supabase.from('assignments').update({
+    last_ping_lat: latitude, last_ping_lng: longitude, last_ping_at: new Date().toISOString(),
+  }).eq('id', assignment.id)
+
   const event = assignment.events
   if (!event?.latitude || !event?.longitude) return res.status(200).json({ status: 'no_geofence' })
 
-  const { within: inside } = isWithinGeofence(
+  // Tolerate GPS accuracy: only treat as "outside" when the reported point is
+  // beyond the radius even after subtracting its accuracy margin. This stops a
+  // worker standing at the venue from being flagged due to GPS drift.
+  const radius = parseFloat(event.geofence_radius_meters) || 200
+  const acc = Math.min(parseFloat(accuracy) || 0, 150) // cap so a wild accuracy value can't disable exits
+  const { distance } = isWithinGeofence(
     parseFloat(latitude), parseFloat(longitude),
     parseFloat(event.latitude), parseFloat(event.longitude),
-    parseFloat(event.geofence_radius_meters) || 150
+    radius
   )
+  const inside = distance <= radius + acc
 
   if (inside) return res.status(200).json({ status: 'inside_geofence' })
 

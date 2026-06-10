@@ -330,6 +330,10 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Live geofence status for an event (who is inside / outside)
+export const fetchGeofenceStatus = (event_id) =>
+  adminFetch(`/api/admin/geofence-status?event_id=${encodeURIComponent(event_id)}`)
+
 // Run automations now (admin-triggered cron batch)
 export const runCron = (job = 'all') =>
   adminFetch('/api/admin/run-cron', { method: 'POST', body: JSON.stringify({ job }) })
