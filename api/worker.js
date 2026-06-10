@@ -162,6 +162,26 @@ async function handleCheckin(req, res, supabase) {
         .eq('id', assignment.id)
 
       if (error) return res.status(500).json({ error: 'Failed to check in' })
+
+      // Geofence-activation email to the worker (once, on check-in to a geofenced event).
+      if (event.latitude != null && event.longitude != null) {
+        try {
+          const { sendEmail } = await import('../_lib/email.js')
+          const { data: w } = await supabase.from('applicants').select('first_name, email').eq('id', assignment.worker_id).single()
+          const { data: ev } = await supabase.from('events').select('title, location').eq('id', event_id).single()
+          if (w?.email) {
+            await sendEmail({
+              to: w.email,
+              subject: `Geofence active — ${ev?.title || 'your shift'}`,
+              branded: true,
+              html: `<h2 style="margin:0 0 12px">You're checked in — geofence is active</h2>
+                <p>Hi ${w.first_name || 'there'}, your location tracking is now active for <strong>${ev?.title || 'your shift'}</strong>${ev?.location ? ` at ${ev.location}` : ''}.</p>
+                <p>Please stay within the venue area for the duration of your shift. If you leave the area, your coordinator is automatically notified. Check out from My Shifts when your shift ends.</p>`,
+            })
+          }
+        } catch (e) { console.error('[checkin] activation email failed:', e.message) }
+      }
+
       return res.status(200).json({ success: true, action: 'check_in', time: now })
     }
 
@@ -976,8 +996,30 @@ async function handleGeofenceCheck(req, res, supabase) {
     )
   } catch (e) { console.error('[geofence-check] Push failed:', e.message) }
 
-  // Send email to worker
   const { sendEmail } = await import('../_lib/email.js')
+
+  // Alert ops inbox (info@vassoc.com) that a worker left the geofence.
+  const opsEmail = process.env.GEOFENCE_ALERT_EMAIL || 'info@vassoc.com'
+  try {
+    const dist = isWithinGeofence(parseFloat(latitude), parseFloat(longitude), parseFloat(event.latitude), parseFloat(event.longitude), parseFloat(event.geofence_radius_meters) || 150).distance
+    const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`
+    await sendEmail({
+      to: opsEmail,
+      subject: `Geofence exit: ${worker.first_name} left ${event.title}`,
+      branded: true,
+      html: `<h2 style="margin:0 0 12px">Worker left the geofence</h2>
+        <p style="margin:0 0 12px"><strong>${worker.first_name}</strong> (${worker.phone || ''}) is outside the venue area for <strong>${event.title}</strong>.</p>
+        <table style="font-size:14px;line-height:1.7">
+          <tr><td style="color:#888;padding-right:16px">Event</td><td>${event.title} — ${event.location || ''}</td></tr>
+          <tr><td style="color:#888;padding-right:16px">Distance from venue</td><td>${dist} m (radius ${event.geofence_radius_meters || 150} m)</td></tr>
+          <tr><td style="color:#888;padding-right:16px">Worker location</td><td><a href="${mapsLink}">${latitude}, ${longitude}</a></td></tr>
+          <tr><td style="color:#888;padding-right:16px">Warning #</td><td>${warningCount + 1}</td></tr>
+          <tr><td style="color:#888;padding-right:16px">Time</td><td>${now.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET</td></tr>
+        </table>`,
+    })
+  } catch (e) { console.error('[geofence-check] Ops alert email failed:', e.message) }
+
+  // Send email to worker
   const { data: workerEmail } = await supabase.from('applicants').select('email').eq('id', worker.id).single()
   if (workerEmail?.email) {
     try {
