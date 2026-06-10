@@ -167,7 +167,7 @@ async function handleCheckin(req, res, supabase) {
       if (event.latitude != null && event.longitude != null) {
         try {
           const { sendEmail } = await import('../_lib/email.js')
-          const { data: w } = await supabase.from('applicants').select('first_name, email').eq('id', assignment.worker_id).single()
+          const { data: w } = await supabase.from('applicants').select('first_name, email').eq('id', worker.id).single()
           const { data: ev } = await supabase.from('events').select('title, location').eq('id', event_id).single()
           if (w?.email) {
             await sendEmail({
