@@ -1659,6 +1659,7 @@ export default async function handler(req, res) {
       case 'scheduled-messages': return await handleScheduledMessages(req, res, supabase)
       case 'run-cron': return await handleRunCron(req, res)
       case 'geofence-status': return await handleGeofenceStatus(req, res, supabase)
+      case 'geofence-toggle': return await handleGeofenceToggle(req, res, supabase)
       default: return res.status(404).json({ error: `Unknown admin action: ${action}` })
     }
   } catch (err) {
@@ -2627,4 +2628,45 @@ async function handleGeofenceStatus(req, res, supabase) {
     unknown: checkedIn.filter(w => w.geofence === 'unknown').length,
   }
   return res.status(200).json({ event: { id: event.id, title: event.title, has_geofence: hasGeofence, radius }, summary, workers })
+}
+
+// ─── GEOFENCE TOGGLE (manual activate + auto-email assigned workers) ─────────
+async function handleGeofenceToggle(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+  const { event_id, active } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: event } = await supabase.from('events')
+    .select('id, title, location, latitude, longitude, geofence_radius_meters').eq('id', event_id).single()
+  if (!event) return res.status(404).json({ error: 'Event not found' })
+  if (active && (event.latitude == null || event.longitude == null)) {
+    return res.status(400).json({ error: 'Set geofence coordinates before activating.' })
+  }
+
+  await supabase.from('events').update({ geofence_active: !!active, updated_at: new Date().toISOString() }).eq('id', event_id)
+
+  let emailed = 0
+  if (active) {
+    const { data: assigns } = await supabase.from('assignments')
+      .select('applicants ( first_name, email )')
+      .eq('event_id', event_id)
+      .in('status', ['invited', 'confirmed', 'checked_in'])
+    for (const a of (assigns || [])) {
+      const w = a.applicants
+      if (!w?.email) continue
+      if (await isEmailSuppressed(supabase, w.email)) continue
+      try {
+        await sendEmail({
+          to: w.email,
+          subject: `Geofence active — ${event.title}`,
+          branded: true,
+          html: `<h2 style="margin:0 0 12px">Location check-in is active for ${event.title}</h2>
+            <p>Hi ${w.first_name || 'there'}, geofence tracking is now active for your shift${event.location ? ` at ${event.location}` : ''}.</p>
+            <p>When you arrive, open <a href="https://vandahire.com/my-shifts">My Shifts</a> and check in. Please stay within the venue area for your shift — if you leave, your coordinator is automatically notified. Check out from My Shifts when your shift ends.</p>`,
+        })
+        emailed++
+      } catch (e) { console.error('[geofence-toggle] email failed:', e.message) }
+    }
+  }
+  return res.status(200).json({ success: true, active: !!active, emailed })
 }

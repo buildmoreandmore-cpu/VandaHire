@@ -330,6 +330,10 @@ export const updateGroupMembers = (group_id, worker_ids, action) =>
     body: JSON.stringify({ group_id, worker_ids, action }),
   })
 
+// Manually activate/deactivate geofence for an event (emails workers on activate)
+export const toggleGeofence = (event_id, active) =>
+  adminFetch('/api/admin/geofence-toggle', { method: 'POST', body: JSON.stringify({ event_id, active }) })
+
 // Live geofence status for an event (who is inside / outside)
 export const fetchGeofenceStatus = (event_id) =>
   adminFetch(`/api/admin/geofence-status?event_id=${encodeURIComponent(event_id)}`)

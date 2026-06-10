@@ -126,13 +126,13 @@ async function handleCheckin(req, res, supabase) {
 
     const { data: event, error: eErr } = await supabase
       .from('events')
-      .select('latitude, longitude, geofence_radius_meters')
+      .select('latitude, longitude, geofence_radius_meters, geofence_active')
       .eq('id', event_id)
       .single()
 
     if (eErr || !event) return res.status(404).json({ error: 'Event not found' })
 
-    if (event.latitude != null && event.longitude != null) {
+    if (event.geofence_active && event.latitude != null && event.longitude != null) {
       const radius = event.geofence_radius_meters || 200
       const acc = Math.min(parseFloat(req.body.accuracy) || 0, 150)
       const { distance } = isWithinGeofence(latitude, longitude, event.latitude, event.longitude, radius)
@@ -923,7 +923,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   // Find active checked-in assignment
   const { data: assignment } = await supabase
     .from('assignments')
-    .select('id, event_id, check_in_time, events ( id, title, location, latitude, longitude, geofence_radius_meters, start_time, end_time, event_date, pay_rate )')
+    .select('id, event_id, check_in_time, events ( id, title, location, latitude, longitude, geofence_radius_meters, geofence_active, start_time, end_time, event_date, pay_rate )')
     .eq('worker_id', worker.id)
     .eq('status', 'checked_in')
     .limit(1)
@@ -937,7 +937,7 @@ async function handleGeofenceCheck(req, res, supabase) {
   }).eq('id', assignment.id)
 
   const event = assignment.events
-  if (!event?.latitude || !event?.longitude) return res.status(200).json({ status: 'no_geofence' })
+  if (!event?.geofence_active || !event?.latitude || !event?.longitude) return res.status(200).json({ status: 'no_geofence' })
 
   // Tolerate GPS accuracy: only treat as "outside" when the reported point is
   // beyond the radius even after subtracting its accuracy margin. This stops a

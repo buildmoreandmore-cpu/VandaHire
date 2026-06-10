@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
@@ -119,6 +119,16 @@ export default function EventsPanel() {
     setGeoStatusLoading(true)
     try { setGeoStatus(await fetchGeofenceStatus(eventId)) } catch (e) { setGeoStatus({ error: e.message }) }
     setGeoStatusLoading(false)
+  }
+  const [geoToggling, setGeoToggling] = useState(false)
+  const handleToggleGeofence = async (ev, active) => {
+    setGeoToggling(true)
+    try {
+      const r = await toggleGeofence(ev.id, active)
+      setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, geofence_active: r.active } : x))
+      if (active) alert(`Geofence activated. Emailed ${r.emailed} assigned worker${r.emailed !== 1 ? 's' : ''}.`)
+    } catch (e) { alert('Failed: ' + e.message) }
+    setGeoToggling(false)
   }
   const [showBilling, setShowBilling] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
@@ -972,8 +982,26 @@ export default function EventsPanel() {
                       </div>
                     )}
 
-                    {/* Live geofence status — who's inside */}
+                    {/* Manual geofence activation toggle */}
                     {ev.latitude && ev.longitude && (
+                      <div className="mt-3 flex items-center justify-between bg-black/20 rounded-lg px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-white text-xs font-medium">Geofence {ev.geofence_active ? 'active' : 'off'}</div>
+                          <div className="text-p-muted text-[10px]">{ev.geofence_active ? 'Check-in enforced + exit alerts on. Workers were emailed.' : 'Turn on to enforce check-in radius, send exit alerts, and email assigned workers.'}</div>
+                        </div>
+                        <button
+                          onClick={() => handleToggleGeofence(ev, !ev.geofence_active)}
+                          disabled={geoToggling}
+                          className={`flex-shrink-0 w-11 h-6 rounded-full transition-colors relative ${ev.geofence_active ? 'bg-p-green' : 'bg-p-border'} disabled:opacity-50`}
+                          aria-pressed={ev.geofence_active}
+                        >
+                          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${ev.geofence_active ? 'left-[22px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Live geofence status — who's inside */}
+                    {ev.latitude && ev.longitude && ev.geofence_active && (
                       <div className="mt-3 border-t border-p-border pt-2">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-p-muted text-[10px] uppercase tracking-wider">Live status</span>
