@@ -953,12 +953,29 @@ async function handleGeofenceCheck(req, res, supabase) {
   const inside = distance <= radius + acc
 
   if (inside) {
-    // Re-entry detection: if they had left (open exit with no re-entry yet),
-    // stamp reentered_at once. A cron sends the 30-min follow-up.
-    await supabase.from('exit_records')
+    // Re-entry detection: stamp any open exit (left, not yet returned). The
+    // update returns the rows it changed, so we only email on the actual
+    // outside→inside transition — immediately, no cron.
+    const { data: reentered } = await supabase.from('exit_records')
       .update({ reentered_at: new Date().toISOString() })
       .eq('assignment_id', assignment.id)
       .is('reentered_at', null)
+      .select('id')
+    if (reentered && reentered.length > 0) {
+      const { sendEmail } = await import('../_lib/email.js')
+      const opsEmail = process.env.GEOFENCE_ALERT_EMAIL || 'info@vassoc.com'
+      const { data: we } = await supabase.from('applicants').select('email').eq('id', worker.id).single()
+      if (we?.email) {
+        try {
+          await sendEmail({ to: we.email, subject: `Welcome back — ${event.title}`, branded: true,
+            html: `<p>Hi ${worker.first_name || 'there'}, thanks for returning to ${event.title}${event.location ? ` at ${event.location}` : ''}. You're back inside the venue area — all good. Check out from <a href="https://vandahire.com/my-shifts">My Shifts</a> when your shift ends.</p>` })
+        } catch (e) { console.error('[geofence-check] re-entry worker email failed:', e.message) }
+      }
+      try {
+        await sendEmail({ to: opsEmail, subject: `Returned: ${worker.first_name} back at ${event.title}`, branded: true,
+          html: `<p><strong>${worker.first_name}</strong> (${worker.phone || ''}) re-entered the geofence for <strong>${event.title}</strong>${event.location ? ` (${event.location})` : ''} and is back inside the venue area.</p>` })
+      } catch (e) { console.error('[geofence-check] re-entry ops email failed:', e.message) }
+    }
     return res.status(200).json({ status: 'inside_geofence' })
   }
 
