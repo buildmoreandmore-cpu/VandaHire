@@ -56,16 +56,18 @@ export default function UpcomingEventsBlock() {
     return () => { alive = false }
   }, [])
 
-  if (loading || events.length === 0) return null
+  if (loading) return null
 
   return (
     <section className="px-6 pt-6 pb-2 max-w-5xl mx-auto w-full">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-p-green"><IconCalendar /></span>
-        <span className="text-[#bbb] text-xs tracking-widest uppercase font-semibold">Upcoming events — tap to join the crew</span>
+        <span className="text-[#bbb] text-xs tracking-widest uppercase font-semibold">
+          {events.length > 0 ? 'Upcoming events — tap to join the crew' : 'Join the crew'}
+        </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {events.slice(0, 3).map(ev => (
+        {events.slice(0, 2).map(ev => (
           <a
             key={ev.id}
             href={`/join/${ev.code}`}
@@ -96,6 +98,27 @@ export default function UpcomingEventsBlock() {
             </div>
           </a>
         ))}
+
+        {/* Always-present ongoing hiring card */}
+        <a
+          href="/hiring"
+          className="group relative block rounded-2xl border border-p-green/40 bg-[#0e0e0e] p-4 hover:border-p-green hover:bg-[#111] transition-all duration-200 overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-p-green/10 blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-baseline justify-between gap-3 mb-2">
+              <span className="text-p-green text-[11px] tracking-widest uppercase font-bold">Always hiring</span>
+            </div>
+            <h3 className="font-inter text-white font-bold text-lg leading-tight mb-2 group-hover:text-p-green transition-colors">
+              We're always hiring
+            </h3>
+            <div className="text-[#888] text-xs">Ongoing event-staff roles across metro Atlanta — apply once, get matched to shifts.</div>
+            <div className="mt-3 flex items-center gap-1.5 text-white text-xs font-semibold">
+              <span>View open roles</span>
+              <span className="transition-transform group-hover:translate-x-0.5"><IconArrow /></span>
+            </div>
+          </div>
+        </a>
       </div>
     </section>
   )

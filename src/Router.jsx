@@ -19,6 +19,7 @@ import W9FormPage from './pages/W9FormPage.jsx'
 import BgCheckPage from './pages/BgCheckPage.jsx'
 import IdUploadPage from './pages/IdUploadPage.jsx'
 import SupervisorPortalPage from './pages/SupervisorPortalPage.jsx'
+import HiringPage from './pages/HiringPage.jsx'
 
 const RouterContext = createContext()
 
@@ -338,6 +339,8 @@ export default function Router() {
     page = <App groupCode={code} />
   } else if (path === '/apply') {
     page = <App startScreen="application" />
+  } else if (path === '/hiring') {
+    page = <HiringPage />
   } else if (SEO_PAGES[path]) {
     page = <SeoLandingPage {...SEO_PAGES[path]} />
   } else {

@@ -47,6 +47,25 @@ export default async function handler(req, res) {
     return res.status(200).json(data || [])
   }
 
+  // GET /api/submit?ongoing=1 — public list of ongoing (always-hiring) roles
+  if (req.method === 'GET' && req.query.ongoing) {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const { data, error } = await supabase
+      .from('worker_groups')
+      .select('id, code, name, description, event_location, event_city')
+      .eq('type', 'recruitment')
+      .eq('evergreen', true)
+      .eq('archived', false)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    if (error) {
+      console.error('[submit] ongoing roles error:', error)
+      return res.status(500).json({ error: 'Failed to load ongoing roles' })
+    }
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
+    return res.status(200).json(data || [])
+  }
+
   // GET /api/submit?group_code=X — public group info for join pages
   if (req.method === 'GET') {
     const { group_code } = req.query
