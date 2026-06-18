@@ -1,33 +1,103 @@
 import twilio from 'twilio'
 
-function getClient() {
+// SMS sender. Prefers RingCentral when configured; falls back to Twilio so the
+// switch is safe to deploy before RingCentral env vars are set.
+// Public API is unchanged: sendSms(to, body).
+
+// ─── RingCentral ─────────────────────────────────────────────────────────────
+const RC_SERVER = process.env.RINGCENTRAL_SERVER_URL || 'https://platform.ringcentral.com'
+
+// Cache the OAuth token across warm serverless invocations.
+let rcToken = null // { access_token, expires_at }
+
+async function getRingCentralToken() {
+  const now = Date.now()
+  if (rcToken && rcToken.expires_at > now + 60000) return rcToken.access_token
+
+  const clientId = process.env.RINGCENTRAL_CLIENT_ID
+  const clientSecret = process.env.RINGCENTRAL_CLIENT_SECRET
+  const jwt = process.env.RINGCENTRAL_JWT
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+
+  const res = await fetch(`${RC_SERVER}/restapi/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${basic}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`RingCentral auth failed (${res.status}): ${t.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  rcToken = { access_token: data.access_token, expires_at: now + (data.expires_in || 3600) * 1000 }
+  return rcToken.access_token
+}
+
+async function sendViaRingCentral(normalized, body) {
+  const token = await getRingCentralToken()
+  const from = process.env.RINGCENTRAL_FROM_NUMBER
+
+  // High-Volume A2P SMS endpoint for bulk (set RINGCENTRAL_A2P=true once the
+  // A2P campaign is approved); otherwise the standard per-extension endpoint.
+  const useA2p = String(process.env.RINGCENTRAL_A2P || '').toLowerCase() === 'true'
+  const url = useA2p
+    ? `${RC_SERVER}/restapi/v1.0/account/~/a2p-sms/messages`
+    : `${RC_SERVER}/restapi/v1.0/account/~/extension/~/sms`
+  const payload = useA2p
+    ? { from, to: [normalized], text: body }
+    : { from: { phoneNumber: from }, to: [{ phoneNumber: normalized }], text: body }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new Error(`RingCentral SMS failed (${res.status}): ${t.slice(0, 200)}`)
+  }
+  return res.json()
+}
+
+// ─── Twilio (fallback) ───────────────────────────────────────────────────────
+function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const apiKeySid = process.env.TWILIO_API_KEY_SID
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET
-
-  // Prefer a scoped, revocable API Key when configured; fall back to the
-  // account's Auth Token otherwise.
   if (apiKeySid && apiKeySecret && accountSid) {
     return twilio(apiKeySid, apiKeySecret, { accountSid })
   }
   return twilio(accountSid, process.env.TWILIO_AUTH_TOKEN)
 }
 
-export async function sendSms(to, body) {
-  const client = getClient()
+async function sendViaTwilio(normalized, body) {
+  const client = getTwilioClient()
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
+  const from = process.env.TWILIO_FROM_NUMBER
+  const opts = messagingServiceSid
+    ? { messagingServiceSid, to: normalized, body }
+    : { from, to: normalized, body }
+  return client.messages.create(opts)
+}
 
+// ─── Public API ──────────────────────────────────────────────────────────────
+export async function sendSms(to, body) {
   // Normalize phone: strip formatting, ensure +1
   const digits = to.replace(/\D/g, '')
   const normalized = digits.startsWith('1') ? `+${digits}` : `+1${digits}`
 
-  // Prefer a Messaging Service (number pool + A2P/opt-out compliance) when
-  // configured; otherwise fall back to a single from-number.
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
-  const from = process.env.TWILIO_FROM_NUMBER
+  const rcConfigured =
+    process.env.RINGCENTRAL_CLIENT_ID &&
+    process.env.RINGCENTRAL_CLIENT_SECRET &&
+    process.env.RINGCENTRAL_JWT &&
+    process.env.RINGCENTRAL_FROM_NUMBER
 
-  const opts = messagingServiceSid
-    ? { messagingServiceSid, to: normalized, body }
-    : { from, to: normalized, body }
-
-  return client.messages.create(opts)
+  if (rcConfigured) return sendViaRingCentral(normalized, body)
+  return sendViaTwilio(normalized, body)
 }
