@@ -78,7 +78,14 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">9. Contact</h2>
-            <p>If you have questions about this Privacy Policy or our data practices, you may contact us through the contact information provided on our platform.</p>
+            <p className="mb-3">If you have questions about this Privacy Policy, our data practices, or wish to opt out of communications, you can reach us at:</p>
+            <p className="text-white">
+              V&A Hire — Varist &amp; Associates of Georgia LLC<br />
+              470 16th Street NW, Unit 2024<br />
+              Atlanta, GA 30363<br />
+              Email: <a href="mailto:info@vassoc.com" className="text-p-link hover:text-white">info@vassoc.com</a>
+            </p>
+            <p className="mt-3 text-[#888] text-sm">To stop SMS messages, reply STOP to any text. To stop emails, use the unsubscribe link in any email.</p>
           </section>
 
         </div>

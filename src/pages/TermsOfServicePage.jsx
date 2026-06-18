@@ -111,6 +111,16 @@ export default function TermsOfServicePage() {
             <p>We may update these Terms from time to time. We will post updated Terms on this page with a revised effective date. Continued use of the platform after changes are posted constitutes acceptance of the updated Terms.</p>
           </section>
 
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">12. Contact</h2>
+            <p className="text-white">
+              V&A Hire — Varist &amp; Associates of Georgia LLC<br />
+              470 16th Street NW, Unit 2024<br />
+              Atlanta, GA 30363<br />
+              Email: <a href="mailto:info@vassoc.com" className="text-p-link hover:text-white">info@vassoc.com</a>
+            </p>
+          </section>
+
         </div>
 
         <div className="mt-16 pt-8 border-t border-[#1a1a1a] flex gap-6 text-sm text-[#555]">
