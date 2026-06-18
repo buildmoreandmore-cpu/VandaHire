@@ -101,6 +101,7 @@ export default async function handler(req, res) {
     has_transportation, short_notice, notes,
     photo_base64,
     source_group_code,
+    sms_consent,
   } = req.body
 
   // Basic validation
@@ -175,6 +176,7 @@ export default async function handler(req, res) {
       short_notice: short_notice || '',
       notes: notes || '',
       status: 'pending',
+      sms_consent_at: sms_consent ? new Date().toISOString() : null,
     }
     if (sourceGroupId) insertData.source_group_id = sourceGroupId
 

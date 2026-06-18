@@ -250,6 +250,7 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
     if (!formData.has_transportation) e.has_transportation = 'Required'
     if (!formData.short_notice) e.short_notice = 'Required'
     if (!formData.photo) e.photo = 'Please add a photo'
+    if (!formData.sms_consent) e.sms_consent = 'Please agree to receive SMS to continue'
     return e
   }
 
@@ -474,7 +475,28 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
 
         {section === 2 && (
           <>
-            <div className="flex gap-3 mt-8">
+            {/* SMS consent checkbox — required for TCR / A2P carrier approval */}
+            <label className="mt-8 flex items-start gap-3 px-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!formData.sms_consent}
+                onChange={(e) => set('sms_consent', e.target.checked)}
+                className="mt-0.5 w-5 h-5 flex-shrink-0 accent-green-500 cursor-pointer"
+              />
+              <span className={`text-[12px] leading-relaxed ${errors.sms_consent ? 'text-[#ff6b6b]' : 'text-[#999]'}`}>
+                By checking this box, you agree to receive SMS messages from V&amp;A Hire
+                (Varist &amp; Associates of Georgia LLC) related to shift offers, assignment
+                confirmations, scheduling, shift details, and reminders. You may reply STOP
+                to opt out at any time. Reply HELP for assistance, or contact{' '}
+                <a href="mailto:info@vassoc.com" className="underline hover:text-white">info@vassoc.com</a>.
+                Message and data rates may apply. Message frequency will vary. See our{' '}
+                <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
+                and <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>.
+              </span>
+            </label>
+            {errors.sms_consent && <p className="mt-1 px-1 text-[#ff6b6b] text-xs">{errors.sms_consent}</p>}
+
+            <div className="flex gap-3 mt-6">
               <button
                 type="button"
                 onClick={() => setSection(1)}
@@ -504,17 +526,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                 )}
               </button>
             </div>
-
-            {/* SMS consent — required for carrier (toll-free) compliance */}
-            <p className="mt-4 px-1 text-[#777] text-[11px] leading-relaxed">
-              By submitting this application, you agree to receive SMS text messages
-              from V&amp;A Hire (Varist &amp; Associates of Georgia LLC) about shift
-              offers, assignments, and scheduling at the phone number provided. Message
-              frequency varies. Message &amp; data rates may apply. Reply STOP to opt out
-              or HELP for help. Consent is not a condition of employment. See our{' '}
-              <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
-              and <a href="/terms" className="underline hover:text-white">Terms</a>.
-            </p>
 
             {bgCheckRequired && (
               <div className="mt-4 px-1">

@@ -42,15 +42,35 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">4. SMS / Text Messaging Program</h2>
-            <p className="mb-3">By submitting our job application, you agree to receive recurring SMS text messages from V&A Hire (Varist &amp; Associates of Georgia LLC) at the mobile number you provide, including shift offers, assignment confirmations, scheduling, shift details, and check-in reminders.</p>
-            <ul className="list-disc list-inside space-y-2 ml-2">
-              <li>Message frequency varies based on shift activity.</li>
+            <h2 className="text-white font-bold text-lg mb-3">4. SMS Terms &amp; Conditions</h2>
+
+            <p className="text-white font-semibold mb-1">1. SMS Consent Communication</p>
+            <p className="mb-3">The information (phone numbers) obtained as part of the SMS consent process will not be shared with third parties for marketing purposes.</p>
+
+            <p className="text-white font-semibold mb-1">2. Types of SMS Communications</p>
+            <p className="mb-3">If you have consented to receive text messages from V&A Hire (Varist &amp; Associates of Georgia LLC), you may receive messages related to the following: shift offers, assignment confirmations, scheduling, shift details, check-in and briefing reminders, and application status updates.</p>
+
+            <p className="text-white font-semibold mb-1">3. Message Frequency</p>
+            <p className="mb-3">Message frequency may vary. You may receive up to 10 SMS messages per week regarding your shifts, assignments, or account status.</p>
+
+            <p className="text-white font-semibold mb-1">4. Potential Fees for SMS Messaging</p>
+            <p className="mb-3">Standard message and data rates may apply, depending on your carrier's pricing plan. These fees may vary if the message is sent domestically or internationally.</p>
+
+            <p className="text-white font-semibold mb-1">5. Opt-In Method</p>
+            <p className="mb-3">You may opt in to receive SMS messages from V&A Hire by submitting our online job application and checking the SMS consent box.</p>
+
+            <p className="text-white font-semibold mb-1">6. Opt-Out Method</p>
+            <p className="mb-3">You can opt out of receiving SMS messages at any time. To do so, simply reply "STOP" to any SMS message you receive. Alternatively, you can contact us directly at info@vassoc.com to request removal from our messaging list.</p>
+
+            <p className="text-white font-semibold mb-1">7. Help</p>
+            <p className="mb-3">If you are experiencing any issues, you can reply with the keyword HELP. Or, you can get help directly from us at <a href="mailto:info@vassoc.com" className="text-p-link hover:text-white">info@vassoc.com</a>.</p>
+
+            <p className="text-white font-semibold mb-1">8. Standard Messaging Disclosures</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
               <li>Message and data rates may apply.</li>
-              <li>Reply <strong className="text-white">STOP</strong> to cancel at any time; reply <strong className="text-white">HELP</strong> for help.</li>
-              <li>Consent to receive text messages is not a condition of employment or placement.</li>
-              <li>Carriers are not liable for delayed or undelivered messages.</li>
-              <li>We do not share or sell your mobile number or SMS consent with third parties for their marketing purposes. See our <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>.</li>
+              <li>You can opt out at any time by texting "STOP."</li>
+              <li>For assistance, text "HELP" or visit our <a href="/privacy" className="underline hover:text-white">Privacy Policy</a> and <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>.</li>
+              <li>Message frequency may vary.</li>
             </ul>
           </section>
 

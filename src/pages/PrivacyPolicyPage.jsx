@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-white font-bold text-lg mb-3">3. SMS Communications</h2>
             <p className="mb-3">If you apply to work with V&A Hire (Varist &amp; Associates of Georgia LLC), you may receive SMS text messages regarding your application status, available shifts, shift offers, assignment confirmations, shift details, scheduling, and briefing reminders. You opt in to these messages by submitting our online job application, which carries SMS consent language. Message frequency varies based on shift activity.</p>
             <p className="mb-3">Standard message and data rates may apply. You may opt out of SMS messages at any time by replying STOP to any message we send, and you can reply HELP for assistance. Opting out of SMS will not affect your eligibility for work; consent to receive texts is not a condition of employment.</p>
-            <p><strong className="text-white">We do not share or sell your mobile phone number or SMS opt-in consent with any third parties or affiliates for their marketing or promotional purposes.</strong> Mobile information collected for SMS is used only to operate the V&A Hire staffing program. Where we use a messaging vendor (Twilio) solely to deliver these texts on our behalf, that data is shared only to provide the service and is not used for any other purpose.</p>
+            <p><strong className="text-white">Mobile Opt-in, SMS Consent, and phone numbers collected for SMS communication purposes will not be shared with any third party or affiliates for marketing purposes.</strong> Mobile information collected for SMS is used only to operate the V&A Hire staffing program. Where we use a messaging vendor (RingCentral) solely to deliver these texts on our behalf, that data is shared only to provide the service and is not used for any other purpose.</p>
           </section>
 
           <section>
@@ -50,7 +50,7 @@ export default function PrivacyPolicyPage() {
             <p className="mb-3">We do not sell your personal information to third parties, and we never share mobile phone numbers or SMS opt-in data with third parties for their own marketing. We may share information in the following limited circumstances:</p>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li><strong className="text-white">Event organizers:</strong> Worker names and shift-relevant details may be shared with the organizer or on-site supervisor for events you are assigned to</li>
-              <li><strong className="text-white">Service providers:</strong> We use third-party services including Supabase (database), Twilio (SMS), Resend (email), and Stripe (payments). Each provider processes data per their own privacy policies</li>
+              <li><strong className="text-white">Service providers:</strong> We use third-party services including Supabase (database), RingCentral (SMS), Resend (email), and Stripe (payments). Each provider processes data per their own privacy policies</li>
               <li><strong className="text-white">Legal compliance:</strong> We may disclose information if required by law or to protect the rights, property, or safety of V&A Hire, our workers, or the public</li>
             </ul>
           </section>
