@@ -332,6 +332,13 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               onChange={e => set('phone', formatPhone(e.target.value))}
               className={inputClass('phone')}
             />
+            <p className="mt-1.5 text-[#777] text-[11px] leading-relaxed">
+              We text shift offers, confirmations, and reminders to this number. On the
+              next step you'll check a box to consent to SMS. Msg &amp; data rates may
+              apply, msg frequency varies, reply STOP to opt out, HELP for help. See our{' '}
+              <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
+              &amp; <a href="/terms" className="underline hover:text-white">Terms</a>.
+            </p>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
