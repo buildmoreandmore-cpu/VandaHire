@@ -20,6 +20,7 @@ import BgCheckPage from './pages/BgCheckPage.jsx'
 import IdUploadPage from './pages/IdUploadPage.jsx'
 import SupervisorPortalPage from './pages/SupervisorPortalPage.jsx'
 import HiringPage from './pages/HiringPage.jsx'
+import SupportPage from './pages/SupportPage.jsx'
 
 const RouterContext = createContext()
 
@@ -341,6 +342,8 @@ export default function Router() {
     page = <App startScreen="application" />
   } else if (path === '/hiring') {
     page = <HiringPage />
+  } else if (path === '/support') {
+    page = <SupportPage />
   } else if (SEO_PAGES[path]) {
     page = <SeoLandingPage {...SEO_PAGES[path]} />
   } else {

@@ -63,6 +63,7 @@ export default function Footer() {
         {/* Bottom: legal links + copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#444]">
           <div className="flex gap-6">
+            <button onClick={() => go('/support')} className="hover:text-[#666] transition-colors">Support</button>
             <button onClick={() => go('/privacy')} className="hover:text-[#666] transition-colors">Privacy Policy</button>
             <button onClick={() => go('/terms')} className="hover:text-[#666] transition-colors">Terms of Service</button>
           </div>
