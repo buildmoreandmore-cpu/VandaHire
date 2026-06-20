@@ -332,13 +332,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
               onChange={e => set('phone', formatPhone(e.target.value))}
               className={inputClass('phone')}
             />
-            <p className="mt-1.5 text-[#777] text-[11px] leading-relaxed">
-              We text shift offers, confirmations, and reminders to this number. On the
-              next step you'll check a box to consent to SMS. Msg &amp; data rates may
-              apply, msg frequency varies, reply STOP to opt out, HELP for help. See our{' '}
-              <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
-              &amp; <a href="/terms" className="underline hover:text-white">Terms</a>.
-            </p>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -393,32 +386,55 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
 
           {/* Section 1 continue button */}
           {section === 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                const e = {}
-                if (!formData.first_name.trim()) e.first_name = 'Required'
-                if (!formData.last_name.trim()) e.last_name = 'Required'
-                if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Enter a valid email'
-                const phoneDigits = formData.phone.replace(/\D/g, '')
-                if (phoneDigits.length < 10) e.phone = 'Enter a 10-digit US phone number'
-                if (!formData.city.trim()) e.city = 'Required'
-                if (!formData.zip.trim() || !/^\d{5}$/.test(formData.zip)) e.zip = 'Enter a valid 5-digit zip'
-                if (formData.roles.length === 0) e.roles = 'Select at least one role'
-                if (formData.availability.length === 0) e.availability = 'Select at least one option'
-                if (!formData.photo) e.photo = 'Please add a photo'
-                if (Object.keys(e).length > 0) {
-                  setErrors(e)
-                  return
-                }
-                setErrors({})
-                setSection(2)
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}
-              className="mt-4 w-full rounded-full py-4 font-semibold text-base bg-[#ffffff] text-black hover:opacity-90 transition-all duration-200 cursor-pointer"
-            >
-              Continue →
-            </button>
+            <>
+              {/* SMS consent checkbox — visible on the first screen for TCR/A2P reviewers */}
+              <label className="mt-6 flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!formData.sms_consent}
+                  onChange={(e) => set('sms_consent', e.target.checked)}
+                  className="mt-0.5 w-5 h-5 flex-shrink-0 accent-green-500 cursor-pointer"
+                />
+                <span className={`text-[12px] leading-relaxed ${errors.sms_consent ? 'text-[#ff6b6b]' : 'text-[#999]'}`}>
+                  By checking this box, you agree to receive SMS messages from V&amp;A Hire
+                  (Varist &amp; Associates of Georgia LLC) related to shift offers, assignment
+                  confirmations, scheduling, shift details, and reminders. You may reply STOP
+                  to opt out at any time. Reply HELP for assistance. Message and data rates may
+                  apply. Message frequency will vary. See our{' '}
+                  <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
+                  and <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>.
+                </span>
+              </label>
+              {errors.sms_consent && <p className="mt-1 text-[#ff6b6b] text-xs">{errors.sms_consent}</p>}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const e = {}
+                  if (!formData.first_name.trim()) e.first_name = 'Required'
+                  if (!formData.last_name.trim()) e.last_name = 'Required'
+                  if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = 'Enter a valid email'
+                  const phoneDigits = formData.phone.replace(/\D/g, '')
+                  if (phoneDigits.length < 10) e.phone = 'Enter a 10-digit US phone number'
+                  if (!formData.city.trim()) e.city = 'Required'
+                  if (!formData.zip.trim() || !/^\d{5}$/.test(formData.zip)) e.zip = 'Enter a valid 5-digit zip'
+                  if (formData.roles.length === 0) e.roles = 'Select at least one role'
+                  if (formData.availability.length === 0) e.availability = 'Select at least one option'
+                  if (!formData.photo) e.photo = 'Please add a photo'
+                  if (!formData.sms_consent) e.sms_consent = 'Please agree to receive SMS to continue'
+                  if (Object.keys(e).length > 0) {
+                    setErrors(e)
+                    return
+                  }
+                  setErrors({})
+                  setSection(2)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="mt-4 w-full rounded-full py-4 font-semibold text-base bg-[#ffffff] text-black hover:opacity-90 transition-all duration-200 cursor-pointer"
+              >
+                Continue →
+              </button>
+            </>
           )}
 
           {/* Structured screening — section 2 (progressive disclosure) */}
@@ -482,27 +498,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
 
         {section === 2 && (
           <>
-            {/* SMS consent checkbox — required for TCR / A2P carrier approval */}
-            <label className="mt-8 flex items-start gap-3 px-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!formData.sms_consent}
-                onChange={(e) => set('sms_consent', e.target.checked)}
-                className="mt-0.5 w-5 h-5 flex-shrink-0 accent-green-500 cursor-pointer"
-              />
-              <span className={`text-[12px] leading-relaxed ${errors.sms_consent ? 'text-[#ff6b6b]' : 'text-[#999]'}`}>
-                By checking this box, you agree to receive SMS messages from V&amp;A Hire
-                (Varist &amp; Associates of Georgia LLC) related to shift offers, assignment
-                confirmations, scheduling, shift details, and reminders. You may reply STOP
-                to opt out at any time. Reply HELP for assistance, or contact{' '}
-                <a href="mailto:info@vassoc.com" className="underline hover:text-white">info@vassoc.com</a>.
-                Message and data rates may apply. Message frequency will vary. See our{' '}
-                <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
-                and <a href="/terms" className="underline hover:text-white">Terms &amp; Conditions</a>.
-              </span>
-            </label>
-            {errors.sms_consent && <p className="mt-1 px-1 text-[#ff6b6b] text-xs">{errors.sms_consent}</p>}
-
             <div className="flex gap-3 mt-6">
               <button
                 type="button"
