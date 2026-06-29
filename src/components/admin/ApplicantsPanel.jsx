@@ -833,6 +833,7 @@ export default function ApplicantsPanel() {
                           <div className="text-p-muted text-xs truncate">
                             {(a.roles || []).join(', ') || 'No roles'} · {(a.availability || []).join(', ') || ''}
                           </div>
+                          <JobSummaryLine history={a.job_history} />
                         </div>
                         {a.avg_rating != null && (
                           <span className="text-yellow-400 text-[10px] flex-shrink-0 hidden sm:inline">★ {a.avg_rating}</span>
@@ -1345,6 +1346,48 @@ export default function ApplicantsPanel() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const IconBriefcase = () => (
+  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-shrink-0">
+    <rect x="2" y="5" width="12" height="8" rx="1.5" />
+    <path d="M6 5V3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5V5" />
+    <path d="M2 8h12" />
+  </svg>
+)
+
+function jobSummaryDate(d) {
+  if (!d) return ''
+  const dt = new Date(`${d}T00:00:00`)
+  return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+// Compact one-line job summary shown on the collapsed worker row.
+function JobSummaryLine({ history }) {
+  const list = history || []
+  const worked = list.filter(j => j.worked)
+  const upcoming = list.filter(j => !j.worked)
+
+  let text, tone
+  if (worked.length > 0) {
+    const last = worked[0] // sorted newest-first
+    text = `${worked.length} shift${worked.length !== 1 ? 's' : ''} · last: ${last.title || 'event'}${last.event_date ? ` (${jobSummaryDate(last.event_date)})` : ''}`
+    tone = 'text-green-400/90'
+  } else if (upcoming.length > 0) {
+    const next = upcoming[upcoming.length - 1] // oldest of upcoming = soonest
+    text = `Booked: ${next.title || 'event'}${next.event_date ? ` (${jobSummaryDate(next.event_date)})` : ''} · no past shifts`
+    tone = 'text-purple-300/90'
+  } else {
+    text = 'New · no shifts yet'
+    tone = 'text-p-muted'
+  }
+
+  return (
+    <div className={`flex items-center gap-1 text-[11px] truncate mt-0.5 ${tone}`}>
+      <IconBriefcase />
+      <span className="truncate">{text}</span>
     </div>
   )
 }
