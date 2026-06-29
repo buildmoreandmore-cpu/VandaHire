@@ -905,6 +905,9 @@ export default function ApplicantsPanel() {
                           </div>
                         </div>
 
+                        {/* Job history — events applied to / booked vs. worked */}
+                        <JobHistory history={a.job_history} />
+
                         {/* Contact notes */}
                         <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
@@ -1340,6 +1343,58 @@ export default function ApplicantsPanel() {
               >{sendingMsg ? 'Sending...' : 'Send Message'}</button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function JobHistory({ history }) {
+  const list = history || []
+  const worked = list.filter(j => j.worked)
+  const upcoming = list.filter(j => !j.worked)
+  const fmtDate = (d) => d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'
+
+  const Row = ({ j }) => (
+    <li className="flex items-center gap-2 bg-p-bg/50 border border-p-border rounded px-2.5 py-1.5">
+      <div className="flex-1 min-w-0">
+        <div className="text-white text-xs font-medium truncate">
+          {j.title || 'Untitled event'}
+          {j.is_supervisor && <span className="ml-1.5 text-[9px] text-purple-300 align-middle">SUPERVISOR</span>}
+        </div>
+        <div className="text-p-muted text-[10px] truncate">
+          {fmtDate(j.event_date)}{j.city ? ` · ${j.city}` : ''}
+          {j.worked && j.hours_worked != null ? ` · ${j.hours_worked} hrs` : ''}
+        </div>
+      </div>
+      <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-p-muted flex-shrink-0 capitalize">
+        {(j.assign_status || '').replace(/_/g, ' ')}
+      </span>
+    </li>
+  )
+
+  return (
+    <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-p-muted text-xs">Job history</span>
+        <span className="text-p-muted text-[10px]">· {worked.length} worked · {upcoming.length} upcoming/applied</span>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-p-muted text-xs">No events yet — this worker hasn't been assigned to any job.</p>
+      ) : (
+        <div className="space-y-3">
+          {upcoming.length > 0 && (
+            <div>
+              <div className="text-p-muted text-[10px] uppercase tracking-wider mb-1">Upcoming / Applied</div>
+              <ul className="space-y-1">{upcoming.map((j, i) => <Row key={'u' + i} j={j} />)}</ul>
+            </div>
+          )}
+          {worked.length > 0 && (
+            <div>
+              <div className="text-p-muted text-[10px] uppercase tracking-wider mb-1">Worked</div>
+              <ul className="space-y-1">{worked.map((j, i) => <Row key={'w' + i} j={j} />)}</ul>
+            </div>
+          )}
         </div>
       )}
     </div>

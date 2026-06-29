@@ -192,10 +192,47 @@ async function handleApplicants(req, res, supabase) {
       }
     } catch { lastEmailMap = {} }
 
+    // Full job history per worker — every event they've been assigned to, with the
+    // event date/status so the UI can split "upcoming / applied" from "worked".
+    const workerIds = data.map(a => a.id)
+    const jobHistoryMap = {}
+    if (workerIds.length) {
+      const { data: allAssigns } = await supabase.from('assignments')
+        .select('worker_id, status, hours_worked, is_supervisor, check_in_time, payout_amount, events ( title, event_date, city, status )')
+        .in('worker_id', workerIds)
+      for (const asg of (allAssigns || [])) {
+        if (!asg.worker_id || asg.status === 'cancelled') continue
+        const ev = asg.events
+        if (!ev) continue
+        const endsAt = ev.event_date
+          ? new Date(`${ev.event_date}T23:59:59`)
+          : null
+        const isPast = (endsAt && endsAt < now) || asg.status === 'completed' || !!asg.check_in_time
+        const entry = {
+          title: ev.title,
+          event_date: ev.event_date,
+          city: ev.city,
+          event_status: ev.status,
+          assign_status: asg.status,
+          is_supervisor: asg.is_supervisor,
+          hours_worked: asg.hours_worked,
+          payout_amount: asg.payout_amount,
+          worked: !!isPast,
+        }
+        if (!jobHistoryMap[asg.worker_id]) jobHistoryMap[asg.worker_id] = []
+        jobHistoryMap[asg.worker_id].push(entry)
+      }
+      // newest first within each worker
+      for (const id of Object.keys(jobHistoryMap)) {
+        jobHistoryMap[id].sort((x, y) => (y.event_date || '').localeCompare(x.event_date || ''))
+      }
+    }
+
     // Merge rating + booking info into each applicant
     const enriched = data.map(a => {
       const r = ratingMap[a.id]
       const active_booking = bookingMap[a.id] || null
+      const job_history = jobHistoryMap[a.id] || []
       const last_contact = lastContactMap[a.id] || null
       const last_email = a.email ? (lastEmailMap[a.email.toLowerCase()] || null) : null
       const base = r && r.ratings.length > 0
@@ -207,7 +244,7 @@ async function handleApplicants(req, res, supabase) {
               : null,
           }
         : { avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
-      return { ...a, ...base, active_booking, last_contact, last_email }
+      return { ...a, ...base, active_booking, job_history, last_contact, last_email }
     })
 
     return res.status(200).json(enriched)
