@@ -250,7 +250,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
     if (!formData.has_transportation) e.has_transportation = 'Required'
     if (!formData.short_notice) e.short_notice = 'Required'
     if (!formData.photo) e.photo = 'Please add a photo'
-    if (!formData.sms_consent) e.sms_consent = 'Please agree to receive SMS to continue'
     return e
   }
 
@@ -397,8 +396,8 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                 />
                 <span className={`text-[12px] leading-relaxed ${errors.sms_consent ? 'text-[#ff6b6b]' : 'text-[#999]'}`}>
                   By checking this box, you agree to receive SMS messages from V&amp;A Hire
-                  (Varist &amp; Associates of Georgia LLC) related to shift offers, assignment
-                  confirmations, scheduling, shift details, and reminders. You may reply STOP
+                  (Varist &amp; Associates of Georgia LLC) related to customer care, shift offers,
+                  assignment confirmations, scheduling, shift details, and reminders. You may reply STOP
                   to opt out at any time. Reply HELP for assistance. Message and data rates may
                   apply. Message frequency will vary. See our{' '}
                   <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}
@@ -421,7 +420,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                   if (formData.roles.length === 0) e.roles = 'Select at least one role'
                   if (formData.availability.length === 0) e.availability = 'Select at least one option'
                   if (!formData.photo) e.photo = 'Please add a photo'
-                  if (!formData.sms_consent) e.sms_consent = 'Please agree to receive SMS to continue'
                   if (Object.keys(e).length > 0) {
                     setErrors(e)
                     return
