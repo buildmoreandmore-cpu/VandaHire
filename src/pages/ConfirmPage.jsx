@@ -6,6 +6,7 @@ export default function ConfirmPage() {
   const [error, setError] = useState(null)
   const [responding, setResponding] = useState(false)
   const [responded, setResponded] = useState(null)
+  const [reconfirmedNow, setReconfirmedNow] = useState(false)
 
   // Support both /confirm/TOKEN (path) and /confirm?token=TOKEN (query)
   const token = new URLSearchParams(window.location.search).get('token')
@@ -37,7 +38,8 @@ export default function ConfirmPage() {
       })
       const result = await res.json()
       if (result.error) throw new Error(result.error)
-      setResponded(result.status)
+      if (action === 'reconfirm' || result.reconfirmed) setReconfirmedNow(true)
+      setResponded(action === 'decline' ? 'declined' : result.status)
     } catch (e) {
       setError(e.message)
     }
@@ -76,19 +78,20 @@ export default function ConfirmPage() {
             </div>
           ) : responded ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center
-                ${responded === 'confirmed' ? 'bg-green-500/20' : 'bg-red-500/20'}">
-                <span className="text-3xl">{responded === 'confirmed' ? '✓' : '✕'}</span>
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${responded === 'declined' ? 'bg-red-500/20' : 'bg-green-500/20'}`}>
+                <span className="text-3xl">{responded === 'declined' ? '✕' : '✓'}</span>
               </div>
               <h2 className="text-white text-lg font-semibold mb-1">
-                {responded === 'confirmed' ? 'You\'re Confirmed!' : 'Assignment Declined'}
+                {responded === 'declined' ? 'Spot Released' : reconfirmedNow ? 'Spot Confirmed!' : 'You\'re Confirmed!'}
               </h2>
               <p className="text-p-muted text-sm">
-                {responded === 'confirmed'
-                  ? 'We\'ll see you at the event. Details are below for your reference.'
-                  : 'Thanks for letting us know. We\'ll assign another worker.'}
+                {responded === 'declined'
+                  ? 'Thanks for letting us know. We\'ll offer your spot to someone on standby.'
+                  : reconfirmedNow
+                  ? 'Thanks for reconfirming — your spot is locked in. See you there!'
+                  : 'We\'ll see you at the event. Details are below for your reference.'}
               </p>
-              {responded === 'confirmed' && data?.event && (
+              {responded !== 'declined' && data?.event && (
                 <div className="mt-4 bg-black/30 rounded-lg p-4 text-left">
                   <p className="text-white text-sm font-medium">{data.event.title}</p>
                   <p className="text-p-muted text-xs mt-1">{formatDate(data.event.date)}</p>
@@ -98,6 +101,43 @@ export default function ConfirmPage() {
                 </div>
               )}
             </div>
+          ) : data?.needs_reconfirm ? (
+            <>
+              <h2 className="text-white text-lg font-semibold mb-1">One quick thing, {data.worker_name?.split(' ')[0] || 'there'} —</h2>
+              <p className="text-p-muted text-sm mb-4">
+                Please confirm you're still coming to this shift so we can hold your spot.
+              </p>
+              <div className="bg-black/30 rounded-lg p-4 mb-4">
+                <p className="text-white font-medium">{data.event?.title}</p>
+                <div className="mt-2 space-y-1">
+                  <InfoRow label="Date" value={formatDate(data.event?.date)} />
+                  <InfoRow label="Time" value={`${formatTime(data.event?.start_time)} – ${formatTime(data.event?.end_time)}`} />
+                  <InfoRow label="Location" value={`${data.event?.location}, ${data.event?.city}`} />
+                  {data.event?.dress_code && <InfoRow label="Dress Code" value={data.event.dress_code} />}
+                </div>
+              </div>
+              {data.reconfirm_cutoff && (
+                <p className="text-yellow-400/90 text-xs mb-3">
+                  Please confirm by {new Date(data.reconfirm_cutoff).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })} or your spot may be released.
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleAction('reconfirm')}
+                  disabled={responding}
+                  className="flex-1 bg-p-green text-black rounded-lg py-3 text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition-all"
+                >
+                  {responding ? '...' : 'Yes, I\'m still coming'}
+                </button>
+                <button
+                  onClick={() => handleAction('decline')}
+                  disabled={responding}
+                  className="flex-1 bg-p-surface border border-p-border text-white rounded-lg py-3 text-sm font-semibold disabled:opacity-50 hover:bg-white/5 transition-all"
+                >
+                  {responding ? '...' : 'Can\'t make it'}
+                </button>
+              </div>
+            </>
           ) : data?.status !== 'invited' ? (
             <div className="text-center py-8">
               <p className="text-white text-sm font-medium mb-1">

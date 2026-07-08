@@ -500,11 +500,11 @@ async function handleEvents(req, res, supabase) {
     const { service_tier } = req.body
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     // Free-form editable fields
-    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types']
+    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types', 'reconfirm_enabled', 'reconfirm_cutoff']
     // NOT NULL date/time/number columns must not receive '' — skip when blank.
     const skipIfBlank = new Set(['event_date', 'start_time', 'end_time', 'workers_needed'])
     // Nullable date columns: coerce '' → null so Postgres accepts it.
-    const blankToNull = new Set(['event_end_date'])
+    const blankToNull = new Set(['event_end_date', 'reconfirm_cutoff'])
     for (const f of editableFields) {
       if (req.body[f] === undefined) continue
       let v = req.body[f]
@@ -585,6 +585,28 @@ async function handleAssignments(req, res, supabase) {
     if (req.query.worker_id) query = query.eq('worker_id', req.query.worker_id)
     const { data, error } = await query
     if (error) throw error
+
+    // Flag first-timers (no prior shift they showed up for) + attach reliability so the
+    // coordinator can give first-timers a personal confirmation touch and spot flakes.
+    const wIds = [...new Set((data || []).map(a => a.worker_id).filter(Boolean))]
+    if (wIds.length) {
+      const { data: hist } = await supabase.from('assignments')
+        .select('worker_id, status, check_in_time').in('worker_id', wIds)
+      const rel = {}
+      for (const h of (hist || [])) {
+        const isNoShow = h.status === 'no_show'
+        const isShow = h.status === 'completed' || h.status === 'checked_in' || !!h.check_in_time
+        if (!isNoShow && !isShow) continue
+        if (!rel[h.worker_id]) rel[h.worker_id] = { shows: 0, no_shows: 0 }
+        if (isNoShow) rel[h.worker_id].no_shows++; else rel[h.worker_id].shows++
+      }
+      for (const a of data) {
+        const r = rel[a.worker_id]
+        const acc = r ? r.shows + r.no_shows : 0
+        a.first_timer = !r || r.shows === 0
+        a.reliability = { shows: r ? r.shows : 0, no_shows: r ? r.no_shows : 0, pct: acc > 0 ? Math.round((r.shows / acc) * 100) : null }
+      }
+    }
     return res.status(200).json(data)
   }
   if (req.method === 'POST') {
@@ -892,6 +914,51 @@ async function handleSuggestWorkers(req, res, supabase) {
     .slice(0, 20) // top 20 suggestions
 
   return res.status(200).json(scored)
+}
+
+// Promote standby workers into real (invited) assignments and notify them to claim.
+// Used by the coordinator's "Fill from standby" button. count defaults to the gap
+// between workers_needed and current active assignments.
+async function handlePromoteBench(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { event_id, count } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: event, error: evErr } = await supabase.from('events')
+    .select('id, title, event_date, start_time, workers_needed').eq('id', event_id).single()
+  if (evErr || !event) return res.status(404).json({ error: 'Event not found' })
+
+  let want = parseInt(count, 10)
+  if (Number.isNaN(want) || want <= 0) {
+    const { data: active } = await supabase.from('assignments')
+      .select('id').eq('event_id', event_id).in('status', ['invited', 'confirmed', 'checked_in'])
+    want = Math.max(1, (event.workers_needed || 0) - (active?.length || 0))
+  }
+
+  const { data: bench } = await supabase.from('bench_assignments')
+    .select('id, worker_id, applicants ( first_name, email, phone )')
+    .eq('event_id', event_id).eq('status', 'standby')
+    .order('tier', { ascending: true }).order('created_at', { ascending: true })
+    .limit(want)
+
+  const siteUrl = 'https://vandahire.com'
+  const now = new Date()
+  let promoted = 0
+  for (const b of (bench || [])) {
+    const { data: existing } = await supabase.from('assignments').select('id').eq('event_id', event_id).eq('worker_id', b.worker_id).maybeSingle()
+    const tok = crypto.randomUUID()
+    if (!existing) {
+      const { error: insErr } = await supabase.from('assignments').insert({ event_id, worker_id: b.worker_id, status: 'invited', confirmation_token: tok, created_at: now.toISOString(), updated_at: now.toISOString() })
+      if (insErr) { console.error('[promote-bench] insert:', insErr.message); continue }
+    }
+    await supabase.from('bench_assignments').update({ status: 'called_in', called_in_at: now.toISOString(), updated_at: now.toISOString() }).eq('id', b.id)
+    const worker = b.applicants
+    const link = `${siteUrl}/confirm/${tok}`
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title}! You're up from standby. Tap to claim: ${link}`) } catch (e) {} }
+    if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `A spot opened — ${event.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>You're up, ${worker.first_name}!</h2><p>A spot just opened for <strong>${event.title}</strong>. Tap below to claim it.</p><table role="presentation" style="margin:20px 0"><tr><td style="background:#000;border-radius:8px"><a href="${link}" style="background:#000;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Claim this shift →</a></td></tr></table></div>` }) } catch (e) {} }
+    promoted++
+  }
+  return res.status(200).json({ promoted, requested: want })
 }
 
 // ─── BENCH POOL ──────────────────────────────────────────────────────────────
@@ -1722,6 +1789,7 @@ export default async function handler(req, res) {
       case 'bench': return await handleBench(req, res, supabase)
       case 'release': return await handleRelease(req, res, supabase)
       case 'bench-dispatch': return await handleBenchDispatch(req, res, supabase)
+      case 'promote-bench': return await handlePromoteBench(req, res, supabase)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)

@@ -131,6 +131,149 @@ async function shiftReminders(supabase) {
   return { sent, sms_sent: smsSent, message: `Sent ${sent} email(s), ${smsSent} SMS` }
 }
 
+// ─── RECONFIRMATIONS ─────────────────────────────────────────────────────────
+// Reconfirm-or-lose-your-spot flow. Phase A: within 24h of the cutoff, ask each
+// confirmed worker to reconfirm. Phase B: after the cutoff, auto-release anyone
+// who didn't reconfirm and backfill from the standby bench. Guarded so a missing
+// migration column simply no-ops instead of breaking the daily run.
+async function reconfirmations(supabase) {
+  const now = new Date()
+  const siteUrl = 'https://vandahire.com'
+  let requested = 0, released = 0, promoted = 0
+
+  let events
+  try {
+    const r = await supabase.from('events')
+      .select('id, title, event_date, start_time, end_time, city, location, reconfirm_enabled, reconfirm_cutoff, status')
+      .eq('reconfirm_enabled', true)
+      .not('reconfirm_cutoff', 'is', null)
+      .not('status', 'in', '(cancelled,completed)')
+    if (r.error) throw r.error
+    events = r.data || []
+  } catch (e) {
+    return { requested: 0, released: 0, promoted: 0, message: `reconfirm skipped: ${e.message}` }
+  }
+
+  for (const ev of events) {
+    const cutoff = new Date(ev.reconfirm_cutoff)
+    const eventEnd = ev.event_date ? new Date(`${ev.event_date}T${ev.end_time || '23:59:59'}`) : null
+    if (eventEnd && eventEnd < now) continue
+
+    const { data: assigns } = await supabase.from('assignments')
+      .select('id, worker_id, status, confirmation_token, reconfirm_requested_at, reconfirmed_at, applicants ( first_name, email, phone )')
+      .eq('event_id', ev.id)
+      .eq('status', 'confirmed')
+
+    if (now < cutoff) {
+      // PHASE A — request reconfirmation once we're within 24h of the cutoff
+      if ((cutoff.getTime() - now.getTime()) > 24 * 3600000) continue
+      const cutoffStr = cutoff.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+      for (const a of (assigns || [])) {
+        if (a.reconfirm_requested_at) continue
+        let tok = a.confirmation_token
+        if (!tok) {
+          tok = (globalThis.crypto?.randomUUID?.() || String(Math.random()).slice(2) + String(now.getTime()))
+          await supabase.from('assignments').update({ confirmation_token: tok }).eq('id', a.id)
+        }
+        const link = `${siteUrl}/confirm/${tok}`
+        const worker = a.applicants
+        if (worker?.phone) {
+          try { await sendSms(worker.phone, `V&A Hire: Confirm you're still working ${ev.title} on ${formatDate(ev.event_date)}. Keep your spot by ${cutoffStr}: ${link}`) } catch (e) { console.error('[reconfirm] sms', e.message) }
+        }
+        if (worker?.email) {
+          try {
+            await sendEmail({
+              to: worker.email,
+              subject: `Confirm your shift — ${ev.title}`,
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>Still coming, ${worker.first_name}?</h2><p>Please confirm you're working <strong>${ev.title}</strong> on ${formatDate(ev.event_date)} at ${formatTime(ev.start_time)}.</p><p><strong>Confirm by ${cutoffStr}</strong> or your spot may be released to someone on standby.</p><table role="presentation" style="margin:20px 0"><tr><td style="background:#000;border-radius:8px"><a href="${link}" style="background:#000;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Yes, I'm coming →</a></td></tr></table><p style="color:#888;font-size:12px">V&A Hire • vandahire.com</p></div>`,
+            })
+          } catch (e) { console.error('[reconfirm] email', e.message) }
+        }
+        await supabase.from('assignments').update({ reconfirm_requested_at: now.toISOString(), updated_at: now.toISOString() }).eq('id', a.id)
+        requested++
+      }
+    } else {
+      // PHASE B — cutoff passed: release non-reconfirmers and backfill from bench
+      const toRelease = (assigns || []).filter(a => a.reconfirm_requested_at && !a.reconfirmed_at)
+      for (const a of toRelease) {
+        await supabase.from('assignments').update({ status: 'cancelled', notes: 'Auto-released: did not reconfirm by cutoff', updated_at: now.toISOString() }).eq('id', a.id)
+        released++
+        if (a.applicants?.phone) { try { await sendSms(a.applicants.phone, `V&A Hire: Your spot for ${ev.title} was released because it wasn't reconfirmed by the deadline. Contact us if you still want to work.`) } catch (e) {} }
+      }
+      if (toRelease.length) promoted += await promoteBenchToAssignment(supabase, ev, toRelease.length)
+    }
+  }
+  return { requested, released, promoted, message: `Reconfirm: ${requested} asked, ${released} released, ${promoted} promoted` }
+}
+
+// Promote up to `count` standby bench workers into real (invited) assignments and
+// notify them to claim the opened spot. Shared by the reconfirm sweep and the
+// coordinator's manual "fill from standby" action.
+async function promoteBenchToAssignment(supabase, event, count) {
+  if (count <= 0) return 0
+  const now = new Date()
+  const siteUrl = 'https://vandahire.com'
+  const { data: bench } = await supabase.from('bench_assignments')
+    .select('id, worker_id, status, tier, applicants ( first_name, email, phone )')
+    .eq('event_id', event.id)
+    .eq('status', 'standby')
+    .order('tier', { ascending: true })
+    .order('created_at', { ascending: true })
+    .limit(count)
+  let promoted = 0
+  for (const b of (bench || [])) {
+    const { data: existing } = await supabase.from('assignments').select('id').eq('event_id', event.id).eq('worker_id', b.worker_id).maybeSingle()
+    const tok = (globalThis.crypto?.randomUUID?.() || String(Math.random()).slice(2) + String(now.getTime()))
+    if (!existing) {
+      const { error: insErr } = await supabase.from('assignments').insert({ event_id: event.id, worker_id: b.worker_id, status: 'invited', confirmation_token: tok, created_at: now.toISOString(), updated_at: now.toISOString() })
+      if (insErr) { console.error('[promoteBench] insert failed:', insErr.message); continue }
+    }
+    await supabase.from('bench_assignments').update({ status: 'called_in', called_in_at: now.toISOString(), updated_at: now.toISOString() }).eq('id', b.id)
+    const worker = b.applicants
+    const link = `${siteUrl}/confirm/${tok}`
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title} on ${formatDate(event.event_date)}! You're up from standby. Tap to claim: ${link}`) } catch (e) {} }
+    if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `A spot opened — ${event.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>You're up, ${worker.first_name}!</h2><p>A spot just opened for <strong>${event.title}</strong> on ${formatDate(event.event_date)} at ${formatTime(event.start_time)}.</p><table role="presentation" style="margin:20px 0"><tr><td style="background:#000;border-radius:8px"><a href="${link}" style="background:#000;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Claim this shift →</a></td></tr></table><p style="color:#888;font-size:12px">V&A Hire • vandahire.com</p></div>` }) } catch (e) {} }
+    promoted++
+  }
+  return promoted
+}
+
+// ─── T-2H ETA REMINDER ───────────────────────────────────────────────────────
+// ~2h before start, nudge confirmed workers who haven't checked in to send an ETA.
+// One send per assignment (eta_reminder_sent_at guard). Needs an hourly cron to
+// fire reliably. Guarded against a missing migration column.
+async function etaReminders(supabase) {
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
+  let sent = 0
+  let assigns
+  try {
+    const r = await supabase.from('assignments')
+      .select('id, status, eta_reminder_sent_at, check_in_time, applicants ( first_name, phone, email ), events ( title, event_date, start_time, location, city, meeting_point )')
+      .eq('status', 'confirmed')
+      .is('check_in_time', null)
+      .is('eta_reminder_sent_at', null)
+    if (r.error) throw r.error
+    assigns = r.data || []
+  } catch (e) {
+    return { sent: 0, message: `eta skipped: ${e.message}` }
+  }
+  for (const a of assigns) {
+    const ev = a.events
+    if (!ev?.event_date || ev.event_date !== todayStr || !ev.start_time) continue
+    const start = new Date(`${ev.event_date}T${ev.start_time}`)
+    const diffMin = (start.getTime() - now.getTime()) / 60000
+    if (diffMin > 150 || diffMin < 0) continue // only within ~2.5h before start
+    const worker = a.applicants
+    const where = ev.meeting_point || ev.location || ev.city || 'the venue'
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: Your shift ${ev.title} starts at ${formatTime(ev.start_time)} (~2 hrs) at ${where}. Reply with your ETA, or let us know if anything changed. See you soon!`) } catch (e) {} }
+    if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `Starting soon — ${ev.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>See you soon, ${worker.first_name}!</h2><p>Your shift <strong>${ev.title}</strong> starts at <strong>${formatTime(ev.start_time)}</strong> (about 2 hours). Head to ${where}.</p><p>Reply with your ETA so we know you're on the way.</p><p style="color:#888;font-size:12px">V&A Hire • vandahire.com</p></div>` }) } catch (e) {} }
+    await supabase.from('assignments').update({ eta_reminder_sent_at: now.toISOString() }).eq('id', a.id)
+    sent++
+  }
+  return { sent, message: `ETA reminders: ${sent}` }
+}
+
 // ─── BALANCE REMINDERS ───────────────────────────────────────────────────────
 // Sends email reminders when balance is due (Net 15) — 5 days before, 2 days before, overdue
 
@@ -1856,6 +1999,10 @@ export default async function handler(req, res) {
         return res.status(200).json(await bgCheckReminders(supabase))
       case 'no-shows':
         return res.status(200).json(await detectNoShows(supabase))
+      case 'reconfirmations':
+        return res.status(200).json(await reconfirmations(supabase))
+      case 'eta-reminders':
+        return res.status(200).json(await etaReminders(supabase))
       case 'organizer-summary':
         return res.status(200).json(await postEventOrganizerSummary(supabase))
       case 'crew-shortfall':
@@ -1885,6 +2032,8 @@ export default async function handler(req, res) {
         // Background check removed from the application/onboarding process — no longer auto-reminded.
         // (bgCheckReminders + the 'bg-check-reminders' job remain callable manually if ever re-enabled.)
         results.no_shows = await detectNoShows(supabase)
+        results.reconfirmations = await reconfirmations(supabase)
+        results.eta_reminders = await etaReminders(supabase)
         results.organizer_summary = await postEventOrganizerSummary(supabase)
         results.crew_shortfall = await crewShortfallEscalation(supabase)
         results.newsletter = await monthlyNewsletter(supabase)

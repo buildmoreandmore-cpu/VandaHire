@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, promoteBench, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
@@ -94,6 +94,7 @@ export default function EventsPanel() {
   const [benchFee, setBenchFee] = useState('')
   const [addingBench, setAddingBench] = useState(false)
   const [benchDispatching, setBenchDispatching] = useState(null)
+  const [filling, setFilling] = useState(false)
 
   // Quote & deposit state
   const [quote, setQuote] = useState(null)
@@ -533,6 +534,21 @@ export default function EventsPanel() {
       console.error('Failed to dispatch bench:', err)
     }
     setBenchDispatching(null)
+  }
+
+  const handleFillFromStandby = async (count) => {
+    if (!expanded) return
+    setFilling(true)
+    try {
+      const r = await promoteBench(expanded, count)
+      const [data, bench] = await Promise.all([fetchAssignments({ event_id: expanded }), fetchBenchPool(expanded)])
+      setAssignments(data)
+      setBenchPool(bench)
+      alert(r.promoted > 0 ? `Invited ${r.promoted} standby worker${r.promoted !== 1 ? 's' : ''} to claim the open spot${r.promoted !== 1 ? 's' : ''}.` : 'No standby workers available to promote.')
+    } catch (err) {
+      alert('Fill failed: ' + err.message)
+    }
+    setFilling(false)
   }
 
   const handleCreateQuote = async (eventId) => {
@@ -1561,6 +1577,73 @@ export default function EventsPanel() {
                       </div>
                     </div>
 
+                    {/* Staffing summary — confirmed / no-show / standby, with fill-from-standby */}
+                    {(() => {
+                      const by = (s) => assignments.filter(a => a.status === s).length
+                      const confirmed = by('confirmed'), invited = by('invited'), checkedIn = by('checked_in'), noShow = by('no_show')
+                      const active = confirmed + invited + checkedIn
+                      const need = ev.workers_needed || 0
+                      const gap = Math.max(0, need - active)
+                      const standby = (benchPool || []).filter(b => b.status === 'standby').length
+                      return (
+                        <div className="flex items-center gap-1.5 flex-wrap mb-3 text-[11px]">
+                          <span className="px-2 py-0.5 rounded bg-green-500/15 text-green-400 font-medium">{confirmed} confirmed</span>
+                          {checkedIn > 0 && <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400">{checkedIn} checked in</span>}
+                          {invited > 0 && <span className="px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400">{invited} awaiting reply</span>}
+                          {noShow > 0 && <span className="px-2 py-0.5 rounded bg-red-500/15 text-red-400">{noShow} no-show</span>}
+                          <span className="px-2 py-0.5 rounded bg-white/5 text-p-muted">{standby} standby</span>
+                          {need > 0 && gap > 0 && <span className="px-2 py-0.5 rounded bg-orange-500/15 text-orange-400 font-medium">{gap} short of {need}</span>}
+                          {need > 0 && gap === 0 && <span className="px-2 py-0.5 rounded bg-green-500/15 text-green-400">fully staffed</span>}
+                          {standby > 0 && gap > 0 && (
+                            <button
+                              onClick={() => handleFillFromStandby(Math.min(gap, standby))}
+                              disabled={filling}
+                              className="ml-1 px-2.5 py-0.5 rounded-full bg-p-green text-black font-semibold disabled:opacity-50 hover:opacity-90"
+                            >
+                              {filling ? 'Filling…' : `Fill ${Math.min(gap, standby)} from standby →`}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Reconfirmation control — night-before "reply YES or lose your spot" */}
+                    <div className="flex items-center gap-2 flex-wrap mb-3 bg-black/20 border border-p-border rounded-lg px-3 py-2">
+                      <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!ev.reconfirm_enabled}
+                          onChange={async (e) => {
+                            const on = e.target.checked
+                            try {
+                              await updateEvent(ev.id, { reconfirm_enabled: on })
+                              setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, reconfirm_enabled: on } : x))
+                            } catch (err) { alert('Update failed: ' + err.message) }
+                          }}
+                          className="accent-green-500 w-4 h-4"
+                        />
+                        Require reconfirmation
+                      </label>
+                      {ev.reconfirm_enabled && (
+                        <label className="flex items-center gap-1.5 text-[11px] text-p-muted">
+                          by
+                          <input
+                            type="datetime-local"
+                            defaultValue={ev.reconfirm_cutoff ? new Date(ev.reconfirm_cutoff).toISOString().slice(0, 16) : ''}
+                            onBlur={async (e) => {
+                              const val = e.target.value ? new Date(e.target.value).toISOString() : null
+                              try {
+                                await updateEvent(ev.id, { reconfirm_cutoff: val })
+                                setEvents(prev => prev.map(x => x.id === ev.id ? { ...x, reconfirm_cutoff: val } : x))
+                              } catch (err) { alert('Update failed: ' + err.message) }
+                            }}
+                            className="bg-p-bg border border-p-border rounded px-2 py-1 text-white text-[11px]"
+                          />
+                        </label>
+                      )}
+                      <span className="text-p-muted text-[10px] ml-auto">Auto-asks confirmed workers to reply YES; unconfirmed spots release + backfill from standby.</span>
+                    </div>
+
                     {/* Message-crew composer */}
                     {showCrewMsg && (
                       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowCrewMsg(false)}>
@@ -1624,6 +1707,12 @@ export default function EventsPanel() {
                               {a.applicants?.first_name} {a.applicants?.last_name}
                               {a.is_supervisor && <span className="ml-1.5 text-[#ffffff] text-[9px] font-bold uppercase">Lead</span>}
                             </span>
+                            {a.first_timer && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300" title="First shift — worth a personal confirmation call/text">1ST SHIFT</span>
+                            )}
+                            {a.reliability?.pct != null && a.reliability.pct < 70 && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/20 text-red-400" title={`Reliability ${a.reliability.pct}% · ${a.reliability.no_shows} no-show${a.reliability.no_shows !== 1 ? 's' : ''}`}>FLAKE RISK</span>
+                            )}
                             {a.is_supervisor && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#ffffff]/20 text-[#ffffff]">Lead</span>}
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ASSIGNMENT_COLORS[a.status] || 'bg-p-border text-p-muted'}`}>
                               {a.status?.replace(/_/g, ' ')}

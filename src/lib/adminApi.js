@@ -166,6 +166,12 @@ export const triggerBenchDispatch = (event_id, tier) =>
     body: JSON.stringify({ event_id, tier }),
   })
 
+export const promoteBench = (event_id, count) =>
+  adminFetch('/api/admin/promote-bench', {
+    method: 'POST',
+    body: JSON.stringify({ event_id, count }),
+  })
+
 // Quotes
 export const fetchQuote = (eventId) =>
   adminFetch(`/api/admin/quotes?event_id=${eventId}`)
