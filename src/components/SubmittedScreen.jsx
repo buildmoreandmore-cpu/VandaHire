@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from '../Router.jsx'
 import ProgressBar from './ProgressBar.jsx'
+import InstallPrompt from './InstallPrompt.jsx'
 
 export default function SubmittedScreen({ firstName, phone }) {
   const navigate = useNavigate()
@@ -109,6 +110,11 @@ export default function SubmittedScreen({ firstName, phone }) {
             </div>
             <span style={{ marginLeft: 'auto', color: '#555', fontSize: 18 }}>→</span>
           </button>
+        </div>
+
+        {/* Install the app — highest-intent moment, right after applying */}
+        <div className="w-full max-w-sm mt-6 fade-up-delay-2 text-left">
+          <InstallPrompt />
         </div>
 
         <p className="text-[#444] text-xs mt-6 fade-up-delay-2">
