@@ -54,7 +54,7 @@ export default function SubmittedScreen({ firstName, phone }) {
         </p>
 
         <p className="text-[#555] text-xs leading-relaxed mb-6 fade-up-delay-1 max-w-xs">
-          While you wait, get ahead by completing your onboarding steps below. All four must be done before you can be assigned to shifts.
+          While you wait, get ahead by completing your onboarding steps below. All three must be done before you can be assigned to shifts.
         </p>
 
         {/* Onboarding Steps */}
@@ -106,23 +106,6 @@ export default function SubmittedScreen({ firstName, phone }) {
             <div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>Complete W-9 Form</div>
               <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>Tax information for payroll</div>
-            </div>
-            <span style={{ marginLeft: 'auto', color: '#555', fontSize: 18 }}>→</span>
-          </button>
-
-          <button
-            onClick={() => navigate(digits ? `/bg-check/${digits}` : '/bg-check')}
-            style={{
-              width: '100%', padding: '16px 20px', borderRadius: 10,
-              background: '#141414', border: '1px solid #2a2a2a',
-              color: '#fff', cursor: 'pointer', textAlign: 'left',
-              display: 'flex', alignItems: 'center', gap: 14,
-            }}
-          >
-            <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>4</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>Background Check</div>
-              <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>Required — consent form + payment</div>
             </div>
             <span style={{ marginLeft: 'auto', color: '#555', fontSize: 18 }}>→</span>
           </button>

@@ -863,11 +863,7 @@ async function handleVerifyVideo(req, res, supabase) {
       const bgSent = !!fullWorker?.bg_check_signed_at
       const phoneDigits = phone.replace(/\D/g, '').slice(-10)
 
-      const bgStepHtml = bgCleared
-        ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
-        : bgSent
-        ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
-        : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${phoneDigits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
+      const bgStepHtml = ''
 
       const stepsHtml = `
         <div style="margin:20px 0">
@@ -884,7 +880,7 @@ async function handleVerifyVideo(req, res, supabase) {
           ${bgStepHtml}
         </div>`
 
-      const allComplete = hasId && hasW9 && bgCleared
+      const allComplete = hasId && hasW9
       const incompleteMsg = allComplete
         ? `<p style="color:#166534;font-weight:600">All steps complete! You're ready to be assigned to shifts.</p>`
         : `<p style="color:#92400e;font-weight:600">⚠️ You cannot be assigned to shifts until all 4 steps are completed.</p>
@@ -1601,13 +1597,9 @@ async function handleIdUpload(req, res, supabase) {
           const hasW9 = !!worker.w9_signed_at
           const bgCleared = !!worker.bg_check_cleared
           const bgSent = !!worker.bg_check_signed_at
-          const allComplete = hasVideo && hasW9 && bgCleared
+          const allComplete = hasVideo && hasW9
 
-          const bgStepHtml = bgCleared
-            ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
-            : bgSent
-            ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
-            : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${digits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
+          const bgStepHtml = ''
 
           const stepsHtml = `
             <div style="margin:20px 0">
@@ -1754,13 +1746,9 @@ async function handleW9(req, res, supabase) {
         const hasId = !!worker.id_photo_url
         const bgCleared = !!worker.bg_check_cleared
         const bgSent = !!worker.bg_check_signed_at
-        const allComplete = hasVideo && hasId && bgCleared
+        const allComplete = hasVideo && hasId
 
-        const bgStepHtml = bgCleared
-          ? `<div style="margin-bottom:8px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534">✅ Background Check — Cleared</div>`
-          : bgSent
-          ? `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⏳ Background Check — Consent Sent, <a href="https://buy.stripe.com/9B65kEdmj7DV1dAdElefC00" style="color:#92400e;font-weight:600">Complete Payment →</a></div>`
-          : `<div style="margin-bottom:8px;padding:12px 16px;background:#fef3c7;border-radius:8px;color:#92400e">⬜ Background Check — <a href="https://vandahire.com/bg-check/${digits}" style="color:#92400e;font-weight:600">Complete Now →</a></div>`
+        const bgStepHtml = ''
 
         const stepsHtml = `
           <div style="margin:20px 0">

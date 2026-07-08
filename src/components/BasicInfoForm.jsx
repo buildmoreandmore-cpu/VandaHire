@@ -526,17 +526,6 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                 )}
               </button>
             </div>
-
-            {bgCheckRequired && (
-              <div className="mt-4 px-1">
-                <div className="flex items-start gap-2 bg-[#1a1207] border border-[#3d2e0a] rounded-lg px-4 py-3">
-                  <span className="text-yellow-500 text-sm mt-0.5 flex-shrink-0">&#9888;</span>
-                  <p className="text-yellow-500/90 text-xs leading-relaxed">
-                    <strong>This event requires a background check.</strong> You'll complete a background check consent form as part of onboarding before being assigned to shifts.
-                  </p>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

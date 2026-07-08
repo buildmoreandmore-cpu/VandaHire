@@ -283,7 +283,7 @@ export default function LandingScreen({ onStart }) {
           <p>
             With a <span className="text-white font-medium">4.9-star rating across 127+ reviews</span> and crews operating 24/7
             across Fulton, DeKalb, Gwinnett, Cobb, Henry, and Clayton counties, V&A brings the operational depth that
-            event organizers and venue managers depend on. Every worker is background-checked, safety-trained, ID-verified,
+            event organizers and venue managers depend on. Every worker is ID-verified, safety-trained,
             and GPS-tracked on arrival.
           </p>
           <p>

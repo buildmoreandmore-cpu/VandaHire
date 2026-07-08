@@ -317,12 +317,11 @@ async function handleApplicants(req, res, supabase) {
           html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
             <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Welcome to V&A Hire, ${data.first_name}!</h2>
             <p>Great news — your application has been approved!</p>
-            <p>Complete these <strong>4 quick steps</strong> to start claiming shifts:</p>
+            <p>Complete these <strong>3 quick steps</strong> to start claiming shifts:</p>
             <table style="width:100%;border-collapse:collapse;margin:16px 0">
               <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>1. Verification Video</strong><br/>Record a short intro video</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/verify" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Record Video</a></td></tr>
               <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>2. ID Upload</strong><br/>Upload a valid government ID</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/id-upload/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Upload ID</a></td></tr>
               <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>3. W-9 Form</strong><br/>Complete your tax form</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/w9/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Fill W-9</a></td></tr>
-              <tr><td style="padding:12px;border-bottom:1px solid #eee"><strong>4. Background Check</strong><br/>Authorize a quick background check</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right"><a href="${siteUrl}/bg-check/${ph}" style="background:#ffffff;color:#000000;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Start Check</a></td></tr>
             </table>
             <p style="color:#888;font-size:14px">Once all steps are complete, you'll be eligible to claim shifts immediately.</p>
             <p style="color:#888;font-size:12px;margin-top:30px">V&A Hire Staffing • vandahire.com</p>
