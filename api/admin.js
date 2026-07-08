@@ -111,7 +111,7 @@ async function handleStats(req, res, supabase) {
 
 async function handleApplicants(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, bg_check_signed_at, bg_check_cleared, bg_check_result_url, id_photo_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
+    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, strikes, bg_check_signed_at, bg_check_cleared, bg_check_result_url, id_photo_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
     const { status } = req.query
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
@@ -196,6 +196,7 @@ async function handleApplicants(req, res, supabase) {
     // event date/status so the UI can split "upcoming / applied" from "worked".
     const workerIds = data.map(a => a.id)
     const jobHistoryMap = {}
+    const reliabilityMap = {} // worker_id -> { shows, no_shows }
     if (workerIds.length) {
       const { data: allAssigns } = await supabase.from('assignments')
         .select('worker_id, status, hours_worked, is_supervisor, check_in_time, payout_amount, events ( title, event_date, city, status )')
@@ -207,7 +208,9 @@ async function handleApplicants(req, res, supabase) {
         const endsAt = ev.event_date
           ? new Date(`${ev.event_date}T23:59:59`)
           : null
-        const isPast = (endsAt && endsAt < now) || asg.status === 'completed' || !!asg.check_in_time
+        const isNoShow = asg.status === 'no_show'
+        const isShow = asg.status === 'completed' || asg.status === 'checked_in' || !!asg.check_in_time
+        const isPast = (endsAt && endsAt < now) || isShow || isNoShow
         const entry = {
           title: ev.title,
           event_date: ev.event_date,
@@ -218,9 +221,17 @@ async function handleApplicants(req, res, supabase) {
           hours_worked: asg.hours_worked,
           payout_amount: asg.payout_amount,
           worked: !!isPast,
+          no_show: isNoShow,
         }
         if (!jobHistoryMap[asg.worker_id]) jobHistoryMap[asg.worker_id] = []
         jobHistoryMap[asg.worker_id].push(entry)
+
+        // Reliability: only count accountable outcomes (a clear show or a no-show).
+        if (isShow || isNoShow) {
+          if (!reliabilityMap[asg.worker_id]) reliabilityMap[asg.worker_id] = { shows: 0, no_shows: 0 }
+          if (isNoShow) reliabilityMap[asg.worker_id].no_shows++
+          else reliabilityMap[asg.worker_id].shows++
+        }
       }
       // newest first within each worker
       for (const id of Object.keys(jobHistoryMap)) {
@@ -233,6 +244,14 @@ async function handleApplicants(req, res, supabase) {
       const r = ratingMap[a.id]
       const active_booking = bookingMap[a.id] || null
       const job_history = jobHistoryMap[a.id] || []
+      const rel = reliabilityMap[a.id]
+      const accountable = rel ? rel.shows + rel.no_shows : 0
+      const reliability = {
+        shows: rel ? rel.shows : 0,
+        no_shows: rel ? rel.no_shows : 0,
+        strikes: a.strikes || 0,
+        pct: accountable > 0 ? Math.round((rel.shows / accountable) * 100) : null,
+      }
       const last_contact = lastContactMap[a.id] || null
       const last_email = a.email ? (lastEmailMap[a.email.toLowerCase()] || null) : null
       const base = r && r.ratings.length > 0
@@ -244,7 +263,7 @@ async function handleApplicants(req, res, supabase) {
               : null,
           }
         : { avg_rating: null, total_shifts: 0, would_hire_again_pct: null }
-      return { ...a, ...base, active_booking, job_history, last_contact, last_email }
+      return { ...a, ...base, active_booking, job_history, reliability, last_contact, last_email }
     })
 
     return res.status(200).json(enriched)
@@ -803,9 +822,27 @@ async function handleSuggestWorkers(req, res, supabase) {
 
   // Get all approved workers
   const { data: workers, error: wErr } = await supabase.from('applicants')
-    .select('id, first_name, last_name, city, zip, roles, availability, availability_windows, has_transportation, short_notice, phone, photo_url, score_breakdown')
+    .select('id, first_name, last_name, city, zip, roles, availability, availability_windows, has_transportation, short_notice, phone, photo_url, score_breakdown, strikes')
     .eq('status', 'approved')
   if (wErr) throw wErr
+
+  // Reliability history — count clear shows vs no-shows per candidate worker so we can
+  // reward proven workers and de-prioritize chronic flakes in the suggestion ranking.
+  const relByWorker = {}
+  const candidateIds = (workers || []).map(w => w.id)
+  if (candidateIds.length) {
+    const { data: relAssigns } = await supabase.from('assignments')
+      .select('worker_id, status, check_in_time')
+      .in('worker_id', candidateIds)
+    for (const asg of (relAssigns || [])) {
+      const isNoShow = asg.status === 'no_show'
+      const isShow = asg.status === 'completed' || asg.status === 'checked_in' || !!asg.check_in_time
+      if (!isNoShow && !isShow) continue
+      if (!relByWorker[asg.worker_id]) relByWorker[asg.worker_id] = { shows: 0, no_shows: 0 }
+      if (isNoShow) relByWorker[asg.worker_id].no_shows++
+      else relByWorker[asg.worker_id].shows++
+    }
+  }
 
   // Score each worker for this event
   const eventDay = new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
@@ -832,7 +869,24 @@ async function handleSuggestWorkers(req, res, supabase) {
       if (w.short_notice === 'Yes') score += 5
       // AI score bonus
       if (w.score_breakdown?.decision === 'qualified') score += 10
-      return { ...w, match_score: score }
+      // Reliability: reward proven show-ups, penalize no-shows and strikes.
+      const rel = relByWorker[w.id]
+      const accountable = rel ? rel.shows + rel.no_shows : 0
+      const relPct = accountable > 0 ? Math.round((rel.shows / accountable) * 100) : null
+      if (relPct != null) {
+        if (relPct >= 90) score += 25
+        else if (relPct >= 70) score += 10
+        else score -= 30 // chronic no-show risk sinks to the bottom
+      }
+      if (rel) score -= rel.no_shows * 12
+      score -= (w.strikes || 0) * 8
+      const reliability = {
+        shows: rel ? rel.shows : 0,
+        no_shows: rel ? rel.no_shows : 0,
+        strikes: w.strikes || 0,
+        pct: relPct,
+      }
+      return { ...w, match_score: score, reliability }
     })
     .sort((a, b) => b.match_score - a.match_score)
     .slice(0, 20) // top 20 suggestions

@@ -838,6 +838,7 @@ export default function ApplicantsPanel() {
                         {a.avg_rating != null && (
                           <span className="text-yellow-400 text-[10px] flex-shrink-0 hidden sm:inline">★ {a.avg_rating}</span>
                         )}
+                        <ReliabilityBadge reliability={a.reliability} compact />
                         {a.active_booking && (
                           <span
                             className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300 flex-shrink-0 max-w-[160px] truncate"
@@ -905,6 +906,26 @@ export default function ApplicantsPanel() {
                             {a.notes && <Detail label="Notes" value={a.notes} />}
                           </div>
                         </div>
+
+                        {/* Reliability — show/no-show record */}
+                        {(a.reliability?.pct != null || (a.reliability?.strikes || 0) > 0) && (
+                          <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-p-muted text-xs">Reliability</span>
+                              <ReliabilityBadge reliability={a.reliability} />
+                              <span className="text-p-muted text-[11px]">
+                                {a.reliability.pct != null
+                                  ? `Showed ${a.reliability.shows} of ${a.reliability.shows + a.reliability.no_shows} committed shift${(a.reliability.shows + a.reliability.no_shows) !== 1 ? 's' : ''}`
+                                  : 'No completed shifts yet'}
+                                {a.reliability.no_shows > 0 && ` · ${a.reliability.no_shows} no-show${a.reliability.no_shows !== 1 ? 's' : ''}`}
+                                {a.reliability.strikes > 0 && ` · ${a.reliability.strikes} strike${a.reliability.strikes !== 1 ? 's' : ''}`}
+                              </span>
+                            </div>
+                            {a.reliability.pct != null && a.reliability.pct < 70 && (
+                              <p className="text-red-400/90 text-[11px] mt-1.5">Chronic no-show risk — consider removing or de-prioritizing for shifts.</p>
+                            )}
+                          </div>
+                        )}
 
                         {/* Job history — events applied to / booked vs. worked */}
                         <JobHistory history={a.job_history} />
@@ -1347,6 +1368,38 @@ export default function ApplicantsPanel() {
         </div>
       )}
     </div>
+  )
+}
+
+// Reliability signal derived from show/no-show history. Returns null for new workers
+// with no accountable history and no strikes (nothing to show yet).
+function reliabilityTone(pct) {
+  if (pct == null) return { label: 'text-p-muted', chip: 'bg-white/5 text-p-muted border-p-border' }
+  if (pct >= 90) return { label: 'text-green-400', chip: 'bg-green-500/15 text-green-400 border-green-500/30' }
+  if (pct >= 70) return { label: 'text-yellow-400', chip: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' }
+  return { label: 'text-red-400', chip: 'bg-red-500/15 text-red-400 border-red-500/30' }
+}
+
+function ReliabilityBadge({ reliability, compact }) {
+  const r = reliability || {}
+  const has = r.pct != null || (r.strikes || 0) > 0
+  if (!has) return null
+  const tone = reliabilityTone(r.pct)
+  const title = r.pct != null
+    ? `Reliability ${r.pct}% — showed ${r.shows} of ${r.shows + r.no_shows} committed shifts${r.no_shows ? ` · ${r.no_shows} no-show${r.no_shows !== 1 ? 's' : ''}` : ''}${r.strikes ? ` · ${r.strikes} strike${r.strikes !== 1 ? 's' : ''}` : ''}`
+    : `${r.strikes} strike${r.strikes !== 1 ? 's' : ''} on file`
+  return (
+    <span
+      className={`inline-flex items-center gap-1 border px-2 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${tone.chip}`}
+      title={title}
+    >
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.9 4.2 13.9l.7-4.3-3.1-3 4.3-.6z" />
+      </svg>
+      {r.pct != null ? `${r.pct}%` : ''}
+      {(r.strikes || 0) > 0 && <span className="text-red-400">{r.pct != null ? ' · ' : ''}{r.strikes}✕</span>}
+      {!compact && r.no_shows > 0 && <span className="opacity-80">· {r.no_shows} NS</span>}
+    </span>
   )
 }
 
