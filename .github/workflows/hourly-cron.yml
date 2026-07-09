@@ -1,0 +1,29 @@
+name: Hourly cron
+
+# Triggers the time-sensitive VandaHire automations every hour:
+#   reconfirmation sweep, T-2h ETA reminders, and no-show detection.
+# (The full daily 'all' run still fires via Vercel cron at 08:00.)
+# GitHub's scheduler is best-effort and may lag a few minutes — fine for these.
+
+on:
+  schedule:
+    - cron: '5 * * * *'   # 5 min past every hour (UTC)
+  workflow_dispatch: {}    # allow manual runs from the Actions tab
+
+concurrency:
+  group: hourly-cron
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit the hourly cron endpoint
+        run: |
+          code=$(curl -sS -o /tmp/cron_out -w "%{http_code}" \
+            --max-time 300 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://vandahire.com/api/cron?job=hourly")
+          echo "HTTP $code"
+          cat /tmp/cron_out
+          test "$code" = "200"

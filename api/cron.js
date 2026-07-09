@@ -2003,6 +2003,15 @@ export default async function handler(req, res) {
         return res.status(200).json(await reconfirmations(supabase))
       case 'eta-reminders':
         return res.status(200).json(await etaReminders(supabase))
+      case 'hourly': {
+        // Time-sensitive jobs safe to run every hour — each is idempotent
+        // (guarded by a timestamp/status so nothing double-sends).
+        const results = {}
+        results.reconfirmations = await reconfirmations(supabase)
+        results.eta_reminders = await etaReminders(supabase)
+        results.no_shows = await detectNoShows(supabase)
+        return res.status(200).json(results)
+      }
       case 'organizer-summary':
         return res.status(200).json(await postEventOrganizerSummary(supabase))
       case 'crew-shortfall':
