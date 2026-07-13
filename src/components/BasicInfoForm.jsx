@@ -396,8 +396,8 @@ export default function BasicInfoForm({ formData, onChange, onSubmit, submitting
                 />
                 <span className={`text-[12px] leading-relaxed ${errors.sms_consent ? 'text-[#ff6b6b]' : 'text-[#999]'}`}>
                   By checking this box, you agree to receive SMS messages from V&amp;A Hire
-                  (Varist &amp; Associates of Georgia LLC) related to customer care, shift offers,
-                  assignment confirmations, scheduling, shift details, and reminders. You may reply STOP
+                  (Varist &amp; Associates of Georgia LLC) related to customer care, assignment
+                  confirmations, scheduling, shift details, status updates, and reminders. You may reply STOP
                   to opt out at any time. Reply HELP for assistance. Message and data rates may
                   apply. Message frequency will vary. See our{' '}
                   <a href="/privacy" className="underline hover:text-white">Privacy Policy</a>{' '}

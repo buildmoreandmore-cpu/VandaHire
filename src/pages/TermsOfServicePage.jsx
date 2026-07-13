@@ -48,7 +48,7 @@ export default function TermsOfServicePage() {
             <p className="mb-3">The information (phone numbers) obtained as part of the SMS consent process will not be shared with third parties for marketing purposes.</p>
 
             <p className="text-white font-semibold mb-1">2. Types of SMS Communications</p>
-            <p className="mb-3">If you have consented to receive text messages from V&A Hire (Varist &amp; Associates of Georgia LLC), you may receive messages related to the following: customer care, shift offers, assignment confirmations, scheduling, shift details, check-in and briefing reminders, and application status updates.</p>
+            <p className="mb-3">If you have consented to receive text messages from V&A Hire (Varist &amp; Associates of Georgia LLC), you may receive messages related to the following: customer care, assignment confirmations, scheduling, shift details, check-in and briefing reminders, and application status updates.</p>
 
             <p className="text-white font-semibold mb-1">3. Message Frequency</p>
             <p className="mb-3">Message frequency may vary. You may receive up to 10 SMS messages per week regarding your shifts, assignments, or account status.</p>

@@ -48,7 +48,7 @@ export default function SupportPage() {
         <div className="rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] p-5 mb-6">
           <h2 className="text-white font-bold text-lg mb-3">Text messages (SMS)</h2>
           <ul className="text-[#999] text-sm leading-relaxed space-y-2 list-disc list-inside">
-            <li>We text customer care, shift offers, confirmations, scheduling, and reminders only to workers who applied and opted in.</li>
+            <li>We text customer care, assignment confirmations, scheduling, status updates, and reminders only to workers who applied and opted in.</li>
             <li>Reply <strong className="text-white">STOP</strong> to any message to opt out at any time.</li>
             <li>Reply <strong className="text-white">HELP</strong>, or call/email us above, for assistance.</li>
             <li>Message frequency varies. Message &amp; data rates may apply.</li>
