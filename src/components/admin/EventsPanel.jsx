@@ -51,9 +51,19 @@ const NEXT_STATUSES = {
   ],
   staffing: [
     { value: 'confirmed', label: 'Confirm Event' },
+    { value: 'approved', label: 'Back to Approved' },
   ],
   confirmed: [
     { value: 'completed', label: 'Mark Completed' },
+    { value: 'staffing', label: 'Back to Staffing' },
+  ],
+  completed: [
+    { value: 'confirmed', label: 'Reopen → Confirmed' },
+    { value: 'staffing', label: 'Reopen → Staffing' },
+  ],
+  cancelled: [
+    { value: 'staffing', label: 'Reopen → Staffing' },
+    { value: 'pending', label: 'Reopen → Pending' },
   ],
 }
 
@@ -339,6 +349,7 @@ export default function EventsPanel() {
       setEditingGeo(null)
     } catch (err) {
       console.error('Failed to update geo:', err)
+      alert('Could not save geofence: ' + (err?.message || 'unknown error'))
     }
     setUpdating(null)
   }

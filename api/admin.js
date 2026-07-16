@@ -500,11 +500,11 @@ async function handleEvents(req, res, supabase) {
     const { service_tier } = req.body
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     // Free-form editable fields
-    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types', 'reconfirm_enabled', 'reconfirm_cutoff']
+    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types', 'reconfirm_enabled', 'reconfirm_cutoff', 'latitude', 'longitude', 'geofence_radius_meters', 'bench_coverage_threshold', 'bench_pool_size']
     // NOT NULL date/time/number columns must not receive '' — skip when blank.
-    const skipIfBlank = new Set(['event_date', 'start_time', 'end_time', 'workers_needed'])
-    // Nullable date columns: coerce '' → null so Postgres accepts it.
-    const blankToNull = new Set(['event_end_date', 'reconfirm_cutoff'])
+    const skipIfBlank = new Set(['event_date', 'start_time', 'end_time', 'workers_needed', 'geofence_radius_meters', 'bench_coverage_threshold', 'bench_pool_size'])
+    // Nullable columns: coerce '' → null so Postgres accepts it.
+    const blankToNull = new Set(['event_end_date', 'reconfirm_cutoff', 'latitude', 'longitude'])
     for (const f of editableFields) {
       if (req.body[f] === undefined) continue
       let v = req.body[f]
