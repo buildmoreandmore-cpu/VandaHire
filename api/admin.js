@@ -961,6 +961,26 @@ async function handlePromoteBench(req, res, supabase) {
   return res.status(200).json({ promoted, requested: want })
 }
 
+// Send a one-off test SMS to verify RingCentral delivery end-to-end.
+async function handleTestSms(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { to, message } = req.body || {}
+  if (!to) return res.status(400).json({ error: 'to (phone number) required' })
+  const body = message || 'V&A Hire SMS test — your text messaging is live. Reply STOP to opt out.'
+  try {
+    const result = await sendSms(to, body)
+    return res.status(200).json({
+      ok: true,
+      provider: (process.env.RINGCENTRAL_CLIENT_ID && process.env.RINGCENTRAL_JWT) ? 'ringcentral' : 'twilio',
+      a2p: String(process.env.RINGCENTRAL_A2P || '').toLowerCase() === 'true',
+      id: result?.id || result?.sid || null,
+      status: result?.messageStatus || result?.status || 'sent',
+    })
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message })
+  }
+}
+
 // ─── BENCH POOL ──────────────────────────────────────────────────────────────
 
 async function handleBench(req, res, supabase) {
@@ -1790,6 +1810,7 @@ export default async function handler(req, res) {
       case 'release': return await handleRelease(req, res, supabase)
       case 'bench-dispatch': return await handleBenchDispatch(req, res, supabase)
       case 'promote-bench': return await handlePromoteBench(req, res, supabase)
+      case 'test-sms': return await handleTestSms(req, res)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)
