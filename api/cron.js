@@ -36,7 +36,7 @@ async function shiftReminders(supabase) {
   // Get assignments for events happening in next 24-72 hours
   const { data: assignments, error } = await supabase
     .from('assignments')
-    .select('id, worker_id, shift_sent_at, status, pay_rate, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, dress_code )')
+    .select('id, worker_id, shift_sent_at, status, pay_rate, applicants ( first_name, last_name, email, phone ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, dress_code, sms_from_number )')
     .in('status', ['confirmed', 'invited'])
     .is('check_in_time', null)
 
@@ -63,7 +63,7 @@ async function shiftReminders(supabase) {
         : null
       const payEst = hours && a.pay_rate ? `$${(hours * parseFloat(a.pay_rate)).toFixed(0)}` : null
       try {
-        await sendSms(worker.phone, `Vanda Hire: Event this ${formatDate(event.event_date).split(',')[0]}${hours ? `, ${hours}hrs` : ''}${payEst ? `, ${payEst}` : ''}. ${event.title}, ${event.city}. Reply YES to confirm your spot.`)
+        await sendSms(worker.phone, `Vanda Hire: Event this ${formatDate(event.event_date).split(',')[0]}${hours ? `, ${hours}hrs` : ''}${payEst ? `, ${payEst}` : ''}. ${event.title}, ${event.city}. Reply YES to confirm your spot.`, event.sms_from_number)
         smsSent++
       } catch (e) {
         console.error(`[cron/shift-reminders] 72h SMS failed for ${a.id}:`, e.message)
@@ -75,7 +75,7 @@ async function shiftReminders(supabase) {
       const dressCode = event.dress_code || 'all black'
       const supervisor = event.supervisor_name ? `Ask for ${event.supervisor_name}. ` : ''
       try {
-        await sendSms(worker.phone, `Vanda Hire: Tomorrow's your shift. Arrive at ${formatTime(event.start_time)}, ${event.location}. ${supervisor}Dress code: ${dressCode}. Any questions? Reply here.`)
+        await sendSms(worker.phone, `Vanda Hire: Tomorrow's your shift. Arrive at ${formatTime(event.start_time)}, ${event.location}. ${supervisor}Dress code: ${dressCode}. Any questions? Reply here.`, event.sms_from_number)
         smsSent++
       } catch (e) {
         console.error(`[cron/shift-reminders] 24h SMS failed for ${a.id}:`, e.message)
@@ -145,7 +145,7 @@ async function reconfirmations(supabase) {
   let events
   try {
     const r = await supabase.from('events')
-      .select('id, title, event_date, start_time, end_time, city, location, reconfirm_enabled, reconfirm_cutoff, status')
+      .select('id, title, event_date, start_time, end_time, city, location, reconfirm_enabled, reconfirm_cutoff, status, sms_from_number')
       .eq('reconfirm_enabled', true)
       .not('reconfirm_cutoff', 'is', null)
       .not('status', 'in', '(cancelled,completed)')
@@ -179,7 +179,7 @@ async function reconfirmations(supabase) {
         const link = `${siteUrl}/confirm/${tok}`
         const worker = a.applicants
         if (worker?.phone) {
-          try { await sendSms(worker.phone, `V&A Hire: Confirm you're still working ${ev.title} on ${formatDate(ev.event_date)}. Keep your spot by ${cutoffStr}: ${link}`) } catch (e) { console.error('[reconfirm] sms', e.message) }
+          try { await sendSms(worker.phone, `V&A Hire: Confirm you're still working ${ev.title} on ${formatDate(ev.event_date)}. Keep your spot by ${cutoffStr}: ${link}`, ev.sms_from_number) } catch (e) { console.error('[reconfirm] sms', e.message) }
         }
         if (worker?.email) {
           try {
@@ -199,7 +199,7 @@ async function reconfirmations(supabase) {
       for (const a of toRelease) {
         await supabase.from('assignments').update({ status: 'cancelled', notes: 'Auto-released: did not reconfirm by cutoff', updated_at: now.toISOString() }).eq('id', a.id)
         released++
-        if (a.applicants?.phone) { try { await sendSms(a.applicants.phone, `V&A Hire: Your spot for ${ev.title} was released because it wasn't reconfirmed by the deadline. Contact us if you still want to work.`) } catch (e) {} }
+        if (a.applicants?.phone) { try { await sendSms(a.applicants.phone, `V&A Hire: Your spot for ${ev.title} was released because it wasn't reconfirmed by the deadline. Contact us if you still want to work.`, ev.sms_from_number) } catch (e) {} }
       }
       if (toRelease.length) promoted += await promoteBenchToAssignment(supabase, ev, toRelease.length)
     }
@@ -232,7 +232,7 @@ async function promoteBenchToAssignment(supabase, event, count) {
     await supabase.from('bench_assignments').update({ status: 'called_in', called_in_at: now.toISOString(), updated_at: now.toISOString() }).eq('id', b.id)
     const worker = b.applicants
     const link = `${siteUrl}/confirm/${tok}`
-    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title} on ${formatDate(event.event_date)}! You're up from standby. Tap to claim: ${link}`) } catch (e) {} }
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title} on ${formatDate(event.event_date)}! You're up from standby. Tap to claim: ${link}`, event.sms_from_number) } catch (e) {} }
     if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `A spot opened — ${event.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>You're up, ${worker.first_name}!</h2><p>A spot just opened for <strong>${event.title}</strong> on ${formatDate(event.event_date)} at ${formatTime(event.start_time)}.</p><table role="presentation" style="margin:20px 0"><tr><td style="background:#000;border-radius:8px"><a href="${link}" style="background:#000;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Claim this shift →</a></td></tr></table><p style="color:#888;font-size:12px">V&A Hire • vandahire.com</p></div>` }) } catch (e) {} }
     promoted++
   }
@@ -250,7 +250,7 @@ async function etaReminders(supabase) {
   let assigns
   try {
     const r = await supabase.from('assignments')
-      .select('id, status, eta_reminder_sent_at, check_in_time, applicants ( first_name, phone, email ), events ( title, event_date, start_time, location, city, meeting_point )')
+      .select('id, status, eta_reminder_sent_at, check_in_time, applicants ( first_name, phone, email ), events ( title, event_date, start_time, location, city, meeting_point, sms_from_number )')
       .eq('status', 'confirmed')
       .is('check_in_time', null)
       .is('eta_reminder_sent_at', null)
@@ -267,7 +267,7 @@ async function etaReminders(supabase) {
     if (diffMin > 150 || diffMin < 0) continue // only within ~2.5h before start
     const worker = a.applicants
     const where = ev.meeting_point || ev.location || ev.city || 'the venue'
-    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: Your shift ${ev.title} starts at ${formatTime(ev.start_time)} (~2 hrs) at ${where}. Reply with your ETA, or let us know if anything changed. See you soon!`) } catch (e) {} }
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: Your shift ${ev.title} starts at ${formatTime(ev.start_time)} (~2 hrs) at ${where}. Reply with your ETA, or let us know if anything changed. See you soon!`, ev.sms_from_number) } catch (e) {} }
     if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `Starting soon — ${ev.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>See you soon, ${worker.first_name}!</h2><p>Your shift <strong>${ev.title}</strong> starts at <strong>${formatTime(ev.start_time)}</strong> (about 2 hours). Head to ${where}.</p><p>Reply with your ETA so we know you're on the way.</p><p style="color:#888;font-size:12px">V&A Hire • vandahire.com</p></div>` }) } catch (e) {} }
     await supabase.from('assignments').update({ eta_reminder_sent_at: now.toISOString() }).eq('id', a.id)
     sent++

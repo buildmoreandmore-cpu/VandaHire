@@ -39,9 +39,9 @@ async function getRingCentralToken() {
   return rcToken.access_token
 }
 
-async function sendViaRingCentral(normalized, body) {
+async function sendViaRingCentral(normalized, body, fromOverride) {
   const token = await getRingCentralToken()
-  const from = process.env.RINGCENTRAL_FROM_NUMBER
+  const from = fromOverride || process.env.RINGCENTRAL_FROM_NUMBER
 
   // High-Volume A2P SMS endpoint for bulk (set RINGCENTRAL_A2P=true once the
   // A2P campaign is approved); otherwise the standard per-extension endpoint.
@@ -76,21 +76,25 @@ function getTwilioClient() {
   return twilio(accountSid, process.env.TWILIO_AUTH_TOKEN)
 }
 
-async function sendViaTwilio(normalized, body) {
+async function sendViaTwilio(normalized, body, fromOverride) {
   const client = getTwilioClient()
   const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID
-  const from = process.env.TWILIO_FROM_NUMBER
-  const opts = messagingServiceSid
+  const from = fromOverride || process.env.TWILIO_FROM_NUMBER
+  // A specific from-number takes precedence over the messaging service.
+  const opts = (!fromOverride && messagingServiceSid)
     ? { messagingServiceSid, to: normalized, body }
     : { from, to: normalized, body }
   return client.messages.create(opts)
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
-export async function sendSms(to, body) {
+// `from` (optional): E.164 number to send from — e.g. an event's assigned line.
+// Falls back to RINGCENTRAL_FROM_NUMBER / TWILIO_FROM_NUMBER when omitted.
+export async function sendSms(to, body, from) {
   // Normalize phone: strip formatting, ensure +1
   const digits = to.replace(/\D/g, '')
   const normalized = digits.startsWith('1') ? `+${digits}` : `+1${digits}`
+  const fromNorm = from ? (String(from).startsWith('+') ? from : `+${String(from).replace(/\D/g, '')}`) : undefined
 
   const rcConfigured =
     process.env.RINGCENTRAL_CLIENT_ID &&
@@ -98,6 +102,6 @@ export async function sendSms(to, body) {
     process.env.RINGCENTRAL_JWT &&
     process.env.RINGCENTRAL_FROM_NUMBER
 
-  if (rcConfigured) return sendViaRingCentral(normalized, body)
-  return sendViaTwilio(normalized, body)
+  if (rcConfigured) return sendViaRingCentral(normalized, body, fromNorm)
+  return sendViaTwilio(normalized, body, fromNorm)
 }

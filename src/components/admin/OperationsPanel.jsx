@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchEvents, fetchAssignments, runCron } from '../../lib/adminApi.js'
+import { fetchEvents, fetchAssignments, runCron, rcSubscribe } from '../../lib/adminApi.js'
 
 export default function OperationsPanel({ stats }) {
   const [events, setEvents] = useState([])
@@ -7,6 +7,22 @@ export default function OperationsPanel({ stats }) {
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [ranNote, setRanNote] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [syncNote, setSyncNote] = useState('')
+
+  const syncReplies = async () => {
+    setSyncing(true); setSyncNote('')
+    try {
+      const r = await rcSubscribe()
+      setSyncNote(r.created ? 'Connected — worker replies will now show their name in RingCentral.' : 'Already connected and active.')
+    } catch (e) {
+      const m = String(e.message || '')
+      setSyncNote(m.includes('SUB-528') || m.includes('permission')
+        ? 'Blocked: add the "Webhook Subscriptions" + "Read Messages" permissions to your RingCentral app, then try again.'
+        : 'Failed: ' + m)
+    }
+    setSyncing(false)
+  }
 
   const runAutomations = async () => {
     setRunning(true); setRanNote('')
@@ -223,6 +239,19 @@ export default function OperationsPanel({ stats }) {
           disabled={running}
           className="flex-shrink-0 px-4 py-2 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
         >{running ? 'Running…' : 'Run now'}</button>
+      </div>
+
+      {/* Text replies — connect RingCentral so worker replies show their name */}
+      <div className="flex items-center justify-between bg-p-surface border border-p-border rounded-lg px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-white text-sm font-medium">Text replies</div>
+          <div className="text-p-muted text-[11px]">{syncNote || 'Connect RingCentral so a worker who texts back gets their name shown on the thread (repliers only — roster never imported).'}</div>
+        </div>
+        <button
+          onClick={syncReplies}
+          disabled={syncing}
+          className="flex-shrink-0 px-4 py-2 rounded-lg border border-p-border text-white text-xs font-semibold disabled:opacity-50 hover:border-p-muted transition-colors"
+        >{syncing ? 'Syncing…' : 'Sync replies'}</button>
       </div>
     </div>
   )

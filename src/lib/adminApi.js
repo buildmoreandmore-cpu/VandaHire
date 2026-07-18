@@ -172,6 +172,9 @@ export const promoteBench = (event_id, count) =>
     body: JSON.stringify({ event_id, count }),
   })
 
+export const rcSubscribe = () =>
+  adminFetch('/api/admin/rc-subscribe', { method: 'POST', body: JSON.stringify({}) })
+
 // Quotes
 export const fetchQuote = (eventId) =>
   adminFetch(`/api/admin/quotes?event_id=${eventId}`)
@@ -375,10 +378,10 @@ export const deleteMessageTemplate = (id) =>
   adminFetch('/api/admin/message-templates', { method: 'DELETE', body: JSON.stringify({ id }) })
 
 // Bulk message to many selected workers
-export const bulkMessage = (worker_ids, message, channel = 'both', subject) =>
+export const bulkMessage = (worker_ids, message, channel = 'both', subject, opts = {}) =>
   adminFetch('/api/admin/bulk-message', {
     method: 'POST',
-    body: JSON.stringify({ worker_ids, message, channel, subject }),
+    body: JSON.stringify({ worker_ids, message, channel, subject, event_id: opts.event_id, from: opts.from }),
   })
 
 // Applicant notes (contact log)

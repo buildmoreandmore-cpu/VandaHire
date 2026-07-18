@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, promoteBench, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
+import { SENDER_NUMBERS, senderLabel } from '../../lib/senderNumbers.js'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -178,7 +179,7 @@ export default function EventsPanel() {
     setCrewMsgSending(true)
     setCrewMsgResult(null)
     try {
-      const res = await bulkMessage(ids, crewMsgText, crewMsgChannel, crewMsgSubject)
+      const res = await bulkMessage(ids, crewMsgText, crewMsgChannel, crewMsgSubject, { event_id: expanded })
       setCrewMsgResult(res)
     } catch (err) {
       setCrewMsgResult({ error: err.message })
@@ -1431,7 +1432,7 @@ export default function EventsPanel() {
                     <button
                       onClick={() => {
                         setEditingEvent(ev.id)
-                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', event_end_date: ev.event_end_date || '', is_ongoing: !!ev.is_ongoing, start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types: ev.role_types || [], bg_check_required: !!ev.bg_check_required })
+                        setEventEditForm({ title: ev.title || '', organizer: ev.organizer || '', contact_name: ev.contact_name || '', contact_email: ev.contact_email || '', contact_phone: ev.contact_phone || '', location: ev.location || '', city: ev.city || '', event_date: ev.event_date || '', event_end_date: ev.event_end_date || '', is_ongoing: !!ev.is_ongoing, start_time: ev.start_time || '', end_time: ev.end_time || '', workers_needed: ev.workers_needed || '', pay_rate: ev.pay_rate || '', dress_code: ev.dress_code || '', notes: ev.notes || '', role_types: ev.role_types || [], bg_check_required: !!ev.bg_check_required, sms_from_number: ev.sms_from_number || '' })
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-p-border hover:bg-[#333] transition-colors"
                     >Edit Event</button>
@@ -1522,6 +1523,19 @@ export default function EventsPanel() {
                             value={eventEditForm.role_types || []}
                             onChange={(roles) => setEventEditForm(prev => ({ ...prev, role_types: roles }))}
                           />
+                        </div>
+                        <div className="col-span-2 sm:col-span-3">
+                          <label className="text-p-muted text-[10px] mb-1 block">Text from (which line workers see &amp; reply to)</label>
+                          <select
+                            value={eventEditForm.sms_from_number || ''}
+                            onChange={e => setEventEditForm(prev => ({ ...prev, sms_from_number: e.target.value }))}
+                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white"
+                          >
+                            <option value="">V&amp;A Hire (main) — default</option>
+                            {SENDER_NUMBERS.filter(s => s.number !== '+14049057443').map(s => (
+                              <option key={s.number} value={s.number}>{s.label} — {s.number.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}</option>
+                            ))}
+                          </select>
                         </div>
                         <label className="col-span-2 sm:col-span-3 flex items-center gap-2 text-xs text-white mt-1 cursor-pointer">
                           <input
@@ -2306,7 +2320,7 @@ function EventCreateModal({ onClose, onCreated }) {
     event_date: '', event_end_date: '', is_ongoing: false,
     start_time: '', end_time: '', location: '', city: '',
     workers_needed: '', role_types: [], pay_rate: '', dress_code: '', notes: '',
-    service_tier: 'labor_supply', meeting_point: '', bg_check_required: false,
+    service_tier: 'labor_supply', meeting_point: '', bg_check_required: false, sms_from_number: '',
   }
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
@@ -2394,6 +2408,15 @@ function EventCreateModal({ onClose, onCreated }) {
             <label className={lbl}>Roles</label>
             <RolesSelector value={form.role_types} onChange={(roles) => setForm(prev => ({ ...prev, role_types: roles }))} />
             <div className="mt-2"><label className={lbl}>Dress code</label><input className={fld} value={form.dress_code} onChange={set('dress_code')} /></div>
+            <div className="mt-2">
+              <label className={lbl}>Text from (which line workers see &amp; reply to)</label>
+              <select className={fld} value={form.sms_from_number} onChange={set('sms_from_number')}>
+                <option value="">V&amp;A Hire (main) — default</option>
+                {SENDER_NUMBERS.filter(s => s.number !== '+14049057443').map(s => (
+                  <option key={s.number} value={s.number}>{s.label} — {s.number.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}</option>
+                ))}
+              </select>
+            </div>
           </Section>
 
           <Section title="Service tier">

@@ -422,9 +422,10 @@ async function handleEvents(req, res, supabase) {
     return res.status(200).json(data)
   }
   if (req.method === 'POST') {
-    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, event_end_date, is_ongoing, contact_name, contact_email, contact_phone, bg_check_required } = req.body
+    const { title, organizer, location, city, workers_needed, role_types, start_time, end_time, pay_rate, dress_code, notes, service_tier, meeting_point, event_date, event_end_date, is_ongoing, contact_name, contact_email, contact_phone, bg_check_required, sms_from_number } = req.body
     if (!title) return res.status(400).json({ error: 'title required' })
     const insert = { title, status: 'pending' }
+    if (sms_from_number) insert.sms_from_number = sms_from_number
     if (organizer) insert.organizer = organizer
     if (location) insert.location = location
     if (city) insert.city = city
@@ -501,11 +502,11 @@ async function handleEvents(req, res, supabase) {
     const { service_tier } = req.body
     if (service_tier !== undefined) { if (!validServiceTiers.includes(service_tier)) return res.status(400).json({ error: 'Invalid service_tier' }); updates.service_tier = service_tier }
     // Free-form editable fields
-    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types', 'reconfirm_enabled', 'reconfirm_cutoff', 'latitude', 'longitude', 'geofence_radius_meters', 'bench_coverage_threshold', 'bench_pool_size']
+    const editableFields = ['title', 'organizer', 'contact_name', 'contact_email', 'contact_phone', 'location', 'city', 'event_date', 'event_end_date', 'is_ongoing', 'start_time', 'end_time', 'workers_needed', 'pay_rate', 'dress_code', 'notes', 'meeting_point', 'supervisor_name', 'supervisor_phone', 'is_supervisor', 'bg_check_required', 'role_types', 'reconfirm_enabled', 'reconfirm_cutoff', 'latitude', 'longitude', 'geofence_radius_meters', 'bench_coverage_threshold', 'bench_pool_size', 'sms_from_number']
     // NOT NULL date/time/number columns must not receive '' — skip when blank.
     const skipIfBlank = new Set(['event_date', 'start_time', 'end_time', 'workers_needed', 'geofence_radius_meters', 'bench_coverage_threshold', 'bench_pool_size'])
     // Nullable columns: coerce '' → null so Postgres accepts it.
-    const blankToNull = new Set(['event_end_date', 'reconfirm_cutoff', 'latitude', 'longitude'])
+    const blankToNull = new Set(['event_end_date', 'reconfirm_cutoff', 'latitude', 'longitude', 'sms_from_number'])
     for (const f of editableFields) {
       if (req.body[f] === undefined) continue
       let v = req.body[f]
@@ -706,7 +707,7 @@ async function handleSendShift(req, res, supabase) {
   const { assignment_id } = req.body
   if (!assignment_id) return res.status(400).json({ error: 'assignment_id required' })
 
-  const { data: assignment, error } = await supabase.from('assignments').select('id, applicants ( first_name, last_name, phone, email ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, supervisor_phone, pay_rate, dress_code )').eq('id', assignment_id).single()
+  const { data: assignment, error } = await supabase.from('assignments').select('id, applicants ( first_name, last_name, phone, email ), events ( title, event_date, start_time, end_time, location, city, meeting_point, supervisor_name, supervisor_phone, pay_rate, dress_code, sms_from_number )').eq('id', assignment_id).single()
   if (error || !assignment) return res.status(404).json({ error: 'Assignment not found' })
 
   const worker = assignment.applicants
@@ -726,7 +727,7 @@ async function handleSendShift(req, res, supabase) {
   const emailHtml = `<h2>Your Shift Details — ${event.title}</h2><p><strong>Date:</strong> ${formatDate(event.event_date)}</p><p><strong>Time:</strong> ${formatTime(event.start_time)} – ${formatTime(event.end_time)}</p><p><strong>Location:</strong> ${event.location}, ${event.city}</p>${event.meeting_point ? `<p><strong>Meeting Point:</strong> ${event.meeting_point}</p>` : ''}${event.supervisor_name ? `<p><strong>Supervisor:</strong> ${event.supervisor_name}${event.supervisor_phone ? ` · ${event.supervisor_phone}` : ''}</p>` : ''}${event.pay_rate ? `<p><strong>Pay Rate:</strong> ${event.pay_rate}</p>` : ''}${event.dress_code ? `<p><strong>Dress Code:</strong> ${event.dress_code}</p>` : ''}`
 
   const results = await Promise.allSettled([
-    worker.phone ? sendSms(worker.phone, smsBody) : Promise.resolve(),
+    worker.phone ? sendSms(worker.phone, smsBody, event.sms_from_number) : Promise.resolve(),
     worker.email ? sendEmail({ to: worker.email, subject: `Your Shift: ${event.title}`, html: emailHtml }) : Promise.resolve(),
   ])
 
@@ -926,7 +927,7 @@ async function handlePromoteBench(req, res, supabase) {
   if (!event_id) return res.status(400).json({ error: 'event_id required' })
 
   const { data: event, error: evErr } = await supabase.from('events')
-    .select('id, title, event_date, start_time, workers_needed').eq('id', event_id).single()
+    .select('id, title, event_date, start_time, workers_needed, sms_from_number').eq('id', event_id).single()
   if (evErr || !event) return res.status(404).json({ error: 'Event not found' })
 
   let want = parseInt(count, 10)
@@ -955,7 +956,7 @@ async function handlePromoteBench(req, res, supabase) {
     await supabase.from('bench_assignments').update({ status: 'called_in', called_in_at: now.toISOString(), updated_at: now.toISOString() }).eq('id', b.id)
     const worker = b.applicants
     const link = `${siteUrl}/confirm/${tok}`
-    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title}! You're up from standby. Tap to claim: ${link}`) } catch (e) {} }
+    if (worker?.phone) { try { await sendSms(worker.phone, `V&A Hire: A spot just opened for ${event.title}! You're up from standby. Tap to claim: ${link}`, event.sms_from_number) } catch (e) {} }
     if (worker?.email) { try { await sendEmail({ to: worker.email, subject: `A spot opened — ${event.title}`, html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2>You're up, ${worker.first_name}!</h2><p>A spot just opened for <strong>${event.title}</strong>. Tap below to claim it.</p><table role="presentation" style="margin:20px 0"><tr><td style="background:#000;border-radius:8px"><a href="${link}" style="background:#000;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Claim this shift →</a></td></tr></table></div>` }) } catch (e) {} }
     promoted++
   }
@@ -2562,9 +2563,15 @@ async function handleWorkersExport(req, res, supabase) {
 
 async function handleBulkMessage(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
-  const { worker_ids, message, channel = 'both', subject } = req.body || {}
+  const { worker_ids, message, channel = 'both', subject, from } = req.body || {}
   if (!Array.isArray(worker_ids) || !worker_ids.length || !message || !String(message).trim()) {
     return res.status(400).json({ error: 'worker_ids[] and message required' })
+  }
+  // Optional per-event send-from line (falls back to default inside sendSms).
+  let smsFrom = from
+  if (!smsFrom && req.body.event_id) {
+    const { data: ev } = await supabase.from('events').select('sms_from_number').eq('id', req.body.event_id).single()
+    smsFrom = ev?.sms_from_number || undefined
   }
 
   const { data: workers, error } = await supabase.from('applicants')
@@ -2582,7 +2589,7 @@ async function handleBulkMessage(req, res, supabase) {
   for (const w of (workers || [])) {
     const body = personalize(String(message), w)
     if ((channel === 'sms' || channel === 'both') && w.phone) {
-      try { await sendSms(w.phone, body); smsSent++ }
+      try { await sendSms(w.phone, body, smsFrom); smsSent++ }
       catch (e) { smsFailed++; if (errors.length < 5) errors.push(`SMS ${w.first_name}: ${e.message}`) }
     }
     if ((channel === 'email' || channel === 'both') && w.email) {
