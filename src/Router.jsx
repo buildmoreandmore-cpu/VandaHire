@@ -19,6 +19,7 @@ import W9FormPage from './pages/W9FormPage.jsx'
 import BgCheckPage from './pages/BgCheckPage.jsx'
 import IdUploadPage from './pages/IdUploadPage.jsx'
 import SupervisorPortalPage from './pages/SupervisorPortalPage.jsx'
+import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
 import HiringPage from './pages/HiringPage.jsx'
 import SupportPage from './pages/SupportPage.jsx'
 
@@ -316,6 +317,8 @@ export default function Router() {
   } else if (path === '/id-upload') {
     page = <IdUploadPage />
   } else if (path === '/supervisor') {
+    page = <SupervisorDashboardPage />
+  } else if (path === '/onsite') {
     page = <SupervisorPortalPage />
   } else if (path === '/verify') {
     page = <VideoVerifyPage />

@@ -6,8 +6,9 @@ import { hashPin, verifyPin, isLocked, createSession, verifySession, MAX_ATTEMPT
 import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
-import { sendEmail, readUnsubToken } from '../_lib/email.js'
+import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
+import { checkSupervisor, getSupervisors } from '../_lib/auth.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -45,6 +46,9 @@ export default async function handler(req, res) {
     if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
     if (route === 'respond-invite') return await handleRespondInvite(req, res, supabase)
     if (route === 'rc-webhook') return await handleRcWebhook(req, res, supabase)
+    if (route === 'sup-login') return await handleSupLogin(req, res)
+    if (route === 'sup-dashboard') return await handleSupDashboard(req, res, supabase)
+    if (route === 'sup-message') return await handleSupMessage(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
     if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
     if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
@@ -522,6 +526,91 @@ async function handleRcWebhook(req, res, supabase) {
     console.error('[rc-webhook] error:', e.message)
     return res.status(200).json({ ok: true })
   }
+}
+
+// ─── SUPERVISOR DASHBOARD (scoped to a send-from line) ──────────────────────────
+// Events belonging to a supervisor = events whose text-from line is theirs.
+async function supervisorEvents(supabase, number) {
+  const digits = String(number || '').replace(/\D/g, '')
+  const { data: events } = await supabase.from('events')
+    .select('id, title, event_date, start_time, end_time, location, city, status, workers_needed, sms_from_number, meeting_point, dress_code')
+    .not('sms_from_number', 'is', null)
+    .order('event_date', { ascending: false })
+  return (events || []).filter(e => String(e.sms_from_number || '').replace(/\D/g, '') === digits)
+}
+
+async function handleSupLogin(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { passcode } = req.body || {}
+  if (!passcode) return res.status(400).json({ error: 'passcode required' })
+  const sup = getSupervisors().find(s => s.passcode && s.passcode === String(passcode).trim())
+  if (!sup) return res.status(401).json({ error: 'Invalid passcode' })
+  return res.status(200).json({ ok: true, name: sup.name, number: sup.number })
+}
+
+async function handleSupDashboard(req, res, supabase) {
+  const check = checkSupervisor(req)
+  if (!check.ok) return res.status(check.status).json({ error: check.error })
+  const { name, number } = check.supervisor
+
+  const events = await supervisorEvents(supabase, number)
+  const eventIds = events.map(e => e.id)
+  let byEvent = {}
+  if (eventIds.length) {
+    const { data: crew } = await supabase.from('assignments')
+      .select('id, event_id, status, is_supervisor, check_in_time, applicants ( id, first_name, last_name, phone )')
+      .in('event_id', eventIds)
+      .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
+      .order('is_supervisor', { ascending: false })
+    for (const a of (crew || [])) {
+      if (!byEvent[a.event_id]) byEvent[a.event_id] = []
+      byEvent[a.event_id].push(a)
+    }
+  }
+  const withCrew = events.map(e => ({ ...e, crew: byEvent[e.id] || [] }))
+  return res.status(200).json({ name, number, events: withCrew })
+}
+
+async function handleSupMessage(req, res, supabase) {
+  const check = checkSupervisor(req)
+  if (!check.ok) return res.status(check.status).json({ error: check.error })
+  const { number } = check.supervisor
+  const { worker_ids, message, channel = 'both', subject } = req.body || {}
+  if (!Array.isArray(worker_ids) || !worker_ids.length || !message || !String(message).trim()) {
+    return res.status(400).json({ error: 'worker_ids[] and message required' })
+  }
+
+  // Scope: only workers on this supervisor's events may be messaged.
+  const events = await supervisorEvents(supabase, number)
+  const eventIds = events.map(e => e.id)
+  let allowed = new Set()
+  if (eventIds.length) {
+    const { data: crew } = await supabase.from('assignments').select('worker_id').in('event_id', eventIds)
+    allowed = new Set((crew || []).map(a => a.worker_id))
+  }
+  const targetIds = worker_ids.filter(id => allowed.has(id))
+  if (!targetIds.length) return res.status(403).json({ error: 'None of those workers are on your crews' })
+
+  const { data: workers } = await supabase.from('applicants').select('id, first_name, phone, email').in('id', targetIds)
+  const personalize = (t, w) => String(t).replace(/\{first_name\}/gi, w.first_name || 'there').replace(/\{name\}/gi, w.first_name || 'there')
+
+  let smsSent = 0, smsFailed = 0, emailSent = 0, emailFailed = 0
+  const errors = []
+  for (const w of (workers || [])) {
+    const body = personalize(message, w)
+    if ((channel === 'sms' || channel === 'both') && w.phone) {
+      try { await sendSms(w.phone, body, number); smsSent++ }
+      catch (e) { smsFailed++; if (errors.length < 5) errors.push(`SMS ${w.first_name}: ${e.message}`) }
+    }
+    if ((channel === 'email' || channel === 'both') && w.email) {
+      if (await isEmailSuppressed(supabase, w.email)) { emailFailed++ }
+      else {
+        try { await sendEmail({ to: w.email, subject: subject || 'Message from V&A Hire', html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">${body.replace(/\n/g, '<br>')}</div>`, unsubscribeEmail: w.email }); emailSent++ }
+        catch (e) { emailFailed++; if (errors.length < 5) errors.push(`Email ${w.first_name}: ${e.message}`) }
+      }
+    }
+  }
+  return res.status(200).json({ recipients: targetIds.length, sms: { sent: smsSent, failed: smsFailed }, email: { sent: emailSent, failed: emailFailed }, errors })
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────
