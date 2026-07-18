@@ -966,11 +966,11 @@ async function handlePromoteBench(req, res, supabase) {
 // Send a one-off test SMS to verify RingCentral delivery end-to-end.
 async function handleTestSms(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const { to, message } = req.body || {}
+  const { to, message, from } = req.body || {}
   if (!to) return res.status(400).json({ error: 'to (phone number) required' })
   const body = message || 'V&A Hire SMS test — your text messaging is live. Reply STOP to opt out.'
   try {
-    const result = await sendSms(to, body)
+    const result = await sendSms(to, body, from)
     return res.status(200).json({
       ok: true,
       provider: (process.env.RINGCENTRAL_CLIENT_ID && process.env.RINGCENTRAL_JWT) ? 'ringcentral' : 'twilio',
