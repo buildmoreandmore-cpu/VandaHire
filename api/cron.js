@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isEmailSuppressed } from '../_lib/email.js'
 import { sendSms } from '../_lib/sms.js'
+import { ensureSmsSubscription, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { sendPushToWorker } from '../_lib/push.js'
 
 // Single cron function — dispatches by ?job= parameter
@@ -2048,6 +2049,11 @@ export default async function handler(req, res) {
         results.newsletter = await monthlyNewsletter(supabase)
         results.scheduled_messages = await processScheduledMessages(supabase)
         results.reengagement = await reEngagementNudge(supabase)
+        // Keep the RingCentral inbound-SMS webhook subscription alive (auto-renew).
+        if (ringCentralConfigured()) {
+          try { results.rc_subscription = await ensureSmsSubscription(`${process.env.VITE_APP_URL || 'https://vandahire.com'}/api/rc-webhook`) }
+          catch (e) { results.rc_subscription = { error: e.message } }
+        }
         return res.status(200).json(results)
       }
       default:

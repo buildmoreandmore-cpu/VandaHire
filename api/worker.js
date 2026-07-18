@@ -7,6 +7,7 @@ import { isWithinGeofence } from '../_lib/geo.js'
 import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
 import { sendEmail, readUnsubToken } from '../_lib/email.js'
+import { createRingCentralContact } from '../_lib/ringcentral.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
     if (route === 'push-send') return await handlePushSend(req, res, supabase)
     if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
     if (route === 'respond-invite') return await handleRespondInvite(req, res, supabase)
+    if (route === 'rc-webhook') return await handleRcWebhook(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
     if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
     if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
@@ -478,6 +480,48 @@ async function handleRespondInvite(req, res, supabase) {
   if (updateErr) return res.status(500).json({ error: 'Failed to update assignment' })
 
   return res.status(200).json({ success: true, status: newStatus })
+}
+
+// ─── RINGCENTRAL INBOUND SMS WEBHOOK ────────────────────────────────────────────
+// When a worker texts our RingCentral number, auto-create a RingCentral contact
+// for THAT worker (once) so their name shows on the message thread. Only people
+// who actually reply get a contact — the full roster is never imported.
+async function handleRcWebhook(req, res, supabase) {
+  // 1) Subscription validation handshake — echo the token back, respond 200.
+  const validationToken = req.headers['validation-token']
+  if (validationToken) {
+    res.setHeader('Validation-Token', validationToken)
+    return res.status(200).end()
+  }
+
+  // Always return 200 so RingCentral never disables the subscription on our errors.
+  try {
+    const msg = req.body?.body || req.body || {}
+    // Only act on inbound texts.
+    if (msg.direction && msg.direction !== 'Inbound') return res.status(200).json({ ok: true, skipped: 'outbound' })
+    const from = msg.from?.phoneNumber || (typeof msg.from === 'string' ? msg.from : null)
+    if (!from) return res.status(200).json({ ok: true, skipped: 'no-from' })
+
+    const worker = await findByPhone(supabase, from, 'id, first_name, last_name, phone, rc_contact_id')
+    if (!worker) return res.status(200).json({ ok: true, skipped: 'unknown-number' })
+    if (worker.rc_contact_id) return res.status(200).json({ ok: true, skipped: 'contact-exists' })
+
+    try {
+      const contact = await createRingCentralContact({
+        firstName: worker.first_name,
+        lastName: worker.last_name,
+        phone: from.startsWith('+') ? from : `+${from.replace(/\D/g, '')}`,
+      })
+      await supabase.from('applicants').update({ rc_contact_id: String(contact.id) }).eq('id', worker.id)
+      return res.status(200).json({ ok: true, created: true })
+    } catch (e) {
+      console.error('[rc-webhook] contact create failed:', e.message)
+      return res.status(200).json({ ok: true, created: false })
+    }
+  } catch (e) {
+    console.error('[rc-webhook] error:', e.message)
+    return res.status(200).json({ ok: true })
+  }
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────

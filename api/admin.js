@@ -8,6 +8,7 @@ import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
 import { getAgreementHtml } from '../_lib/agreement.js'
 import { sendPushToWorker } from '../_lib/push.js'
 import { calculateDistance } from '../_lib/geo.js'
+import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -981,6 +982,24 @@ async function handleTestSms(req, res) {
   }
 }
 
+// Create/verify the RingCentral inbound-SMS webhook subscription so worker replies
+// trigger our webhook (which auto-creates their contact). Idempotent.
+async function handleRcSubscribe(req, res) {
+  if (!ringCentralConfigured()) return res.status(400).json({ error: 'RingCentral not configured' })
+  const base = process.env.VITE_APP_URL || 'https://vandahire.com'
+  const webhookUrl = `${base}/api/rc-webhook`
+  try {
+    if (req.method === 'GET') {
+      const subs = await listSubscriptions()
+      return res.status(200).json({ webhookUrl, subscriptions: subs.map(s => ({ id: s.id, status: s.status, address: s.deliveryMode?.address, expirationTime: s.expirationTime, eventFilters: s.eventFilters })) })
+    }
+    const result = await ensureSmsSubscription(webhookUrl)
+    return res.status(200).json({ ok: true, webhookUrl, ...result })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 // ─── BENCH POOL ──────────────────────────────────────────────────────────────
 
 async function handleBench(req, res, supabase) {
@@ -1811,6 +1830,7 @@ export default async function handler(req, res) {
       case 'bench-dispatch': return await handleBenchDispatch(req, res, supabase)
       case 'promote-bench': return await handlePromoteBench(req, res, supabase)
       case 'test-sms': return await handleTestSms(req, res)
+      case 'rc-subscribe': return await handleRcSubscribe(req, res)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)
