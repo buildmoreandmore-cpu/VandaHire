@@ -49,9 +49,10 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Phone */}
+        {/* Text-only line */}
         <div className="text-center mb-4">
-          <a href="tel:+14048617794" className="text-p-link text-sm hover:text-white transition-colors font-medium">(404) 861-7794</a>
+          <a href="sms:+14049057443" className="text-p-link text-sm hover:text-white transition-colors font-medium">(404) 905-7443</a>
+          <div className="text-[#555] text-xs mt-1">Text only — this line does not accept calls</div>
         </div>
 
         {/* Address */}

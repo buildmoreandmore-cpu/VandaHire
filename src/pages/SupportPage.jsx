@@ -29,11 +29,12 @@ export default function SupportPage() {
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-          <a href="tel:+14049057443" className="flex items-center gap-3 rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] p-4 hover:border-p-green/60 transition-all">
+          <a href="sms:+14049057443" className="flex items-center gap-3 rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] p-4 hover:border-p-green/60 transition-all">
             <span className="text-p-green"><IconPhone /></span>
             <div>
-              <div className="text-white font-semibold text-sm">Call</div>
+              <div className="text-white font-semibold text-sm">Text</div>
               <div className="text-[#888] text-xs">(404) 905-7443</div>
+              <div className="text-[#555] text-[11px] mt-0.5">Text only — no calls</div>
             </div>
           </a>
           <a href="mailto:info@vassoc.com" className="flex items-center gap-3 rounded-2xl border border-[#1e1e1e] bg-[#0e0e0e] p-4 hover:border-p-green/60 transition-all">

@@ -705,10 +705,12 @@ async function handleSurveys(req, res, supabase) {
 // The number a worker should call/text about an event — the event's assigned
 // line (G's or Laverne's) so they only ever contact their own supervisor.
 // Falls back to the main office line for events with no line set.
+// Returns a full phrase, since the event line takes calls but the shared
+// (404) 905-7443 line is text-only.
 function eventContactNumber(event) {
   const d = String(event?.sms_from_number || '').replace(/\D/g, '').replace(/^1/, '')
-  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
-  return '(404) 861-7794'
+  if (d.length === 10) return `Call or text (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+  return 'Text (404) 905-7443 (text only)'
 }
 
 async function handleSendShift(req, res, supabase) {
@@ -730,10 +732,10 @@ async function handleSendShift(req, res, supabase) {
     event.supervisor_name ? `Supervisor: ${event.supervisor_name}${event.supervisor_phone ? ` (${event.supervisor_phone})` : ''}` : '',
     event.pay_rate ? `Pay: ${event.pay_rate}` : '',
     event.dress_code ? `Dress code: ${event.dress_code}` : '',
-    `Questions? Call ${eventContactNumber(event)}`,
+    `Questions? ${eventContactNumber(event)}`,
   ].filter(Boolean).join('\n')
 
-  const emailHtml = `<h2>Your Shift Details — ${event.title}</h2><p><strong>Date:</strong> ${formatDate(event.event_date)}</p><p><strong>Time:</strong> ${formatTime(event.start_time)} – ${formatTime(event.end_time)}</p><p><strong>Location:</strong> ${event.location}, ${event.city}</p>${event.meeting_point ? `<p><strong>Meeting Point:</strong> ${event.meeting_point}</p>` : ''}${event.supervisor_name ? `<p><strong>Supervisor:</strong> ${event.supervisor_name}${event.supervisor_phone ? ` · ${event.supervisor_phone}` : ''}</p>` : ''}${event.pay_rate ? `<p><strong>Pay Rate:</strong> ${event.pay_rate}</p>` : ''}${event.dress_code ? `<p><strong>Dress Code:</strong> ${event.dress_code}</p>` : ''}<p>Questions? Call or text <strong>${eventContactNumber(event)}</strong></p>`
+  const emailHtml = `<h2>Your Shift Details — ${event.title}</h2><p><strong>Date:</strong> ${formatDate(event.event_date)}</p><p><strong>Time:</strong> ${formatTime(event.start_time)} – ${formatTime(event.end_time)}</p><p><strong>Location:</strong> ${event.location}, ${event.city}</p>${event.meeting_point ? `<p><strong>Meeting Point:</strong> ${event.meeting_point}</p>` : ''}${event.supervisor_name ? `<p><strong>Supervisor:</strong> ${event.supervisor_name}${event.supervisor_phone ? ` · ${event.supervisor_phone}` : ''}</p>` : ''}${event.pay_rate ? `<p><strong>Pay Rate:</strong> ${event.pay_rate}</p>` : ''}${event.dress_code ? `<p><strong>Dress Code:</strong> ${event.dress_code}</p>` : ''}<p>Questions? ${eventContactNumber(event)}</p>`
 
   const results = await Promise.allSettled([
     worker.phone ? sendSms(worker.phone, smsBody, event.sms_from_number) : Promise.resolve(),
@@ -1594,7 +1596,7 @@ async function handleCancellation(req, res, supabase) {
             ? `<p>Refund: <strong>$${refundResult.refund_amount.toFixed(2)}</strong> (${refundResult.refund_pct}% — ${refundResult.reason})</p>`
             : `<p>${refundResult.reason}</p>`}
           ${reason ? `<p>Reason: ${reason}</p>` : ''}
-          <p>Questions? Call (404) 861-7794</p>`,
+          <p>Questions? Text us at (404) 905-7443</p>`,
       })
     } catch (e) { console.error('[admin/cancellation] Email failed:', e.message) }
   }
@@ -2100,7 +2102,7 @@ async function handleBatchShift(req, res, supabase) {
       event.supervisor_name ? `Supervisor: ${event.supervisor_name}${event.supervisor_phone ? ` (${event.supervisor_phone})` : ''}` : '',
       event.pay_rate ? `Pay: ${event.pay_rate}` : '',
       event.dress_code ? `Dress code: ${event.dress_code}` : '',
-      `Questions? Call ${eventContactNumber(event)}`,
+      `Questions? ${eventContactNumber(event)}`,
     ].filter(Boolean).join('\n')
 
     const emailHtml = `<h2>Your Shift Details — ${event.title}</h2><p><strong>Date:</strong> ${formatDate(event.event_date)}</p><p><strong>Time:</strong> ${formatTime(event.start_time)} – ${formatTime(event.end_time)}</p><p><strong>Location:</strong> ${event.location}, ${event.city}</p>${event.meeting_point ? `<p><strong>Meeting Point:</strong> ${event.meeting_point}</p>` : ''}${event.supervisor_name ? `<p><strong>Supervisor:</strong> ${event.supervisor_name}${event.supervisor_phone ? ` · ${event.supervisor_phone}` : ''}</p>` : ''}${event.pay_rate ? `<p><strong>Pay Rate:</strong> ${event.pay_rate}</p>` : ''}${event.dress_code ? `<p><strong>Dress Code:</strong> ${event.dress_code}</p>` : ''}`

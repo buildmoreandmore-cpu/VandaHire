@@ -1430,7 +1430,7 @@ async function detectNoShows(supabase) {
                 <p style="color:#ccc;">Hi ${a.applicants.first_name},</p>
                 <p style="color:#ccc;">You were confirmed for <strong>${event.title}</strong> today but did not check in. This has been recorded as a no-show.</p>
                 <p style="color:#ccc;">Repeated no-shows may affect your eligibility for future shifts.</p>
-                <p style="color:#888;font-size:12px;">If this was an error, contact us at (404) 861-7794.</p>
+                <p style="color:#888;font-size:12px;">If this was an error, text us at (404) 905-7443.</p>
                 <p style="color:#444;font-size:11px;margin-top:24px;">V&A Hire • vandahire.com</p>
               </div>`,
           })
@@ -1558,7 +1558,7 @@ async function postEventOrganizerSummary(supabase) {
 
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:32px auto 16px"><tr><td style="background:#ffffff;border-radius:8px"><a href="https://vandahire.com/events" target="_blank" style="background:#ffffff;color:#000000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Book Another Event &rarr;</a></td></tr></table>
 
-            <p style="color:#888;font-size:12px;">Thank you for choosing V&A Hire. Questions? Call (404) 861-7794.</p>
+            <p style="color:#888;font-size:12px;">Thank you for choosing V&A Hire. Questions? Text us at (404) 905-7443.</p>
             <p style="color:#444;font-size:11px;margin-top:16px;">V&A Hire • vandahire.com</p>
           </div>`,
       })
@@ -1875,7 +1875,7 @@ async function monthlyNewsletter(supabase) {
               <p style="color:#ccc;font-size:13px;line-height:1.6;margin:0;">${tipOfMonth}</p>
             </div>
 
-            <p style="color:#666;font-size:12px;line-height:1.6;margin-top:32px;">Questions? Call us at (404) 861-7794 or reply to this email.</p>
+            <p style="color:#666;font-size:12px;line-height:1.6;margin-top:32px;">Questions? Text us at (404) 905-7443 or reply to this email.</p>
             <p style="color:#444;font-size:11px;margin-top:16px;">V&A Hire • Varist & Associates of GA LLC • vandahire.com</p>
           </div>`,
       })

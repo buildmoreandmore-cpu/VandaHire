@@ -122,13 +122,14 @@ export default function SubmittedScreen({ firstName, phone }) {
         </p>
 
         <p className="text-[#555] text-sm mt-6 fade-up-delay-2">
-          Questions? Call us at{' '}
+          Questions? Text us at{' '}
           <a
-            href="tel:+14048617794"
+            href="sms:+14049057443"
             className="text-[#888] hover:text-[#ffffff] transition-colors duration-200"
           >
-            (404) 861-7794
+            (404) 905-7443
           </a>
+          <span className="block text-[#444] text-xs mt-1">Text only — this line does not accept calls</span>
         </p>
       </div>
     </div>

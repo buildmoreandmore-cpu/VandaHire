@@ -108,7 +108,7 @@ export default function StatusPage() {
                   {STATUS_MESSAGES[result.status]?.label || result.status}
                 </div>
                 <p className="text-[#aaa] leading-relaxed">
-                  {STATUS_MESSAGES[result.status]?.message || 'Status unknown — call (404) 861-7794.'}
+                  {STATUS_MESSAGES[result.status]?.message || 'Status unknown — text us at (404) 905-7443.'}
                 </p>
                 {result.status === 'approved' && (
                   <div className="mt-5 space-y-3">
