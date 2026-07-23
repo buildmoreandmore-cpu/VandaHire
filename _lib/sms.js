@@ -102,6 +102,19 @@ export async function sendSms(to, body, from) {
     process.env.RINGCENTRAL_JWT &&
     process.env.RINGCENTRAL_FROM_NUMBER
 
-  if (rcConfigured) return sendViaRingCentral(normalized, body, fromNorm)
+  if (rcConfigured) {
+    try {
+      return await sendViaRingCentral(normalized, body, fromNorm)
+    } catch (err) {
+      // If a per-event line can't be sent from (e.g. it was reassigned to another
+      // user's extension — MSG-304 "doesn't belong to extension"), fall back to the
+      // default line instead of failing. Once High Volume SMS is enabled, the
+      // per-line send will succeed and this fallback stops triggering.
+      if (fromNorm && /MSG-304|doesn't belong to extension|FeatureNotAvailable/i.test(err.message || '')) {
+        return await sendViaRingCentral(normalized, body, undefined)
+      }
+      throw err
+    }
+  }
   return sendViaTwilio(normalized, body, fromNorm)
 }
