@@ -88,10 +88,22 @@ export default function SupervisorsPanel() {
             </div>
             <div>
               <label className="text-p-muted text-[10px] block mb-1">Number (their line)</label>
-              <input list="sup-lines" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white" placeholder="(470) 555-1234 or pick a line" />
-              <datalist id="sup-lines">
-                {SENDER_NUMBERS.map(s => <option key={s.number} value={s.number}>{s.label} — {formatSenderNumber(s.number)}</option>)}
-              </datalist>
+              <input value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white" placeholder="(470) 555-1234" />
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {SENDER_NUMBERS.map(s => {
+                  const selected = form.number.replace(/\D/g, '') === s.number.replace(/\D/g, '')
+                  return (
+                    <button
+                      key={s.number}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, number: s.number }))}
+                      className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${selected ? 'bg-p-green text-black border-p-green' : 'bg-p-bg text-p-muted border-p-border hover:text-white hover:border-p-muted'}`}
+                    >
+                      {s.label} · {formatSenderNumber(s.number)}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div>
               <label className="text-p-muted text-[10px] block mb-1">Email</label>
@@ -117,10 +129,7 @@ export default function SupervisorsPanel() {
               {editing === r.id ? (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Name" />
-                  <select value={editForm.number || ''} onChange={e => setEditForm(f => ({ ...f, number: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white">
-                    <option value="">No line</option>
-                    {SENDER_NUMBERS.map(s => <option key={s.number} value={s.number}>{s.label}</option>)}
-                  </select>
+                  <input value={editForm.number || ''} onChange={e => setEditForm(f => ({ ...f, number: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Number / line" />
                   <input value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Email" />
                   <div className="sm:col-span-3 flex gap-2">
                     <button onClick={() => saveEdit(r.id)} disabled={saving} className="px-3 py-1 rounded bg-p-green text-black text-xs font-semibold disabled:opacity-50">Save</button>
