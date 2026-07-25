@@ -175,6 +175,14 @@ export const promoteBench = (event_id, count) =>
 export const rcSubscribe = () =>
   adminFetch('/api/admin/rc-subscribe', { method: 'POST', body: JSON.stringify({}) })
 
+export const fetchSupervisors = () => adminFetch('/api/admin/supervisors')
+export const createSupervisor = (name, number, email) =>
+  adminFetch('/api/admin/supervisors', { method: 'POST', body: JSON.stringify({ name, number, email }) })
+export const updateSupervisor = (id, fields) =>
+  adminFetch('/api/admin/supervisors', { method: 'PATCH', body: JSON.stringify({ id, ...fields }) })
+export const deleteSupervisor = (id) =>
+  adminFetch('/api/admin/supervisors', { method: 'DELETE', body: JSON.stringify({ id }) })
+
 // Quotes
 export const fetchQuote = (eventId) =>
   adminFetch(`/api/admin/quotes?event_id=${eventId}`)

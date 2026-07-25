@@ -8,7 +8,6 @@ import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
 import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
-import { checkSupervisor, getSupervisors } from '../_lib/auth.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -46,7 +45,7 @@ export default async function handler(req, res) {
     if (route === 'push-notify-shift') return await handlePushNotifyShift(req, res, supabase)
     if (route === 'respond-invite') return await handleRespondInvite(req, res, supabase)
     if (route === 'rc-webhook') return await handleRcWebhook(req, res, supabase)
-    if (route === 'sup-login') return await handleSupLogin(req, res)
+    if (route === 'sup-login') return await handleSupLogin(req, res, supabase)
     if (route === 'sup-dashboard') return await handleSupDashboard(req, res, supabase)
     if (route === 'sup-message') return await handleSupMessage(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
@@ -529,6 +528,16 @@ async function handleRcWebhook(req, res, supabase) {
 }
 
 // ─── SUPERVISOR DASHBOARD (scoped to a send-from line) ──────────────────────────
+// Supervisors live in the DB (managed from the coordinator dashboard). A passcode
+// in the Authorization header identifies an active supervisor.
+async function authSupervisor(req, supabase) {
+  const auth = req.headers.authorization || ''
+  const passcode = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
+  if (!passcode) return null
+  const { data } = await supabase.from('supervisors').select('id, name, number, email, active').eq('passcode', passcode).eq('active', true).maybeSingle()
+  return data || null
+}
+
 // Events belonging to a supervisor = events whose text-from line is theirs.
 async function supervisorEvents(supabase, number) {
   const digits = String(number || '').replace(/\D/g, '')
@@ -539,19 +548,19 @@ async function supervisorEvents(supabase, number) {
   return (events || []).filter(e => String(e.sms_from_number || '').replace(/\D/g, '') === digits)
 }
 
-async function handleSupLogin(req, res) {
+async function handleSupLogin(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { passcode } = req.body || {}
   if (!passcode) return res.status(400).json({ error: 'passcode required' })
-  const sup = getSupervisors().find(s => s.passcode && s.passcode === String(passcode).trim())
+  const { data: sup } = await supabase.from('supervisors').select('name, number, email').eq('passcode', String(passcode).trim()).eq('active', true).maybeSingle()
   if (!sup) return res.status(401).json({ error: 'Invalid passcode' })
   return res.status(200).json({ ok: true, name: sup.name, number: sup.number })
 }
 
 async function handleSupDashboard(req, res, supabase) {
-  const check = checkSupervisor(req)
-  if (!check.ok) return res.status(check.status).json({ error: check.error })
-  const { name, number } = check.supervisor
+  const sup = await authSupervisor(req, supabase)
+  if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { name, number } = sup
 
   const events = await supervisorEvents(supabase, number)
   const eventIds = events.map(e => e.id)
@@ -572,9 +581,9 @@ async function handleSupDashboard(req, res, supabase) {
 }
 
 async function handleSupMessage(req, res, supabase) {
-  const check = checkSupervisor(req)
-  if (!check.ok) return res.status(check.status).json({ error: check.error })
-  const { number } = check.supervisor
+  const sup = await authSupervisor(req, supabase)
+  if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { number } = sup
   const { worker_ids, message, channel = 'both', subject } = req.body || {}
   if (!Array.isArray(worker_ids) || !worker_ids.length || !message || !String(message).trim()) {
     return res.status(400).json({ error: 'worker_ids[] and message required' })

@@ -1012,6 +1012,50 @@ async function handleRcSubscribe(req, res) {
   }
 }
 
+// ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
+async function handleSupervisors(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { data, error } = await supabase.from('supervisors')
+      .select('id, name, passcode, number, email, active, created_at')
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'POST') {
+    const { name, number, email } = req.body || {}
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' })
+    // Passcode: first initial + 8 hex chars, e.g. "M-1a2b3c4d"
+    const initial = String(name).trim()[0].toUpperCase().replace(/[^A-Z]/, 'S')
+    const passcode = `${initial}-${crypto.randomBytes(4).toString('hex')}`
+    const { data, error } = await supabase.from('supervisors')
+      .insert({ name: String(name).trim(), number: number || null, email: email || null, passcode, active: true })
+      .select('id, name, passcode, number, email, active, created_at').single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'PATCH') {
+    const { id, name, number, email, active } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const updates = {}
+    if (name !== undefined) updates.name = String(name).trim()
+    if (number !== undefined) updates.number = number || null
+    if (email !== undefined) updates.email = email || null
+    if (active !== undefined) updates.active = !!active
+    const { data, error } = await supabase.from('supervisors').update(updates).eq('id', id)
+      .select('id, name, passcode, number, email, active, created_at').single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('supervisors').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ ok: true })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
 // ─── BENCH POOL ──────────────────────────────────────────────────────────────
 
 async function handleBench(req, res, supabase) {
@@ -1843,6 +1887,7 @@ export default async function handler(req, res) {
       case 'promote-bench': return await handlePromoteBench(req, res, supabase)
       case 'test-sms': return await handleTestSms(req, res)
       case 'rc-subscribe': return await handleRcSubscribe(req, res)
+      case 'supervisors': return await handleSupervisors(req, res, supabase)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)
