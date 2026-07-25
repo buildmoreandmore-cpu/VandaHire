@@ -11,6 +11,7 @@ import NotificationBell from '../components/admin/NotificationBell.jsx'
 import IncidentsPanel from '../components/admin/IncidentsPanel.jsx'
 import WorkerGroupsPanel from '../components/admin/WorkerGroupsPanel.jsx'
 import SupervisorsPanel from '../components/admin/SupervisorsPanel.jsx'
+import TimesheetsPanel from '../components/admin/TimesheetsPanel.jsx'
 
 const TABS = [
   { key: 'workers', label: 'Workers' },
@@ -19,6 +20,7 @@ const TABS = [
   { key: 'surveys', label: 'Surveys' },
   { key: 'incidents', label: 'Incidents' },
   { key: 'supervisors', label: 'Supervisors' },
+  { key: 'timesheets', label: 'Timesheets' },
   { key: 'operations', label: 'Operations' },
 ]
 
@@ -104,6 +106,7 @@ export default function AdminPage() {
         {tab === 'surveys' && <SurveysPanel />}
         {tab === 'incidents' && <IncidentsPanel />}
         {tab === 'supervisors' && <SupervisorsPanel />}
+        {tab === 'timesheets' && <TimesheetsPanel />}
         {tab === 'operations' && <OperationsPanel stats={stats} />}
       </div>
     </div>

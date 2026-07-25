@@ -175,6 +175,11 @@ export const promoteBench = (event_id, count) =>
 export const rcSubscribe = () =>
   adminFetch('/api/admin/rc-subscribe', { method: 'POST', body: JSON.stringify({}) })
 
+export const parseTimesheet = (image_base64) =>
+  adminFetch('/api/admin/timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64 }) })
+export const submitTimesheetAdmin = (payload) =>
+  adminFetch('/api/admin/timesheet-submit', { method: 'POST', body: JSON.stringify(payload) })
+
 export const fetchSupervisors = () => adminFetch('/api/admin/supervisors')
 export const createSupervisor = (name, number, email) =>
   adminFetch('/api/admin/supervisors', { method: 'POST', body: JSON.stringify({ name, number, email }) })

@@ -9,6 +9,8 @@ import { getAgreementHtml } from '../_lib/agreement.js'
 import { sendPushToWorker } from '../_lib/push.js'
 import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
+import { parseTimesheetImage } from '../_lib/anthropic.js'
+import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -1012,6 +1014,45 @@ async function handleRcSubscribe(req, res) {
   }
 }
 
+// ─── TIMESHEET OCR (coordinator side) ───────────────────────────────────────────
+async function handleTimesheetParse(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { image_base64 } = req.body || {}
+  if (!image_base64) return res.status(400).json({ error: 'image_base64 required' })
+  try {
+    const parsed = await parseTimesheetImage(image_base64)
+    return res.status(200).json({ ok: true, ...parsed })
+  } catch (err) {
+    console.error('[admin/timesheet-parse]', err.message)
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+async function handleTimesheetSubmit(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { company, event, days, associate_signature } = req.body || {}
+  if (!Array.isArray(days) || !days.length) return res.status(400).json({ error: 'days[] required' })
+  if (!associate_signature || !String(associate_signature).trim()) return res.status(400).json({ error: 'Signature required to submit' })
+
+  const payload = {
+    company: company || '', event: event || '', associate_signature: String(associate_signature).trim(),
+    days: days.map(d => ({ date: d.date || '', rows: (d.rows || []).filter(r => r && r.name) })),
+  }
+  const totals = timesheetTotals(payload)
+  const xlsxBase64 = buildTimesheetXlsxBase64(payload)
+  const evLabel = payload.event || 'Event'
+  const dateLabel = payload.days.map(d => d.date).filter(Boolean).join(', ') || 'n/a'
+  const fname = `Timesheet - ${evLabel} - ${dateLabel}`.replace(/[^\w .-]/g, '').slice(0, 80) + '.xlsx'
+  const dayRowsHtml = totals.perDay.map(d => `<tr><td style="padding:4px 10px;border:1px solid #eee">${d.date || '—'}</td><td style="padding:4px 10px;border:1px solid #eee">${d.workers}</td><td style="padding:4px 10px;border:1px solid #eee">${d.total}</td></tr>`).join('')
+  const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px"><h2 style="margin:0 0 4px">Timesheet Submitted — ${evLabel}</h2><p style="color:#555;margin:0 0 16px">Signed off by <strong>${payload.associate_signature}</strong> (via coordinator) · Company: ${payload.company || '—'}</p><table style="border-collapse:collapse;font-size:14px;margin-bottom:12px"><tr><th style="padding:4px 10px;border:1px solid #eee;text-align:left">Date</th><th style="padding:4px 10px;border:1px solid #eee">Workers</th><th style="padding:4px 10px;border:1px solid #eee">Hours</th></tr>${dayRowsHtml}<tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold" colspan="2">Grand Total</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">${totals.grand}</td></tr></table><p style="color:#555;font-size:13px">Full timesheet attached as Excel.</p></div>`
+  try {
+    await sendEmail({ to: 'info@vassoc.com', subject: `Timesheet: ${evLabel} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsxBase64 }] })
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to email timesheet: ' + err.message })
+  }
+  return res.status(200).json({ ok: true, totals, filename: fname })
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -1893,6 +1934,8 @@ export default async function handler(req, res) {
       case 'test-sms': return await handleTestSms(req, res)
       case 'rc-subscribe': return await handleRcSubscribe(req, res)
       case 'supervisors': return await handleSupervisors(req, res, supabase)
+      case 'timesheet-parse': return await handleTimesheetParse(req, res)
+      case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)
