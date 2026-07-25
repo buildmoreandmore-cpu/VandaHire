@@ -116,6 +116,10 @@ export default function TimesheetCapture({ title, initialCompany = '', initialEv
               <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} disabled={parsing} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f) }} />
               {parsing ? 'Reading timesheet…' : days.length ? '+ Add another day (photo)' : 'Take or upload a photo of the timesheet'}
             </label>
+            <p style={{ color: '#777', fontSize: 11.5, marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>
+              Multi-day event? Add a photo for <strong style={{ color: '#aaa' }}>every day</strong> before you sign & send —
+              they're combined into one Excel with a per-day breakdown and a summary. Sending each day separately makes separate files.
+            </p>
 
             {error && <div style={{ color: '#f87171', fontSize: 13, marginTop: 12 }}>{error}</div>}
 
