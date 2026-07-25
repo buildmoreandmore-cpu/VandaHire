@@ -179,6 +179,10 @@ export const parseTimesheet = (image_base64) =>
   adminFetch('/api/admin/timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64 }) })
 export const submitTimesheetAdmin = (payload) =>
   adminFetch('/api/admin/timesheet-submit', { method: 'POST', body: JSON.stringify(payload) })
+export const timesheetDays = (eventId) => adminFetch(`/api/admin/timesheet-days?event_id=${eventId}`)
+export const saveTimesheetDay = (day) => adminFetch('/api/admin/timesheet-save', { method: 'POST', body: JSON.stringify(day) })
+export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) })
+export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })
 
 export const fetchSupervisors = () => adminFetch('/api/admin/supervisors')
 export const createSupervisor = (name, number, email) =>

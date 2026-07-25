@@ -11,6 +11,7 @@ import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { parseTimesheetImage } from '../_lib/anthropic.js'
 import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
+import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -1053,6 +1054,28 @@ async function handleTimesheetSubmit(req, res) {
   return res.status(200).json({ ok: true, totals, filename: fname })
 }
 
+// ─── TIMESHEET DAYS (coordinator: draft per day, finalize when event ends) ──────
+async function handleTsDays(req, res, supabase) {
+  const eventId = req.query.event_id; if (!eventId) return res.status(400).json({ error: 'event_id required' })
+  return res.status(200).json({ days: await tsListDays(supabase, eventId) })
+}
+async function handleTsSave(req, res, supabase) {
+  const { id, event_id, event_label, company, work_date, rows } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  const day = await tsSaveDay(supabase, { id, event_id, event_label, company, work_date, rows, submitter: 'Coordinator' })
+  return res.status(200).json({ ok: true, day })
+}
+async function handleTsDelete(req, res, supabase) {
+  const { id } = req.body || {}; if (!id) return res.status(400).json({ error: 'id required' })
+  await tsDeleteDay(supabase, id)
+  return res.status(200).json({ ok: true })
+}
+async function handleTsFinalize(req, res, supabase) {
+  const { event_id, signature } = req.body || {}; if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  try { const r = await tsFinalizeEvent(supabase, { event_id, signature, submitter: 'Coordinator' }); return res.status(200).json({ ok: true, ...r }) }
+  catch (e) { return res.status(400).json({ error: e.message }) }
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -1936,6 +1959,10 @@ export default async function handler(req, res) {
       case 'supervisors': return await handleSupervisors(req, res, supabase)
       case 'timesheet-parse': return await handleTimesheetParse(req, res)
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
+      case 'timesheet-days': return await handleTsDays(req, res, supabase)
+      case 'timesheet-save': return await handleTsSave(req, res, supabase)
+      case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
+      case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)

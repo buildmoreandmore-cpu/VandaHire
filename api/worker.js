@@ -10,6 +10,7 @@ import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
 import { parseTimesheetImage } from '../_lib/anthropic.js'
 import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
+import { listDays, saveDay, deleteDay, finalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -52,6 +53,10 @@ export default async function handler(req, res) {
     if (route === 'sup-message') return await handleSupMessage(req, res, supabase)
     if (route === 'sup-timesheet-parse') return await handleTimesheetParse(req, res, supabase)
     if (route === 'sup-timesheet-submit') return await handleTimesheetSubmit(req, res, supabase)
+    if (route === 'sup-timesheet-days') return await handleSupTsDays(req, res, supabase)
+    if (route === 'sup-timesheet-save') return await handleSupTsSave(req, res, supabase)
+    if (route === 'sup-timesheet-delete') return await handleSupTsDelete(req, res, supabase)
+    if (route === 'sup-timesheet-finalize') return await handleSupTsFinalize(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
     if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
     if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
@@ -687,6 +692,41 @@ async function handleTimesheetSubmit(req, res, supabase) {
     return res.status(500).json({ error: 'Failed to email timesheet: ' + err.message })
   }
   return res.status(200).json({ ok: true, totals, filename: fname })
+}
+
+// Per-event timesheet drafts (save a day at a time, finalize when the event ends).
+async function supEventAllowed(sup, supabase, eventId) {
+  const evs = await supervisorEvents(supabase, sup.number)
+  return evs.some(e => e.id === eventId)
+}
+async function handleSupTsDays(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const eventId = req.query.event_id; if (!eventId) return res.status(400).json({ error: 'event_id required' })
+  if (!(await supEventAllowed(sup, supabase, eventId))) return res.status(403).json({ error: 'Not your event' })
+  return res.status(200).json({ days: await listDays(supabase, eventId) })
+}
+async function handleSupTsSave(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { id, event_id, event_label, company, work_date, rows } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  if (!(await supEventAllowed(sup, supabase, event_id))) return res.status(403).json({ error: 'Not your event' })
+  const day = await saveDay(supabase, { id, event_id, event_label, company, work_date, rows, submitter: sup.name })
+  return res.status(200).json({ ok: true, day })
+}
+async function handleSupTsDelete(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { id } = req.body || {}; if (!id) return res.status(400).json({ error: 'id required' })
+  const { data: day } = await supabase.from('timesheet_days').select('event_id').eq('id', id).maybeSingle()
+  if (day && !(await supEventAllowed(sup, supabase, day.event_id))) return res.status(403).json({ error: 'Not your event' })
+  await deleteDay(supabase, id)
+  return res.status(200).json({ ok: true })
+}
+async function handleSupTsFinalize(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { event_id, signature } = req.body || {}; if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  if (!(await supEventAllowed(sup, supabase, event_id))) return res.status(403).json({ error: 'Not your event' })
+  try { const r = await finalizeEvent(supabase, { event_id, signature, submitter: sup.name }); return res.status(200).json({ ok: true, ...r }) }
+  catch (e) { return res.status(400).json({ error: e.message }) }
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────

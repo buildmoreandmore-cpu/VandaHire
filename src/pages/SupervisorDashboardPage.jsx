@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react'
 import { formatSenderNumber } from '../lib/senderNumbers.js'
-import TimesheetCapture from '../components/TimesheetCapture.jsx'
+import EventTimesheets from '../components/EventTimesheets.jsx'
 
 const PASS_KEY = 'vanda_sup_passcode'
 
 const api = (route) => `/api/worker?route=${route}`
+
+function makeSupTsApi(authFetch) {
+  const j = async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Request failed'); return d }
+  return {
+    listDays: (eventId) => authFetch(`sup-timesheet-days&event_id=${eventId}`).then(j),
+    parseImage: (base64) => authFetch('sup-timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64: base64 }) }).then(j),
+    saveDay: (day) => authFetch('sup-timesheet-save', { method: 'POST', body: JSON.stringify(day) }).then(j),
+    deleteDay: (id) => authFetch('sup-timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) }).then(j),
+    finalize: (eventId, signature) => authFetch('sup-timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id: eventId, signature }) }).then(j),
+  }
+}
 
 export default function SupervisorDashboardPage() {
   const [passcode, setPasscode] = useState(() => { try { return localStorage.getItem(PASS_KEY) || '' } catch { return '' } })
@@ -167,17 +178,9 @@ function EventCrew({ event, authFetch, onReload }) {
         </div>
       </div>
       {showTimesheet && (
-        <TimesheetCapture
-          title={`Timesheet — ${event.title}`}
-          initialEvent={event.title || ''}
-          parseImage={async (base64) => {
-            const r = await authFetch('sup-timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64: base64 }) })
-            const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not read the timesheet'); return d
-          }}
-          submitTimesheet={async (payload) => {
-            const r = await authFetch('sup-timesheet-submit', { method: 'POST', body: JSON.stringify(payload) })
-            const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Submit failed'); return d
-          }}
+        <EventTimesheets
+          event={{ id: event.id, title: event.title }}
+          api={makeSupTsApi(authFetch)}
           onClose={() => setShowTimesheet(false)}
         />
       )}
