@@ -1023,12 +1023,17 @@ async function handleSupervisors(req, res, supabase) {
   }
   if (req.method === 'POST') {
     const { name, number, email } = req.body || {}
-    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name required' })
-    // Passcode: first initial + 8 hex chars, e.g. "M-1a2b3c4d"
-    const initial = String(name).trim()[0].toUpperCase().replace(/[^A-Z]/, 'S')
+    // A supervisor can be created with just a number (name optional).
+    if ((!name || !String(name).trim()) && (!number || !String(number).trim())) {
+      return res.status(400).json({ error: 'Enter a name or a number' })
+    }
+    const cleanNum = number ? String(number).trim() : null
+    const displayName = (name && String(name).trim())
+      || (cleanNum ? cleanNum.replace(/\D/g, '').replace(/^1?(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') : 'Supervisor')
+    const initial = displayName[0].toUpperCase().replace(/[^A-Z]/, 'S')
     const passcode = `${initial}-${crypto.randomBytes(4).toString('hex')}`
     const { data, error } = await supabase.from('supervisors')
-      .insert({ name: String(name).trim(), number: number || null, email: email || null, passcode, active: true })
+      .insert({ name: displayName, number: cleanNum, email: email || null, passcode, active: true })
       .select('id, name, passcode, number, email, active, created_at').single()
     if (error) throw error
     return res.status(200).json(data)

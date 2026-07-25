@@ -21,7 +21,7 @@ export default function SupervisorsPanel() {
   useEffect(() => { load() }, [])
 
   const add = async () => {
-    if (!form.name.trim()) { setError('Name is required'); return }
+    if (!form.name.trim() && !form.number.trim()) { setError('Enter a name or a number'); return }
     setSaving(true); setError('')
     try {
       const created = await createSupervisor(form.name.trim(), form.number || null, form.email || null)
@@ -83,15 +83,15 @@ export default function SupervisorsPanel() {
         <div className="mb-4 bg-p-surface border border-p-border rounded-lg p-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-p-muted text-[10px] block mb-1">Name *</label>
+              <label className="text-p-muted text-[10px] block mb-1">Name <span className="text-p-muted/60">(or leave blank & use number)</span></label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white" placeholder="e.g. Marcus" />
             </div>
             <div>
-              <label className="text-p-muted text-[10px] block mb-1">Text-from line (number)</label>
-              <select value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white">
-                <option value="">No line yet</option>
+              <label className="text-p-muted text-[10px] block mb-1">Number (their line)</label>
+              <input list="sup-lines" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white" placeholder="(470) 555-1234 or pick a line" />
+              <datalist id="sup-lines">
                 {SENDER_NUMBERS.map(s => <option key={s.number} value={s.number}>{s.label} — {formatSenderNumber(s.number)}</option>)}
-              </select>
+              </datalist>
             </div>
             <div>
               <label className="text-p-muted text-[10px] block mb-1">Email</label>

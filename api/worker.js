@@ -8,6 +8,8 @@ import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
 import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
+import { parseTimesheetImage } from '../_lib/anthropic.js'
+import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
 
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -48,6 +50,8 @@ export default async function handler(req, res) {
     if (route === 'sup-login') return await handleSupLogin(req, res, supabase)
     if (route === 'sup-dashboard') return await handleSupDashboard(req, res, supabase)
     if (route === 'sup-message') return await handleSupMessage(req, res, supabase)
+    if (route === 'sup-timesheet-parse') return await handleTimesheetParse(req, res, supabase)
+    if (route === 'sup-timesheet-submit') return await handleTimesheetSubmit(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
     if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
     if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
@@ -620,6 +624,69 @@ async function handleSupMessage(req, res, supabase) {
     }
   }
   return res.status(200).json({ recipients: targetIds.length, sms: { sent: smsSent, failed: smsFailed }, email: { sent: emailSent, failed: emailFailed }, errors })
+}
+
+// ─── TIMESHEET OCR (Claude Vision → review → Excel → email) ─────────────────────
+async function handleTimesheetParse(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase)
+  if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { image_base64 } = req.body || {}
+  if (!image_base64) return res.status(400).json({ error: 'image_base64 required' })
+  try {
+    const parsed = await parseTimesheetImage(image_base64)
+    return res.status(200).json({ ok: true, ...parsed })
+  } catch (err) {
+    console.error('[timesheet-parse]', err.message)
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+async function handleTimesheetSubmit(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase)
+  if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { company, event, days, associate_signature } = req.body || {}
+  if (!Array.isArray(days) || !days.length) return res.status(400).json({ error: 'days[] required' })
+  if (!associate_signature || !String(associate_signature).trim()) return res.status(400).json({ error: 'Signature required to submit' })
+
+  const payload = {
+    company: company || '',
+    event: event || '',
+    associate_signature: String(associate_signature).trim(),
+    days: days.map(d => ({ date: d.date || '', rows: (d.rows || []).filter(r => r && r.name) })),
+  }
+  const totals = timesheetTotals(payload)
+  const xlsxBase64 = buildTimesheetXlsxBase64(payload)
+
+  const evLabel = payload.event || 'Event'
+  const dateLabel = payload.days.map(d => d.date).filter(Boolean).join(', ') || 'n/a'
+  const fname = `Timesheet - ${evLabel} - ${dateLabel}`.replace(/[^\w .-]/g, '').slice(0, 80) + '.xlsx'
+
+  const dayRowsHtml = totals.perDay.map(d => `<tr><td style="padding:4px 10px;border:1px solid #eee">${d.date || '—'}</td><td style="padding:4px 10px;border:1px solid #eee">${d.workers}</td><td style="padding:4px 10px;border:1px solid #eee">${d.total}</td></tr>`).join('')
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px">
+      <h2 style="margin:0 0 4px">Timesheet Submitted — ${evLabel}</h2>
+      <p style="color:#555;margin:0 0 16px">Signed off by <strong>${payload.associate_signature}</strong> (supervisor: ${sup.name}) · Company: ${payload.company || '—'}</p>
+      <table style="border-collapse:collapse;font-size:14px;margin-bottom:12px">
+        <tr><th style="padding:4px 10px;border:1px solid #eee;text-align:left">Date</th><th style="padding:4px 10px;border:1px solid #eee">Workers</th><th style="padding:4px 10px;border:1px solid #eee">Hours</th></tr>
+        ${dayRowsHtml}
+        <tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold" colspan="2">Grand Total</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">${totals.grand}</td></tr>
+      </table>
+      <p style="color:#555;font-size:13px">The full timesheet is attached as an Excel file (one sheet per day${payload.days.length > 1 ? ' + a Summary sheet' : ''}).</p>
+      <p style="color:#999;font-size:12px;margin-top:24px">Submitted via the V&A Hire supervisor dashboard. The supervisor attested this is accurate.</p>
+    </div>`
+
+  try {
+    await sendEmail({
+      to: 'info@vassoc.com',
+      subject: `Timesheet: ${evLabel} — ${dateLabel} (${totals.grand} hrs)`,
+      html,
+      attachments: [{ filename: fname, content: xlsxBase64 }],
+    })
+  } catch (err) {
+    console.error('[timesheet-submit] email failed', err.message)
+    return res.status(500).json({ error: 'Failed to email timesheet: ' + err.message })
+  }
+  return res.status(200).json({ ok: true, totals, filename: fname })
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────

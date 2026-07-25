@@ -61,7 +61,7 @@ export async function isEmailSuppressed(supabase, email) {
 // ── Send ──────────────────────────────────────────────────────────────────────
 // opts.branded   → wrap in the branded template
 // opts.unsubscribeEmail → add an unsubscribe footer link for this recipient
-export async function sendEmail({ to, subject, html, text, branded = false, unsubscribeEmail = null }) {
+export async function sendEmail({ to, subject, html, text, branded = false, unsubscribeEmail = null, attachments = null }) {
   const resend = getClient()
   let finalHtml = html
   if (branded || unsubscribeEmail) {
@@ -69,6 +69,7 @@ export async function sendEmail({ to, subject, html, text, branded = false, unsu
     finalHtml = brandedEmail(html, { unsubscribeUrl })
   }
   const payload = { from: FROM, reply_to: REPLY_TO, to, subject, html: finalHtml, text }
+  if (attachments && attachments.length) payload.attachments = attachments
   if (unsubscribeEmail) {
     // One-click unsubscribe header (Gmail/Apple honor this)
     payload.headers = { 'List-Unsubscribe': `<${SITE_URL}/unsubscribe?t=${makeUnsubToken(unsubscribeEmail)}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
