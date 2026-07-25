@@ -6,22 +6,23 @@ const PASS_KEY = 'vanda_sup_passcode'
 
 const api = (route) => `/api/worker?route=${route}`
 
-function makeSupTsApi(authFetch) {
+function makeSupTsApi(authFetch, adhoc = false) {
   const j = async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Request failed'); return d }
   return {
-    listDays: (eventId) => authFetch(`sup-timesheet-days&event_id=${eventId}`).then(j),
+    listDays: (eventId) => authFetch(`sup-timesheet-days&event_id=${eventId}${adhoc ? '&adhoc=1' : ''}`).then(j),
     parseImage: (base64) => authFetch('sup-timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64: base64 }) }).then(j),
-    saveDay: (day) => authFetch('sup-timesheet-save', { method: 'POST', body: JSON.stringify(day) }).then(j),
-    deleteDay: (id) => authFetch('sup-timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) }).then(j),
-    finalize: (eventId, signature) => authFetch('sup-timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id: eventId, signature }) }).then(j),
+    saveDay: (day) => authFetch('sup-timesheet-save', { method: 'POST', body: JSON.stringify({ ...day, adhoc }) }).then(j),
+    deleteDay: (id) => authFetch('sup-timesheet-delete', { method: 'POST', body: JSON.stringify({ id, adhoc }) }).then(j),
+    finalize: (eventId, signature) => authFetch('sup-timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id: eventId, signature, adhoc }) }).then(j),
   }
 }
 
 export default function SupervisorDashboardPage() {
   const [passcode, setPasscode] = useState(() => { try { return localStorage.getItem(PASS_KEY) || '' } catch { return '' } })
   const [authed, setAuthed] = useState(false)
-  const [me, setMe] = useState(null) // { name, number }
+  const [me, setMe] = useState(null) // { name, number, can_events, can_timesheets }
   const [events, setEvents] = useState([])
+  const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,8 +41,9 @@ export default function SupervisorDashboardPage() {
       if (res.status === 401) { setAuthed(false); localStorage.removeItem(PASS_KEY); throw new Error('Session expired — sign in again.') }
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || 'Failed to load')
-      setMe({ name: d.name, number: d.number })
+      setMe({ name: d.name, number: d.number, can_events: d.can_events, can_timesheets: d.can_timesheets })
       setEvents(d.events || [])
+      setBatches(d.batches || [])
       setAuthed(true)
     } catch (e) { setError(e.message) }
     setLoading(false)
@@ -73,7 +75,7 @@ export default function SupervisorDashboardPage() {
     try {
       const res = await fetch(api('sup-dashboard'), { headers: { 'Authorization': `Bearer ${code}` } })
       const d = await res.json()
-      if (res.ok) { setMe({ name: d.name, number: d.number }); setEvents(d.events || []) }
+      if (res.ok) { setMe({ name: d.name, number: d.number, can_events: d.can_events, can_timesheets: d.can_timesheets }); setEvents(d.events || []); setBatches(d.batches || []) }
     } catch {}
     setLoading(false)
   }
@@ -110,22 +112,88 @@ export default function SupervisorDashboardPage() {
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>Hi {me?.name || 'there'}</h1>
           <button onClick={logout} style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Sign out</button>
         </div>
-        <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
-          Your line: <span style={{ color: '#fff', fontWeight: 600 }}>{formatSenderNumber(me?.number)}</span> · texts you send here come from this number, and worker replies go to it in RingCentral.
-        </p>
+        {me?.can_events !== false && (
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+            Your line: <span style={{ color: '#fff', fontWeight: 600 }}>{me?.number ? formatSenderNumber(me?.number) : 'no line'}</span> · texts you send here come from this number, and worker replies go to it in RingCentral.
+          </p>
+        )}
 
         {error && <div style={{ background: '#331111', border: '1px solid #552222', color: '#ff6666', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
         {loading ? (
-          <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>Loading your crews…</p>
-        ) : events.length === 0 ? (
-          <div style={{ background: '#141414', border: '1px solid #222', borderRadius: 12, padding: 28, textAlign: 'center', color: '#888' }}>
-            No events assigned to your line yet. When a coordinator sets an event's "Text from" to your number, it shows up here.
-          </div>
+          <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>Loading…</p>
         ) : (
-          events.map(ev => <EventCrew key={ev.id} event={ev} authFetch={authFetch} onReload={loadDashboard} />)
+          <>
+            {/* Events (crew messaging + event timesheets) */}
+            {me?.can_events !== false && (
+              events.length === 0 ? (
+                <div style={{ background: '#141414', border: '1px solid #222', borderRadius: 12, padding: 28, textAlign: 'center', color: '#888', marginBottom: 16 }}>
+                  No events assigned to your line yet. When a coordinator sets an event's "Text from" to your number, it shows up here.
+                </div>
+              ) : (
+                events.map(ev => <EventCrew key={ev.id} event={ev} authFetch={authFetch} onReload={loadDashboard} />)
+              )
+            )}
+
+            {/* Standalone timesheets — for supervisors who do timesheets (with or without events) */}
+            {me?.can_timesheets !== false && (
+              <StandaloneTimesheets batches={batches} authFetch={authFetch} onReload={loadDashboard} />
+            )}
+          </>
         )}
       </div>
+    </div>
+  )
+}
+
+function StandaloneTimesheets({ batches, authFetch, onReload }) {
+  const [open, setOpen] = useState(null) // { id, title }
+  const [naming, setNaming] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+
+  const startNew = () => {
+    const title = nameInput.trim() || 'Timesheet'
+    const id = (crypto?.randomUUID?.() || String(Math.random()).slice(2) + Date.now())
+    setOpen({ id, title })
+    setNaming(false); setNameInput('')
+  }
+
+  return (
+    <div style={{ background: '#0e0e0e', border: '1px solid #222', borderRadius: 12, padding: 16, marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Timesheets</div>
+        <button onClick={() => setNaming(v => !v)} style={{ background: '#fff', color: '#000', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ New timesheet</button>
+      </div>
+      <p style={{ color: '#777', fontSize: 12, marginBottom: 10 }}>Scan a handwritten timesheet, review, sign & send to the office — no event needed.</p>
+
+      {naming && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Event / job name (e.g. Mubadala Citi Open)" style={{ flex: 1, minWidth: 180, background: '#141414', border: '1px solid #333', borderRadius: 6, color: '#fff', padding: '8px 10px', fontSize: 13 }} />
+          <button onClick={startNew} style={{ background: '#fff', color: '#000', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Start</button>
+        </div>
+      )}
+
+      {batches.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {batches.map(b => (
+            <div key={b.batch_id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#111', border: '1px solid #222', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{b.label}</div>
+                <div style={{ color: '#888', fontSize: 11 }}>{b.days} day{b.days !== 1 ? 's' : ''} in progress · {b.hours} hrs</div>
+              </div>
+              <button onClick={() => setOpen({ id: b.batch_id, title: b.label })} style={{ background: 'transparent', border: '1px solid #333', color: '#9ecbff', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>Open</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <EventTimesheets
+          event={{ id: open.id, title: open.title }}
+          api={makeSupTsApi(authFetch, true)}
+          onClose={() => { setOpen(null); onReload() }}
+        />
+      )}
     </div>
   )
 }

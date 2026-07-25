@@ -185,8 +185,8 @@ export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delet
 export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })
 
 export const fetchSupervisors = () => adminFetch('/api/admin/supervisors')
-export const createSupervisor = (name, number, email) =>
-  adminFetch('/api/admin/supervisors', { method: 'POST', body: JSON.stringify({ name, number, email }) })
+export const createSupervisor = (name, number, email, access = {}) =>
+  adminFetch('/api/admin/supervisors', { method: 'POST', body: JSON.stringify({ name, number, email, ...access }) })
 export const updateSupervisor = (id, fields) =>
   adminFetch('/api/admin/supervisors', { method: 'PATCH', body: JSON.stringify({ id, ...fields }) })
 export const deleteSupervisor = (id) =>

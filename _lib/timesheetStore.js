@@ -23,6 +23,8 @@ export async function saveDay(supabase, d) {
     status: 'draft',
     updated_at: new Date().toISOString(),
   }
+  if (d.adhoc !== undefined) row.adhoc = !!d.adhoc
+  if (d.supervisor_id !== undefined) row.supervisor_id = d.supervisor_id
   if (d.id) {
     const { data, error } = await supabase.from('timesheet_days').update(row).eq('id', d.id).select().single()
     if (error) throw error

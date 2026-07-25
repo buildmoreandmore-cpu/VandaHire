@@ -2,11 +2,26 @@ import { useState, useEffect } from 'react'
 import { fetchSupervisors, createSupervisor, updateSupervisor, deleteSupervisor } from '../../lib/adminApi.js'
 import { SENDER_NUMBERS, formatSenderNumber } from '../../lib/senderNumbers.js'
 
+// Access presets → the two capability flags.
+function accessFlags(a) {
+  if (a === 'timesheets') return { can_events: false, can_timesheets: true }
+  if (a === 'events') return { can_events: true, can_timesheets: false }
+  return { can_events: true, can_timesheets: true }
+}
+function accessOf(r) {
+  const e = r.can_events !== false, t = r.can_timesheets !== false
+  if (e && t) return 'both'; if (!e && t) return 'timesheets'; if (e && !t) return 'events'; return 'both'
+}
+function accessLabel(r) {
+  const a = accessOf(r)
+  return a === 'timesheets' ? 'Timesheets only' : a === 'events' ? 'Events only' : 'Events + Timesheets'
+}
+
 export default function SupervisorsPanel() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', number: '', email: '' })
+  const [form, setForm] = useState({ name: '', number: '', email: '', access: 'both' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [justCreated, setJustCreated] = useState(null)
@@ -24,10 +39,11 @@ export default function SupervisorsPanel() {
     if (!form.name.trim() && !form.number.trim()) { setError('Enter a name or a number'); return }
     setSaving(true); setError('')
     try {
-      const created = await createSupervisor(form.name.trim(), form.number || null, form.email || null)
+      const a = accessFlags(form.access)
+      const created = await createSupervisor(form.name.trim(), form.number || null, form.email || null, a)
       setRows(prev => [...prev, created])
       setJustCreated(created)
-      setForm({ name: '', number: '', email: '' })
+      setForm({ name: '', number: '', email: '', access: 'both' })
       setShowAdd(false)
     } catch (e) { setError(e.message) }
     setSaving(false)
@@ -36,7 +52,8 @@ export default function SupervisorsPanel() {
   const saveEdit = async (id) => {
     setSaving(true)
     try {
-      const updated = await updateSupervisor(id, { name: editForm.name, number: editForm.number || null, email: editForm.email || null })
+      const a = accessFlags(editForm.access)
+      const updated = await updateSupervisor(id, { name: editForm.name, number: editForm.number || null, email: editForm.email || null, ...a })
       setRows(prev => prev.map(r => r.id === id ? updated : r))
       setEditing(null)
     } catch (e) { alert('Save failed: ' + e.message) }
@@ -109,7 +126,16 @@ export default function SupervisorsPanel() {
               <label className="text-p-muted text-[10px] block mb-1">Email</label>
               <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white" placeholder="optional" />
             </div>
+            <div>
+              <label className="text-p-muted text-[10px] block mb-1">Access</label>
+              <select value={form.access} onChange={e => setForm(f => ({ ...f, access: e.target.value }))} className="w-full bg-p-bg border border-p-border rounded px-2 py-1.5 text-xs text-white">
+                <option value="both">Events + Timesheets</option>
+                <option value="timesheets">Timesheets only (no event needed)</option>
+                <option value="events">Events only</option>
+              </select>
+            </div>
           </div>
+          <p className="text-p-muted text-[10px] mt-1.5">Timesheets-only supervisors don't need a line — they just scan &amp; submit timesheets.</p>
           {error && <div className="text-red-400 text-xs mt-2">{error}</div>}
           <div className="flex gap-2 mt-3">
             <button onClick={add} disabled={saving} className="px-3 py-1.5 rounded-lg bg-p-green text-black text-xs font-semibold disabled:opacity-50">{saving ? 'Adding…' : 'Add'}</button>
@@ -127,11 +153,16 @@ export default function SupervisorsPanel() {
           {rows.map(r => (
             <div key={r.id} className={`bg-p-surface border border-p-border rounded-lg px-4 py-3 ${!r.active ? 'opacity-60' : ''}`}>
               {editing === r.id ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Name" />
                   <input value={editForm.number || ''} onChange={e => setEditForm(f => ({ ...f, number: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Number / line" />
                   <input value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white" placeholder="Email" />
-                  <div className="sm:col-span-3 flex gap-2">
+                  <select value={editForm.access} onChange={e => setEditForm(f => ({ ...f, access: e.target.value }))} className="bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white">
+                    <option value="both">Events + Timesheets</option>
+                    <option value="timesheets">Timesheets only</option>
+                    <option value="events">Events only</option>
+                  </select>
+                  <div className="sm:col-span-4 flex gap-2">
                     <button onClick={() => saveEdit(r.id)} disabled={saving} className="px-3 py-1 rounded bg-p-green text-black text-xs font-semibold disabled:opacity-50">Save</button>
                     <button onClick={() => setEditing(null)} className="text-p-muted text-xs hover:text-white px-2">Cancel</button>
                   </div>
@@ -144,7 +175,7 @@ export default function SupervisorsPanel() {
                       {!r.active && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-p-muted">disabled</span>}
                     </div>
                     <div className="text-p-muted text-xs">
-                      {r.number ? formatSenderNumber(r.number) : 'no line'}{r.email ? ` · ${r.email}` : ''}
+                      {r.number ? formatSenderNumber(r.number) : 'no line'}{r.email ? ` · ${r.email}` : ''} · <span className="text-p-link">{accessLabel(r)}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
@@ -153,7 +184,7 @@ export default function SupervisorsPanel() {
                     <button onClick={() => copy(r.passcode)} className="text-p-link hover:text-white">Copy</button>
                   </div>
                   <div className="flex items-center gap-3 text-xs">
-                    <button onClick={() => { setEditing(r.id); setEditForm({ name: r.name, number: r.number || '', email: r.email || '' }) }} className="text-p-muted hover:text-white">Edit</button>
+                    <button onClick={() => { setEditing(r.id); setEditForm({ name: r.name, number: r.number || '', email: r.email || '', access: accessOf(r) }) }} className="text-p-muted hover:text-white">Edit</button>
                     <button onClick={() => toggleActive(r)} className="text-p-muted hover:text-white">{r.active ? 'Disable' : 'Enable'}</button>
                     <button onClick={() => remove(r)} className="text-red-400 hover:text-red-300">Remove</button>
                   </div>

@@ -543,7 +543,7 @@ async function authSupervisor(req, supabase) {
   const auth = req.headers.authorization || ''
   const passcode = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
   if (!passcode) return null
-  const { data } = await supabase.from('supervisors').select('id, name, number, email, active').eq('passcode', passcode).eq('active', true).maybeSingle()
+  const { data } = await supabase.from('supervisors').select('id, name, number, email, active, can_events, can_timesheets').eq('passcode', passcode).eq('active', true).maybeSingle()
   return data || null
 }
 
@@ -570,23 +570,45 @@ async function handleSupDashboard(req, res, supabase) {
   const sup = await authSupervisor(req, supabase)
   if (!sup) return res.status(401).json({ error: 'Unauthorized' })
   const { name, number } = sup
+  const canEvents = sup.can_events !== false
+  const canTimesheets = sup.can_timesheets !== false
 
-  const events = await supervisorEvents(supabase, number)
-  const eventIds = events.map(e => e.id)
-  let byEvent = {}
-  if (eventIds.length) {
-    const { data: crew } = await supabase.from('assignments')
-      .select('id, event_id, status, is_supervisor, check_in_time, applicants ( id, first_name, last_name, phone )')
-      .in('event_id', eventIds)
-      .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
-      .order('is_supervisor', { ascending: false })
-    for (const a of (crew || [])) {
-      if (!byEvent[a.event_id]) byEvent[a.event_id] = []
-      byEvent[a.event_id].push(a)
+  let withCrew = []
+  if (canEvents) {
+    const events = await supervisorEvents(supabase, number)
+    const eventIds = events.map(e => e.id)
+    let byEvent = {}
+    if (eventIds.length) {
+      const { data: crew } = await supabase.from('assignments')
+        .select('id, event_id, status, is_supervisor, check_in_time, applicants ( id, first_name, last_name, phone )')
+        .in('event_id', eventIds)
+        .in('status', ['invited', 'confirmed', 'checked_in', 'completed'])
+        .order('is_supervisor', { ascending: false })
+      for (const a of (crew || [])) {
+        if (!byEvent[a.event_id]) byEvent[a.event_id] = []
+        byEvent[a.event_id].push(a)
+      }
     }
+    withCrew = events.map(e => ({ ...e, crew: byEvent[e.id] || [] }))
   }
-  const withCrew = events.map(e => ({ ...e, crew: byEvent[e.id] || [] }))
-  return res.status(200).json({ name, number, events: withCrew })
+
+  // In-progress standalone (ad-hoc) timesheet batches owned by this supervisor.
+  let batches = []
+  if (canTimesheets) {
+    const { data: rows } = await supabase.from('timesheet_days')
+      .select('event_id, event_label, company, rows, work_date, created_at')
+      .eq('supervisor_id', sup.id).eq('adhoc', true).eq('status', 'draft')
+      .order('created_at', { ascending: true })
+    const map = {}
+    for (const r of (rows || [])) {
+      const b = map[r.event_id] || (map[r.event_id] = { batch_id: r.event_id, label: r.event_label || 'Untitled', company: r.company || '', days: 0, hours: 0 })
+      b.days++
+      b.hours += (r.rows || []).reduce((a, x) => a + (parseFloat(x.total_hours) || 0), 0)
+    }
+    batches = Object.values(map).map(b => ({ ...b, hours: Math.round(b.hours * 10) / 10 }))
+  }
+
+  return res.status(200).json({ name, number, can_events: canEvents, can_timesheets: canTimesheets, events: withCrew, batches })
 }
 
 async function handleSupMessage(req, res, supabase) {
@@ -694,37 +716,47 @@ async function handleTimesheetSubmit(req, res, supabase) {
   return res.status(200).json({ ok: true, totals, filename: fname })
 }
 
-// Per-event timesheet drafts (save a day at a time, finalize when the event ends).
-async function supEventAllowed(sup, supabase, eventId) {
+// Per-event or standalone (ad-hoc) timesheet drafts. Ad-hoc sheets aren't tied to
+// an event — a timesheets-only supervisor names their own; they're owned by the
+// supervisor (supervisor_id) and gated on can_timesheets.
+async function tsAllowed(sup, supabase, id, adhoc) {
+  if (adhoc) {
+    if (sup.can_timesheets === false) return false
+    const { data } = await supabase.from('timesheet_days').select('supervisor_id').eq('event_id', id).limit(1)
+    if (data && data.length) return data[0].supervisor_id === sup.id
+    return true // brand-new batch
+  }
+  if (sup.can_events === false) return false
   const evs = await supervisorEvents(supabase, sup.number)
-  return evs.some(e => e.id === eventId)
+  return evs.some(e => e.id === id)
 }
 async function handleSupTsDays(req, res, supabase) {
   const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
   const eventId = req.query.event_id; if (!eventId) return res.status(400).json({ error: 'event_id required' })
-  if (!(await supEventAllowed(sup, supabase, eventId))) return res.status(403).json({ error: 'Not your event' })
+  const adhoc = req.query.adhoc === '1' || req.query.adhoc === 'true'
+  if (!(await tsAllowed(sup, supabase, eventId, adhoc))) return res.status(403).json({ error: 'Not allowed' })
   return res.status(200).json({ days: await listDays(supabase, eventId) })
 }
 async function handleSupTsSave(req, res, supabase) {
   const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
-  const { id, event_id, event_label, company, work_date, rows } = req.body || {}
+  const { id, event_id, event_label, company, work_date, rows, adhoc } = req.body || {}
   if (!event_id) return res.status(400).json({ error: 'event_id required' })
-  if (!(await supEventAllowed(sup, supabase, event_id))) return res.status(403).json({ error: 'Not your event' })
-  const day = await saveDay(supabase, { id, event_id, event_label, company, work_date, rows, submitter: sup.name })
+  if (!(await tsAllowed(sup, supabase, event_id, adhoc))) return res.status(403).json({ error: 'Not allowed' })
+  const day = await saveDay(supabase, { id, event_id, event_label, company, work_date, rows, submitter: sup.name, adhoc: !!adhoc, supervisor_id: adhoc ? sup.id : null })
   return res.status(200).json({ ok: true, day })
 }
 async function handleSupTsDelete(req, res, supabase) {
   const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
   const { id } = req.body || {}; if (!id) return res.status(400).json({ error: 'id required' })
-  const { data: day } = await supabase.from('timesheet_days').select('event_id').eq('id', id).maybeSingle()
-  if (day && !(await supEventAllowed(sup, supabase, day.event_id))) return res.status(403).json({ error: 'Not your event' })
+  const { data: day } = await supabase.from('timesheet_days').select('event_id, adhoc').eq('id', id).maybeSingle()
+  if (day && !(await tsAllowed(sup, supabase, day.event_id, day.adhoc))) return res.status(403).json({ error: 'Not allowed' })
   await deleteDay(supabase, id)
   return res.status(200).json({ ok: true })
 }
 async function handleSupTsFinalize(req, res, supabase) {
   const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
-  const { event_id, signature } = req.body || {}; if (!event_id) return res.status(400).json({ error: 'event_id required' })
-  if (!(await supEventAllowed(sup, supabase, event_id))) return res.status(403).json({ error: 'Not your event' })
+  const { event_id, signature, adhoc } = req.body || {}; if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  if (!(await tsAllowed(sup, supabase, event_id, adhoc))) return res.status(403).json({ error: 'Not allowed' })
   try { const r = await finalizeEvent(supabase, { event_id, signature, submitter: sup.name }); return res.status(200).json({ ok: true, ...r }) }
   catch (e) { return res.status(400).json({ error: e.message }) }
 }

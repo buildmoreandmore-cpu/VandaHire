@@ -1080,14 +1080,14 @@ async function handleTsFinalize(req, res, supabase) {
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
     const { data, error } = await supabase.from('supervisors')
-      .select('id, name, passcode, number, email, active, created_at')
+      .select('id, name, passcode, number, email, active, can_events, can_timesheets, created_at')
       .order('created_at', { ascending: true })
     if (error) throw error
     return res.status(200).json(data)
   }
   if (req.method === 'POST') {
-    const { name, number, email } = req.body || {}
-    // A supervisor can be created with just a number (name optional).
+    const { name, number, email, can_events, can_timesheets } = req.body || {}
+    // A supervisor can be created with just a name, or just a number.
     if ((!name || !String(name).trim()) && (!number || !String(number).trim())) {
       return res.status(400).json({ error: 'Enter a name or a number' })
     }
@@ -1097,21 +1097,25 @@ async function handleSupervisors(req, res, supabase) {
     const initial = displayName[0].toUpperCase().replace(/[^A-Z]/, 'S')
     const passcode = `${initial}-${crypto.randomBytes(4).toString('hex')}`
     const { data, error } = await supabase.from('supervisors')
-      .insert({ name: displayName, number: cleanNum, email: email || null, passcode, active: true })
-      .select('id, name, passcode, number, email, active, created_at').single()
+      .insert({ name: displayName, number: cleanNum, email: email || null, passcode, active: true,
+        can_events: can_events !== undefined ? !!can_events : true,
+        can_timesheets: can_timesheets !== undefined ? !!can_timesheets : true })
+      .select('id, name, passcode, number, email, active, can_events, can_timesheets, created_at').single()
     if (error) throw error
     return res.status(200).json(data)
   }
   if (req.method === 'PATCH') {
-    const { id, name, number, email, active } = req.body || {}
+    const { id, name, number, email, active, can_events, can_timesheets } = req.body || {}
     if (!id) return res.status(400).json({ error: 'id required' })
     const updates = {}
     if (name !== undefined) updates.name = String(name).trim()
     if (number !== undefined) updates.number = number || null
     if (email !== undefined) updates.email = email || null
     if (active !== undefined) updates.active = !!active
+    if (can_events !== undefined) updates.can_events = !!can_events
+    if (can_timesheets !== undefined) updates.can_timesheets = !!can_timesheets
     const { data, error } = await supabase.from('supervisors').update(updates).eq('id', id)
-      .select('id, name, passcode, number, email, active, created_at').single()
+      .select('id, name, passcode, number, email, active, can_events, can_timesheets, created_at').single()
     if (error) throw error
     return res.status(200).json(data)
   }
