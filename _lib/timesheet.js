@@ -88,6 +88,28 @@ export function buildProfitXlsxBase64(p) {
   return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' })
 }
 
+// Master payroll grid: one row per worker, a column per date, then Hours,
+// Pay Rate, Payout, Paid — plus a totals row. Mirrors the office spreadsheet.
+// p = { event, dates:[], rows:[{ name, byDate:{date:hrs}, hours, pay_rate, payout, paid }] }
+export function buildPayrollXlsxBase64(p) {
+  const wb = XLSX.utils.book_new()
+  const dates = p.dates || []
+  const header = ['First and Last Name', ...dates, 'Hours', 'Pay Rate', 'Payout', 'Paid']
+  const aoa = [header]
+  const dayTotals = dates.map(() => 0)
+  let totHours = 0, totPayout = 0
+  for (const r of (p.rows || [])) {
+    const cells = dates.map((d, i) => { const v = num(r.byDate?.[d]); dayTotals[i] += v; return v || '' })
+    totHours += num(r.hours); totPayout += num(r.payout)
+    aoa.push([r.name, ...cells, round(num(r.hours)), r.pay_rate != null ? num(r.pay_rate) : '', r.payout != null ? round(num(r.payout)) : '', r.paid ? 'Paid' : ''])
+  }
+  aoa.push(['TOTAL', ...dayTotals.map(v => round(v)), round(totHours), '', round(totPayout), ''])
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{ wch: 24 }, ...dates.map(() => ({ wch: 8 })), { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 8 }]
+  XLSX.utils.book_append_sheet(wb, ws, 'Payroll')
+  return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' })
+}
+
 export function timesheetTotals(payload) {
   let grand = 0
   const perDay = payload.days.map(d => {

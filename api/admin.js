@@ -11,7 +11,7 @@ import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
-import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64, OFFICE_EMAILS } from '../_lib/timesheet.js'
+import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64, buildPayrollXlsxBase64, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
@@ -1216,6 +1216,104 @@ async function handleTimesheetResend(req, res, supabase) {
   return res.status(200).json({ ok: true, totals, filename: fname, sent_to: OFFICE_EMAILS })
 }
 
+// ─── MASTER PAYROLL (pivot scanned timesheets → worker×date grid + payout) ──────
+function payrollNameKey(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ') }
+
+async function buildPayrollPivot(supabase, event_id) {
+  const { data: days } = await supabase.from('timesheet_days')
+    .select('work_date, rows, created_at').eq('event_id', event_id).order('created_at', { ascending: true })
+  const dates = []; const seen = new Set(); const byName = {}
+  for (const d of (days || [])) {
+    const date = d.work_date || 'Day'
+    if (!seen.has(date)) { seen.add(date); dates.push(date) }
+    for (const r of (d.rows || [])) {
+      if (!r.name) continue
+      const key = payrollNameKey(r.name)
+      const rec = byName[key] || (byName[key] = { name: String(r.name).trim(), key, byDate: {}, total: 0 })
+      const h = parseFloat(r.total_hours) || 0
+      rec.byDate[date] = Math.round(((rec.byDate[date] || 0) + h) * 10) / 10
+      rec.total = Math.round((rec.total + h) * 10) / 10
+    }
+  }
+  return { dates, workers: Object.values(byName) }
+}
+
+async function handlePayroll(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { event_id } = req.query
+    if (!event_id) return res.status(400).json({ error: 'event_id required' })
+    const pivot = await buildPayrollPivot(supabase, event_id)
+
+    // Match names → applicants (for saved pay rate + linkage).
+    const { data: apps } = await supabase.from('applicants').select('id, first_name, last_name, pay_rate')
+    const appByName = {}
+    for (const a of (apps || [])) appByName[payrollNameKey(`${a.first_name || ''} ${a.last_name || ''}`)] = a
+
+    const { data: existing } = await supabase.from('payroll_lines').select('*').eq('event_id', event_id)
+    const lineByKey = {}
+    for (const l of (existing || [])) lineByKey[l.name_key] = l
+
+    const out = []
+    for (const w of pivot.workers) {
+      let line = lineByKey[w.key]
+      const app = appByName[w.key]
+      if (!line) {
+        const rate = app?.pay_rate != null ? app.pay_rate : null
+        const { data: created } = await supabase.from('payroll_lines').insert({
+          event_id, name: w.name, name_key: w.key, applicant_id: app?.id || null, hours: w.total, pay_rate: rate, paid: false,
+        }).select().single()
+        line = created
+      } else if (Number(line.hours) !== w.total || (!line.applicant_id && app)) {
+        // Refresh hours from timesheets (keep manual rate/paid).
+        const { data: upd } = await supabase.from('payroll_lines').update({ hours: w.total, applicant_id: line.applicant_id || app?.id || null, updated_at: new Date().toISOString() }).eq('id', line.id).select().single()
+        line = upd
+      }
+      const rate = line.pay_rate != null ? Number(line.pay_rate) : null
+      out.push({ id: line.id, name: w.name, applicant_id: line.applicant_id, byDate: w.byDate, hours: w.total, pay_rate: rate, payout: rate != null ? Math.round(w.total * rate * 100) / 100 : null, paid: !!line.paid })
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name))
+    return res.status(200).json({ dates: pivot.dates, workers: out })
+  }
+
+  if (req.method === 'PATCH') {
+    const { id, pay_rate, paid } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const updates = { updated_at: new Date().toISOString() }
+    if (pay_rate !== undefined) updates.pay_rate = pay_rate === '' || pay_rate == null ? null : parseFloat(pay_rate)
+    if (paid !== undefined) { updates.paid = !!paid; updates.paid_at = paid ? new Date().toISOString() : null }
+    const { data: line, error } = await supabase.from('payroll_lines').update(updates).eq('id', id).select().single()
+    if (error) throw error
+    // Remember the rate on the worker so it pre-fills next time.
+    if (pay_rate !== undefined && line.applicant_id && updates.pay_rate != null) {
+      await supabase.from('applicants').update({ pay_rate: updates.pay_rate }).eq('id', line.applicant_id)
+    }
+    return res.status(200).json({ ok: true, line })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+async function handlePayrollExport(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { event_id } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  const { data: ev } = await supabase.from('events').select('title').eq('id', event_id).single()
+  const pivot = await buildPayrollPivot(supabase, event_id)
+  const { data: lines } = await supabase.from('payroll_lines').select('*').eq('event_id', event_id)
+  const lineByKey = {}; for (const l of (lines || [])) lineByKey[l.name_key] = l
+  const rows = pivot.workers.map(w => {
+    const l = lineByKey[w.key] || {}
+    const rate = l.pay_rate != null ? Number(l.pay_rate) : null
+    return { name: w.name, byDate: w.byDate, hours: w.total, pay_rate: rate, payout: rate != null ? Math.round(w.total * rate * 100) / 100 : null, paid: !!l.paid }
+  }).sort((a, b) => a.name.localeCompare(b.name))
+  const xlsx = buildPayrollXlsxBase64({ event: ev?.title || 'Event', dates: pivot.dates, rows })
+  const total = Math.round(rows.reduce((a, r) => a + (r.payout || 0), 0) * 100) / 100
+  const hrs = Math.round(rows.reduce((a, r) => a + (r.hours || 0), 0) * 10) / 10
+  const fname = `Master Payroll - ${(ev?.title || 'Event')}`.replace(/[^\w .-]/g, '').slice(0, 70) + '.xlsx'
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:20px"><h2 style="margin:0 0 4px">Master Payroll — ${ev?.title || 'Event'}</h2><p style="color:#555">${rows.length} workers · ${hrs} total hours · <strong>$${total.toFixed(2)} total payout</strong></p><p style="color:#888;font-size:13px">Full grid (worker × date, hours, pay rate, payout, paid) attached as Excel.</p></div>`
+  await sendEmail({ to: OFFICE_EMAILS, subject: `Payroll: ${ev?.title || 'Event'} — $${total.toFixed(2)} (${rows.length} workers)`, html, attachments: [{ filename: fname, content: xlsx }] })
+  return res.status(200).json({ ok: true, total, hours: hrs, workers: rows.length, filename: fname })
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -2113,6 +2211,8 @@ export default async function handler(req, res) {
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)
       case 'timesheet-resend': return await handleTimesheetResend(req, res, supabase)
+      case 'payroll': return await handlePayroll(req, res, supabase)
+      case 'payroll-export': return await handlePayrollExport(req, res, supabase)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)

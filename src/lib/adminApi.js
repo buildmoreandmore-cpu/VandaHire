@@ -184,6 +184,10 @@ export const saveTimesheetDay = (day) => adminFetch('/api/admin/timesheet-save',
 export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) })
 export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })
 
+export const fetchPayroll = (eventId) => adminFetch(`/api/admin/payroll?event_id=${eventId}`)
+export const updatePayrollLine = (id, fields) => adminFetch('/api/admin/payroll', { method: 'PATCH', body: JSON.stringify({ id, ...fields }) })
+export const exportPayroll = (event_id) => adminFetch('/api/admin/payroll-export', { method: 'POST', body: JSON.stringify({ event_id }) })
+
 export const fetchEventProfit = (eventId) => adminFetch(`/api/admin/event-profit?event_id=${eventId}`)
 export const emailProfit = (event_id, revenue, labor) => adminFetch('/api/admin/profit-email', { method: 'POST', body: JSON.stringify({ event_id, revenue, labor }) })
 export const fetchExpenses = (eventId) => adminFetch(`/api/admin/expenses?event_id=${eventId}`)

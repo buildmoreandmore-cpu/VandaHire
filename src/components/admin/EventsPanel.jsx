@@ -3,6 +3,7 @@ import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignment
 import MessageTemplates from './MessageTemplates.jsx'
 import { SENDER_NUMBERS, senderLabel } from '../../lib/senderNumbers.js'
 import ProfitPanel from './ProfitPanel.jsx'
+import PayrollPanel from './PayrollPanel.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -146,6 +147,7 @@ export default function EventsPanel() {
   const [showBilling, setShowBilling] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
   const [profitEvent, setProfitEvent] = useState(null)
+  const [payrollEvent, setPayrollEvent] = useState(null)
   const [showBench, setShowBench] = useState(false)
 
   // Event edit/delete
@@ -847,6 +849,9 @@ export default function EventsPanel() {
       {profitEvent && (
         <ProfitPanel event={{ id: profitEvent.id, title: profitEvent.title }} onClose={() => setProfitEvent(null)} />
       )}
+      {payrollEvent && (
+        <PayrollPanel event={{ id: payrollEvent.id, title: payrollEvent.title }} onClose={() => setPayrollEvent(null)} />
+      )}
 
       {/* Templates Panel (Feature 11) */}
       {showTemplates && (
@@ -1200,11 +1205,15 @@ export default function EventsPanel() {
                   </div>}
                   </div>
 
-                  {/* Profit / P&L */}
-                  <div className="mb-3">
+                  {/* Money tools */}
+                  <div className="mb-3 flex gap-2">
                     <button onClick={() => setProfitEvent(ev)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-p-border text-white text-xs font-semibold hover:border-p-muted transition-colors">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                       Profit / Net
+                    </button>
+                    <button onClick={() => setPayrollEvent(ev)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-p-border text-white text-xs font-semibold hover:border-p-muted transition-colors">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+                      Master Payroll
                     </button>
                   </div>
 
