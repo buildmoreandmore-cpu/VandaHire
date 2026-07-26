@@ -8,7 +8,8 @@ import { sendSms } from '../_lib/sms.js'
 import { calculatePay } from '../_lib/pay.js'
 import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
-import { parseTimesheetImage } from '../_lib/anthropic.js'
+import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
+import { createIntakeApplicant } from '../_lib/intake.js'
 import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
 import { listDays, saveDay, deleteDay, finalizeEvent } from '../_lib/timesheetStore.js'
 
@@ -57,6 +58,8 @@ export default async function handler(req, res) {
     if (route === 'sup-timesheet-save') return await handleSupTsSave(req, res, supabase)
     if (route === 'sup-timesheet-delete') return await handleSupTsDelete(req, res, supabase)
     if (route === 'sup-timesheet-finalize') return await handleSupTsFinalize(req, res, supabase)
+    if (route === 'sup-application-parse') return await handleSupAppParse(req, res, supabase)
+    if (route === 'sup-intake-applicant') return await handleSupIntake(req, res, supabase)
     if (route === 'pin-setup') return await handlePinSetup(req, res, supabase)
     if (route === 'pin-verify') return await handlePinVerify(req, res, supabase)
     if (route === 'pin-reset-request') return await handlePinResetRequest(req, res, supabase)
@@ -759,6 +762,23 @@ async function handleSupTsFinalize(req, res, supabase) {
   if (!(await tsAllowed(sup, supabase, event_id, adhoc))) return res.status(403).json({ error: 'Not allowed' })
   try { const r = await finalizeEvent(supabase, { event_id, signature, submitter: sup.name }); return res.status(200).json({ ok: true, ...r }) }
   catch (e) { return res.status(400).json({ error: e.message }) }
+}
+
+// In-person hiring intake for supervisors (scan/quick-add → create + send ID/W-9).
+async function handleSupAppParse(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  const { image_base64 } = req.body || {}
+  if (!image_base64) return res.status(400).json({ error: 'image_base64 required' })
+  try { return res.status(200).json({ ok: true, ...(await parseApplicationImage(image_base64)) }) }
+  catch (e) { return res.status(500).json({ error: e.message }) }
+}
+async function handleSupIntake(req, res, supabase) {
+  const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })
+  try {
+    const r = await createIntakeApplicant(supabase, { ...(req.body || {}), notes: (req.body?.notes) || `Added in person by ${sup.name}.` })
+    if (r.error) return res.status(r.status || 400).json({ error: r.error })
+    return res.status(200).json(r)
+  } catch (e) { return res.status(500).json({ error: e.message }) }
 }
 
 // ─── INCIDENTS ────────────────────────────────────────────────────────────────

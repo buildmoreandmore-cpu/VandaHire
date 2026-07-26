@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react'
 import { formatSenderNumber } from '../lib/senderNumbers.js'
 import EventTimesheets from '../components/EventTimesheets.jsx'
+import InPersonIntake from '../components/admin/InPersonIntake.jsx'
 
 const PASS_KEY = 'vanda_sup_passcode'
 
 const api = (route) => `/api/worker?route=${route}`
+
+function makeSupIntakeApi(authFetch) {
+  const j = async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Request failed'); return d }
+  return {
+    parse: (base64) => authFetch('sup-application-parse', { method: 'POST', body: JSON.stringify({ image_base64: base64 }) }).then(j),
+    submit: (fields) => authFetch('sup-intake-applicant', { method: 'POST', body: JSON.stringify(fields) }).then(j),
+  }
+}
 
 function makeSupTsApi(authFetch, adhoc = false) {
   const j = async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Request failed'); return d }
@@ -28,6 +37,7 @@ export default function SupervisorDashboardPage() {
 
   const [loginInput, setLoginInput] = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
+  const [showIntake, setShowIntake] = useState(false)
 
   const authFetch = (route, opts = {}) => fetch(api(route), {
     ...opts,
@@ -108,10 +118,15 @@ export default function SupervisorDashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '28px 18px 60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>Hi {me?.name || 'there'}</h1>
-          <button onClick={logout} style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Sign out</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setShowIntake(true)} style={{ background: '#fff', color: '#000', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add applicant</button>
+            <a href="/apply-print" target="_blank" rel="noopener noreferrer" style={{ background: 'transparent', border: '1px solid #333', color: '#9ecbff', padding: '6px 12px', borderRadius: 6, fontSize: 12, textDecoration: 'none' }}>Print application</a>
+            <button onClick={logout} style={{ background: 'transparent', border: '1px solid #333', color: '#888', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Sign out</button>
+          </div>
         </div>
+        {showIntake && <InPersonIntake api={makeSupIntakeApi(authFetch)} onClose={() => setShowIntake(false)} onCreated={() => {}} />}
         {me?.can_events !== false && (
           <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
             Your line: <span style={{ color: '#fff', fontWeight: 600 }}>{me?.number ? formatSenderNumber(me?.number) : 'no line'}</span> · texts you send here come from this number, and worker replies go to it in RingCentral.

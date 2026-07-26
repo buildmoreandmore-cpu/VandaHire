@@ -2,6 +2,9 @@ import { useState } from 'react'
 import imageCompression from 'browser-image-compression'
 import { parseApplication, intakeApplicant } from '../../lib/adminApi.js'
 
+// Default API = coordinator (admin). Supervisor dashboard passes its own.
+const coordinatorApi = { parse: (b64) => parseApplication(b64), submit: (fields) => intakeApplicant(fields) }
+
 const ROLES = [
   { value: 'janitorial', label: 'Janitorial' },
   { value: 'cleanup', label: 'Cleanup' },
@@ -15,7 +18,7 @@ const AVAILABILITY = [
   { value: 'on_call', label: 'On-Call' },
 ]
 
-export default function InPersonIntake({ onClose, onCreated }) {
+export default function InPersonIntake({ onClose, onCreated, api = coordinatorApi }) {
   const [f, setF] = useState({ first_name: '', last_name: '', phone: '', email: '', city: '', zip: '', roles: [], availability: [], notes: '' })
   const [scanning, setScanning] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -31,7 +34,7 @@ export default function InPersonIntake({ onClose, onCreated }) {
     try {
       const c = await imageCompression(file, { maxSizeMB: 1.2, maxWidthOrHeight: 2200, useWebWorker: true, fileType: 'image/jpeg' })
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(c) })
-      const d = await parseApplication(base64)
+      const d = await api.parse(base64)
       setF(p => ({
         ...p,
         first_name: d.first_name || p.first_name,
@@ -51,7 +54,7 @@ export default function InPersonIntake({ onClose, onCreated }) {
   const submit = async () => {
     if (!f.first_name.trim() || f.phone.replace(/\D/g, '').length < 10) { setError('First name and a valid phone are required.'); return }
     setSaving(true); setError('')
-    try { const r = await intakeApplicant(f); setResult(r); onCreated?.() }
+    try { const r = await api.submit(f); setResult(r); onCreated?.() }
     catch (e) { setError(e.message) }
     setSaving(false)
   }
