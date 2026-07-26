@@ -81,6 +81,63 @@ export async function parseTimesheetImage(base64, mediaType = 'image/jpeg') {
   return out
 }
 
+// Transcribe a handwritten V&A job application photo into structured fields.
+const APP_SYSTEM = `You transcribe handwritten event-staffing job applications into structured data.
+Read exactly what is written. Map roles/availability/experience to the closest allowed values.
+Roles: janitorial, cleanup, setup_breakdown, brand_activation, general_labor.
+Availability: weekdays, weekends, on_call.
+Experience: event_staffing, warehouse, food_service, retail, cleaning, moving, security, none.
+Windows: morning, afternoon, evening, overnight, flexible.
+Leave a field blank/empty array if not present or unreadable. Return ONLY the tool call.`
+
+const APP_TOOL = {
+  name: 'record_application',
+  description: 'Record the transcribed job application.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      first_name: { type: 'string' },
+      last_name: { type: 'string' },
+      phone: { type: 'string' },
+      email: { type: 'string' },
+      city: { type: 'string' },
+      zip: { type: 'string' },
+      roles: { type: 'array', items: { type: 'string' } },
+      availability: { type: 'array', items: { type: 'string' } },
+      experience_types: { type: 'array', items: { type: 'string' } },
+      availability_windows: { type: 'array', items: { type: 'string' } },
+      has_transportation: { type: 'string', description: 'yes/no/blank' },
+      short_notice: { type: 'string', description: 'yes/sometimes/no/blank' },
+      notes: { type: 'string' },
+    },
+    required: ['first_name'],
+  },
+}
+
+export async function parseApplicationImage(base64, mediaType = 'image/jpeg') {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
+  const data = base64.replace(/^data:image\/\w+;base64,/, '')
+  const mt = /^data:(image\/\w+);/.exec(base64)?.[1] || mediaType
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL, max_tokens: 1500, system: APP_SYSTEM,
+      tools: [APP_TOOL], tool_choice: { type: 'tool', name: 'record_application' },
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: mt, data } },
+        { type: 'text', text: 'Transcribe this job application.' },
+      ] }],
+    }),
+  })
+  if (!res.ok) throw new Error(`Claude API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`)
+  const json = await res.json()
+  const toolUse = (json.content || []).find(c => c.type === 'tool_use')
+  if (!toolUse) throw new Error('No structured output from Claude')
+  return toolUse.input || {}
+}
+
 function computeHours(start, end) {
   const p = (t) => {
     const m = /(\d{1,2}):?(\d{2})?\s*([ap]\.?m\.?)?/i.exec(String(t || ''))

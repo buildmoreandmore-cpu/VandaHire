@@ -190,6 +190,9 @@ export const fetchExpenses = (eventId) => adminFetch(`/api/admin/expenses?event_
 export const addExpense = (event_id, description, amount) => adminFetch('/api/admin/expenses', { method: 'POST', body: JSON.stringify({ event_id, description, amount }) })
 export const deleteExpense = (id) => adminFetch('/api/admin/expenses', { method: 'DELETE', body: JSON.stringify({ id }) })
 
+export const parseApplication = (image_base64) => adminFetch('/api/admin/application-parse', { method: 'POST', body: JSON.stringify({ image_base64 }) })
+export const intakeApplicant = (fields) => adminFetch('/api/admin/intake-applicant', { method: 'POST', body: JSON.stringify(fields) })
+
 export const fetchSupervisors = () => adminFetch('/api/admin/supervisors')
 export const createSupervisor = (name, number, email, access = {}) =>
   adminFetch('/api/admin/supervisors', { method: 'POST', body: JSON.stringify({ name, number, email, ...access }) })

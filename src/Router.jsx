@@ -18,6 +18,7 @@ import VideoVerifyPage from './pages/VideoVerifyPage.jsx'
 import W9FormPage from './pages/W9FormPage.jsx'
 import BgCheckPage from './pages/BgCheckPage.jsx'
 import IdUploadPage from './pages/IdUploadPage.jsx'
+import ApplyPrintPage from './pages/ApplyPrintPage.jsx'
 import SupervisorPortalPage from './pages/SupervisorPortalPage.jsx'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
 import HiringPage from './pages/HiringPage.jsx'
@@ -343,6 +344,8 @@ export default function Router() {
     page = <App groupCode={code} />
   } else if (path === '/apply') {
     page = <App startScreen="application" />
+  } else if (path === '/apply-print') {
+    page = <ApplyPrintPage />
   } else if (path === '/hiring') {
     page = <HiringPage />
   } else if (path === '/support') {

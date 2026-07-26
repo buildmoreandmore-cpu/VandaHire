@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import imageCompression from 'browser-image-compression'
 import MessageTemplates from './MessageTemplates.jsx'
+import InPersonIntake from './InPersonIntake.jsx'
 import { fetchApplicants, updateApplicant, editApplicant, deleteApplicant, fetchEvents, createAssignments, bulkUpdateStatus, sendAdminMessage, resetWorkerPin, downloadW9Csv, downloadWorkersCsv, adminUploadId, fetchApplicantNotes, createApplicantNote, deleteApplicantNote, bulkMessage, fetchSegments, createSegment, deleteSegment, fetchCampaigns, resendUnopened, createScheduledMessage } from '../../lib/adminApi.js'
 
 const EMAIL_STATUS_COLORS = {
@@ -144,6 +145,7 @@ export default function ApplicantsPanel() {
   }
 
   // Email campaigns (resend to non-openers)
+  const [showIntake, setShowIntake] = useState(false)
   const [showCampaigns, setShowCampaigns] = useState(false)
   const [campaigns, setCampaigns] = useState([])
   const [campaignsLoading, setCampaignsLoading] = useState(false)
@@ -484,6 +486,8 @@ export default function ApplicantsPanel() {
 
   return (
     <div>
+      {showIntake && <InPersonIntake onClose={() => setShowIntake(false)} onCreated={() => load()} />}
+
       {/* Quick Stats (Feature 6) */}
       {!loading && applicants.length > 0 && (
         <div className="flex gap-4 mb-3 overflow-x-auto pb-1">
@@ -562,6 +566,14 @@ export default function ApplicantsPanel() {
           {segments.map(s => <option key={'d'+s.id} value={'__del:'+s.id}>✕ {s.name}</option>)}
         </select>
         <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => setShowIntake(true)}
+            className="inline-flex items-center gap-1.5 bg-p-green text-black rounded-lg px-3 py-1.5 text-xs font-semibold hover:opacity-90 transition-opacity"
+            title="Add an applicant in person (hiring event)"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+            In-person
+          </button>
           <button
             onClick={openCampaigns}
             className="inline-flex items-center gap-1.5 bg-p-surface border border-p-border text-p-muted hover:text-white hover:border-p-muted rounded-lg px-3 py-1.5 text-xs transition-colors"
