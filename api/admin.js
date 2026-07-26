@@ -1195,6 +1195,27 @@ async function handleProfitEmail(req, res, supabase) {
   return res.status(200).json({ ok: true, net, margin, filename: fname })
 }
 
+// Resend a completed event's timesheet (rebuild from saved days, email the office).
+async function handleTimesheetResend(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { event_id } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  const { data: days } = await supabase.from('timesheet_days')
+    .select('event_label, company, work_date, rows, submitter').eq('event_id', event_id).order('created_at', { ascending: true })
+  if (!days || !days.length) return res.status(404).json({ error: 'No timesheet days for this event' })
+  const company = days.find(d => d.company)?.company || ''
+  const event = days.find(d => d.event_label)?.event_label || 'Event'
+  const payload = { company, event, associate_signature: days.find(d => d.submitter)?.submitter || 'Resent', days: days.map(d => ({ date: d.work_date || '', rows: d.rows || [] })) }
+  const totals = timesheetTotals(payload)
+  const xlsx = buildTimesheetXlsxBase64(payload)
+  const dateLabel = payload.days.map(d => d.date).filter(Boolean).join(', ') || 'n/a'
+  const fname = `Timesheet - ${event} - ${dateLabel}`.replace(/[^\w .-]/g, '').slice(0, 80) + '.xlsx'
+  const dayRowsHtml = totals.perDay.map(d => `<tr><td style="padding:4px 10px;border:1px solid #eee">${d.date || '—'}</td><td style="padding:4px 10px;border:1px solid #eee">${d.workers}</td><td style="padding:4px 10px;border:1px solid #eee">${d.total}</td></tr>`).join('')
+  const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px"><h2 style="margin:0 0 4px">Timesheet — ${event}</h2><p style="color:#555;margin:0 0 16px">Company: ${company || '—'} · ${payload.days.length} day(s)</p><table style="border-collapse:collapse;font-size:14px;margin-bottom:12px"><tr><th style="padding:4px 10px;border:1px solid #eee;text-align:left">Date</th><th style="padding:4px 10px;border:1px solid #eee">Workers</th><th style="padding:4px 10px;border:1px solid #eee">Hours</th></tr>${dayRowsHtml}<tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold" colspan="2">Grand Total</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">${totals.grand}</td></tr></table><p style="color:#555;font-size:13px">Full timesheet attached as Excel.</p></div>`
+  await sendEmail({ to: OFFICE_EMAILS, subject: `Timesheet: ${event} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsx }] })
+  return res.status(200).json({ ok: true, totals, filename: fname, sent_to: OFFICE_EMAILS })
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -2091,6 +2112,7 @@ export default async function handler(req, res) {
       case 'timesheet-save': return await handleTsSave(req, res, supabase)
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)
+      case 'timesheet-resend': return await handleTimesheetResend(req, res, supabase)
       case 'quotes': return await handleQuotes(req, res, supabase)
       case 'payments': return await handlePayments(req, res, supabase)
       case 'exit-records': return await handleExitRecords(req, res, supabase)
