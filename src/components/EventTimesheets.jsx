@@ -103,6 +103,7 @@ export default function EventTimesheets({ event, api, onClose }) {
 function DayCapture({ event, api, onCancel, onSaved }) {
   const [company, setCompany] = useState('')
   const [workDate, setWorkDate] = useState('')
+  const [shift, setShift] = useState('') // '', 'Day', 'Night' — for events with different day/night crews
   const [rows, setRows] = useState([])
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -129,7 +130,10 @@ function DayCapture({ event, api, onCancel, onSaved }) {
     if (!rows.length) { setError('Add a photo or a row first.'); return }
     setSaving(true); setError('')
     try {
-      await api.saveDay({ event_id: event.id, event_label: event.title, company, work_date: workDate, rows })
+      // Day/Night: tag the entry so a date with different day vs night crews
+      // becomes its own column on the master payroll (staff can change per shift).
+      const label = shift ? `${workDate || 'Date'} — ${shift}` : workDate
+      await api.saveDay({ event_id: event.id, event_label: event.title, company, work_date: label, rows })
       onSaved()
     } catch (e) { setError(e.message) }
     setSaving(false)
@@ -140,6 +144,17 @@ function DayCapture({ event, api, onCancel, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
         <div><label style={{ color: '#888', fontSize: 11 }}>Company</label><input style={inp} value={company} onChange={e => setCompany(e.target.value)} placeholder="e.g. Venue Smart" /></div>
         <div><label style={{ color: '#888', fontSize: 11 }}>Date</label><input style={inp} value={workDate} onChange={e => setWorkDate(e.target.value)} placeholder="e.g. July 24, 2026" /></div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ color: '#888', fontSize: 11, display: 'block', marginBottom: 4 }}>Shift (only if this event runs day &amp; night with different crews)</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['', 'Day', 'Night'].map(s => (
+            <button key={s || 'none'} type="button" onClick={() => setShift(s)}
+              style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', border: '1px solid ' + (shift === s ? '#4ade80' : '#333'), background: shift === s ? '#4ade80' : 'transparent', color: shift === s ? '#000' : '#aaa', fontWeight: shift === s ? 700 : 400 }}>
+              {s || 'Whole day'}
+            </button>
+          ))}
+        </div>
       </div>
       <label style={{ display: 'block', border: '2px dashed #333', borderRadius: 10, padding: 16, textAlign: 'center', color: parsing ? '#666' : '#9ecbff', cursor: parsing ? 'default' : 'pointer', fontSize: 13, marginBottom: 12 }}>
         <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} disabled={parsing} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f) }} />
