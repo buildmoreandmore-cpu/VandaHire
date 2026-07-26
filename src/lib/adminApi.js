@@ -185,6 +185,7 @@ export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delet
 export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })
 
 export const fetchEventProfit = (eventId) => adminFetch(`/api/admin/event-profit?event_id=${eventId}`)
+export const emailProfit = (event_id, revenue, labor) => adminFetch('/api/admin/profit-email', { method: 'POST', body: JSON.stringify({ event_id, revenue, labor }) })
 export const fetchExpenses = (eventId) => adminFetch(`/api/admin/expenses?event_id=${eventId}`)
 export const addExpense = (event_id, description, amount) => adminFetch('/api/admin/expenses', { method: 'POST', body: JSON.stringify({ event_id, description, amount }) })
 export const deleteExpense = (id) => adminFetch('/api/admin/expenses', { method: 'DELETE', body: JSON.stringify({ id }) })

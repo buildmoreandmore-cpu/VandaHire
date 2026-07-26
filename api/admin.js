@@ -10,7 +10,7 @@ import { sendPushToWorker } from '../_lib/push.js'
 import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { parseTimesheetImage } from '../_lib/anthropic.js'
-import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
+import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64 } from '../_lib/timesheet.js'
 import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
@@ -1139,6 +1139,43 @@ async function handleEventProfit(req, res, supabase) {
   })
 }
 
+// Email a P&L (Profit sheet) to the office — the net travels with the file.
+async function handleProfitEmail(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { event_id, revenue, labor } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: ev } = await supabase.from('events').select('title, organizer').eq('id', event_id).single()
+  const { data: tsDays } = await supabase.from('timesheet_days').select('rows, company').eq('event_id', event_id)
+  let hours = 0; const names = new Set(); let company = ''
+  for (const d of (tsDays || [])) { if (d.company && !company) company = d.company; for (const r of (d.rows || [])) { hours += parseFloat(r.total_hours) || 0; if (r.name) names.add(String(r.name).trim().toLowerCase()) } }
+  const { data: expenses } = await supabase.from('event_expenses').select('description, amount').eq('event_id', event_id).order('created_at', { ascending: true })
+  const expTotal = (expenses || []).reduce((a, e) => a + (parseFloat(e.amount) || 0), 0)
+  const rev = parseFloat(revenue) || 0
+  const lab = parseFloat(labor) || 0
+  const net = Math.round((rev - lab - expTotal) * 100) / 100
+  const margin = rev > 0 ? Math.round((net / rev) * 1000) / 10 : null
+
+  const xlsx = buildProfitXlsxBase64({ event: ev?.title || 'Event', company, hours: Math.round(hours * 10) / 10, worker_count: names.size, revenue: rev, labor: lab, expenses: expenses || [], net, margin })
+  const fname = `Profit - ${(ev?.title || 'Event')}`.replace(/[^\w .-]/g, '').slice(0, 70) + '.xlsx'
+  const expHtml = (expenses || []).map(e => `<tr><td style="padding:3px 10px;border:1px solid #eee">${e.description || '(expense)'}</td><td style="padding:3px 10px;border:1px solid #eee">-$${(parseFloat(e.amount) || 0).toFixed(2)}</td></tr>`).join('')
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:20px">
+    <h2 style="margin:0 0 4px">Profit / Net — ${ev?.title || 'Event'}</h2>
+    <p style="color:#555;margin:0 0 14px">${Math.round(hours * 10) / 10} hrs · ${names.size} workers${company ? ' · ' + company : ''}</p>
+    <table style="border-collapse:collapse;font-size:14px">
+      <tr><td style="padding:4px 10px;border:1px solid #eee">Revenue</td><td style="padding:4px 10px;border:1px solid #eee">$${rev.toFixed(2)}</td></tr>
+      <tr><td style="padding:4px 10px;border:1px solid #eee">Labor</td><td style="padding:4px 10px;border:1px solid #eee">-$${lab.toFixed(2)}</td></tr>
+      ${expHtml}
+      <tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">NET</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold;color:${net >= 0 ? '#16794a' : '#b42318'}">$${net.toFixed(2)}${margin != null ? ` (${margin}%)` : ''}</td></tr>
+    </table>
+    <p style="color:#999;font-size:12px;margin-top:20px">Rates entered by the office at review time. Full breakdown attached as Excel.</p>
+  </div>`
+  try {
+    await sendEmail({ to: 'info@vassoc.com', subject: `Profit: ${ev?.title || 'Event'} — Net $${net.toFixed(2)}`, html, attachments: [{ filename: fname, content: xlsx }] })
+  } catch (e) { return res.status(500).json({ error: 'Email failed: ' + e.message }) }
+  return res.status(200).json({ ok: true, net, margin, filename: fname })
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -2028,6 +2065,7 @@ export default async function handler(req, res) {
       case 'supervisors': return await handleSupervisors(req, res, supabase)
       case 'expenses': return await handleExpenses(req, res, supabase)
       case 'event-profit': return await handleEventProfit(req, res, supabase)
+      case 'profit-email': return await handleProfitEmail(req, res, supabase)
       case 'timesheet-parse': return await handleTimesheetParse(req, res)
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'timesheet-days': return await handleTsDays(req, res, supabase)

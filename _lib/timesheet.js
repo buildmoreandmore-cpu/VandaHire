@@ -58,6 +58,33 @@ export function buildTimesheetXlsxBase64(payload) {
   return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' })
 }
 
+// A one-sheet P&L workbook for the office (net after labor + expenses).
+// p = { event, company, hours, worker_count, revenue, labor, expenses:[{description,amount}], net, margin }
+export function buildProfitXlsxBase64(p) {
+  const wb = XLSX.utils.book_new()
+  const aoa = []
+  aoa.push(['Varist & Associates — Profit / Net'])
+  aoa.push(['Event:', p.event || ''])
+  if (p.company) aoa.push(['Company:', p.company])
+  aoa.push(['Hours worked:', round(num(p.hours))])
+  if (p.worker_count) aoa.push(['Workers:', p.worker_count])
+  aoa.push([])
+  aoa.push(['Revenue', round(num(p.revenue))])
+  aoa.push(['Labor', -round(num(p.labor))])
+  aoa.push([])
+  aoa.push(['Expenses', ''])
+  let expTotal = 0
+  for (const e of (p.expenses || [])) { const a = num(e.amount); expTotal += a; aoa.push(['  ' + (e.description || '(expense)'), -round(a)]) }
+  aoa.push(['Expenses total', -round(expTotal)])
+  aoa.push([])
+  aoa.push(['NET', round(num(p.net))])
+  aoa.push(['Margin %', p.margin != null ? p.margin : ''])
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!cols'] = [{ wch: 28 }, { wch: 16 }]
+  XLSX.utils.book_append_sheet(wb, ws, 'Profit')
+  return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' })
+}
+
 export function timesheetTotals(payload) {
   let grand = 0
   const perDay = payload.days.map(d => {

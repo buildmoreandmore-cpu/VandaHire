@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchEventProfit, addExpense, deleteExpense } from '../../lib/adminApi.js'
+import { fetchEventProfit, addExpense, deleteExpense, emailProfit } from '../../lib/adminApi.js'
 
 // Coordinator-only per-event P&L. Actual hours come from the timesheets; the
 // reviewed bill rate + pay are entered fresh (nothing relies on a stored rate);
@@ -47,6 +47,14 @@ export default function ProfitPanel({ event, onClose }) {
     setBusy(false)
   }
   const del = async (id) => { try { await deleteExpense(id); await load() } catch (e) { alert(e.message) } }
+
+  const [emailing, setEmailing] = useState(false)
+  const emailToOffice = async () => {
+    setEmailing(true)
+    try { const r = await emailProfit(event.id, rev, labor); alert(`P&L emailed to info@vassoc.com — Net ${money(r.net)}${r.margin != null ? ` (${r.margin}%)` : ''}.`) }
+    catch (e) { alert('Email failed: ' + e.message) }
+    setEmailing(false)
+  }
 
   const inp = { background: '#141414', border: '1px solid #333', borderRadius: 5, color: '#fff', padding: '6px 8px', fontSize: 13, width: '100%', boxSizing: 'border-box' }
 
@@ -110,7 +118,10 @@ export default function ProfitPanel({ event, onClose }) {
               </div>
               {margin != null && <div style={{ textAlign: 'right', color: '#8fbf9e', fontSize: 12, marginTop: 2 }}>{margin}% margin</div>}
             </div>
-            <p style={{ color: '#666', fontSize: 11, marginTop: 10 }}>Rates are entered fresh here — not pulled from a stored bill rate. Expenses save to this event.</p>
+            <button onClick={emailToOffice} disabled={emailing || rev <= 0} style={{ width: '100%', marginTop: 12, background: '#fff', color: '#000', border: 'none', borderRadius: 8, padding: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (emailing || rev <= 0) ? 0.5 : 1 }}>
+              {emailing ? 'Sending…' : 'Email P&L to office (info@vassoc.com)'}
+            </button>
+            <p style={{ color: '#666', fontSize: 11, marginTop: 10 }}>Rates are entered fresh here — not pulled from a stored bill rate. Expenses save to this event. The P&L Excel goes to the office so the net travels with the file in Teams.</p>
           </div>
         )}
       </div>
