@@ -1,4 +1,4 @@
-import { buildTimesheetXlsxBase64, timesheetTotals } from './timesheet.js'
+import { buildTimesheetXlsxBase64, timesheetTotals, OFFICE_EMAILS } from './timesheet.js'
 import { sendEmail } from './email.js'
 
 // Draft timesheet days accumulate per event, then get finalized (Excel + email)
@@ -59,7 +59,7 @@ export async function finalizeEvent(supabase, { event_id, signature, submitter }
   const dayRowsHtml = totals.perDay.map(d => `<tr><td style="padding:4px 10px;border:1px solid #eee">${d.date || '—'}</td><td style="padding:4px 10px;border:1px solid #eee">${d.workers}</td><td style="padding:4px 10px;border:1px solid #eee">${d.total}</td></tr>`).join('')
   const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px"><h2 style="margin:0 0 4px">Timesheet Submitted — ${event}</h2><p style="color:#555;margin:0 0 16px">Signed off by <strong>${payload.associate_signature}</strong>${submitter ? ` (via ${submitter})` : ''} · Company: ${company || '—'} · ${payload.days.length} day(s)</p><table style="border-collapse:collapse;font-size:14px;margin-bottom:12px"><tr><th style="padding:4px 10px;border:1px solid #eee;text-align:left">Date</th><th style="padding:4px 10px;border:1px solid #eee">Workers</th><th style="padding:4px 10px;border:1px solid #eee">Hours</th></tr>${dayRowsHtml}<tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold" colspan="2">Grand Total</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">${totals.grand}</td></tr></table><p style="color:#555;font-size:13px">Full timesheet attached as Excel (one sheet per day${payload.days.length > 1 ? ' + Summary' : ''}).</p></div>`
 
-  await sendEmail({ to: 'info@vassoc.com', subject: `Timesheet: ${event} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsxBase64 }] })
+  await sendEmail({ to: OFFICE_EMAILS, subject: `Timesheet: ${event} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsxBase64 }] })
 
   const ids = days.map(d => d.id)
   await supabase.from('timesheet_days').update({ status: 'submitted', updated_at: new Date().toISOString() }).in('id', ids)

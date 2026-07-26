@@ -10,7 +10,7 @@ import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
-import { buildTimesheetXlsxBase64, timesheetTotals } from '../_lib/timesheet.js'
+import { buildTimesheetXlsxBase64, timesheetTotals, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays, saveDay, deleteDay, finalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
@@ -707,7 +707,7 @@ async function handleTimesheetSubmit(req, res, supabase) {
 
   try {
     await sendEmail({
-      to: 'info@vassoc.com',
+      to: OFFICE_EMAILS,
       subject: `Timesheet: ${evLabel} — ${dateLabel} (${totals.grand} hrs)`,
       html,
       attachments: [{ filename: fname, content: xlsxBase64 }],

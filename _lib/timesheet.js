@@ -1,5 +1,8 @@
 import * as XLSX from 'xlsx'
 
+// Where finished timesheets + P&L go. Both addresses receive every send.
+export const OFFICE_EMAILS = ['feryvarist2@gmail.com', 'info@vassoc.com']
+
 // Build an .xlsx (base64) mirroring the V&A timesheet: one sheet per day plus a
 // Summary sheet totalling hours per worker across all days.
 // payload = { company, event, associate_signature, days: [{ date, rows:[{name,start_time,end_time,total_hours}] }] }

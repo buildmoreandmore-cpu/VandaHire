@@ -11,7 +11,7 @@ import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
-import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64 } from '../_lib/timesheet.js'
+import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
 function supabaseClient() {
@@ -1048,7 +1048,7 @@ async function handleTimesheetSubmit(req, res) {
   const dayRowsHtml = totals.perDay.map(d => `<tr><td style="padding:4px 10px;border:1px solid #eee">${d.date || '—'}</td><td style="padding:4px 10px;border:1px solid #eee">${d.workers}</td><td style="padding:4px 10px;border:1px solid #eee">${d.total}</td></tr>`).join('')
   const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px"><h2 style="margin:0 0 4px">Timesheet Submitted — ${evLabel}</h2><p style="color:#555;margin:0 0 16px">Signed off by <strong>${payload.associate_signature}</strong> (via coordinator) · Company: ${payload.company || '—'}</p><table style="border-collapse:collapse;font-size:14px;margin-bottom:12px"><tr><th style="padding:4px 10px;border:1px solid #eee;text-align:left">Date</th><th style="padding:4px 10px;border:1px solid #eee">Workers</th><th style="padding:4px 10px;border:1px solid #eee">Hours</th></tr>${dayRowsHtml}<tr><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold" colspan="2">Grand Total</td><td style="padding:4px 10px;border:1px solid #eee;font-weight:bold">${totals.grand}</td></tr></table><p style="color:#555;font-size:13px">Full timesheet attached as Excel.</p></div>`
   try {
-    await sendEmail({ to: 'info@vassoc.com', subject: `Timesheet: ${evLabel} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsxBase64 }] })
+    await sendEmail({ to: OFFICE_EMAILS, subject: `Timesheet: ${evLabel} — ${dateLabel} (${totals.grand} hrs)`, html, attachments: [{ filename: fname, content: xlsxBase64 }] })
   } catch (err) {
     return res.status(500).json({ error: 'Failed to email timesheet: ' + err.message })
   }
@@ -1190,7 +1190,7 @@ async function handleProfitEmail(req, res, supabase) {
     <p style="color:#999;font-size:12px;margin-top:20px">Rates entered by the office at review time. Full breakdown attached as Excel.</p>
   </div>`
   try {
-    await sendEmail({ to: 'info@vassoc.com', subject: `Profit: ${ev?.title || 'Event'} — Net $${net.toFixed(2)}`, html, attachments: [{ filename: fname, content: xlsx }] })
+    await sendEmail({ to: OFFICE_EMAILS, subject: `Profit: ${ev?.title || 'Event'} — Net $${net.toFixed(2)}`, html, attachments: [{ filename: fname, content: xlsx }] })
   } catch (e) { return res.status(500).json({ error: 'Email failed: ' + e.message }) }
   return res.status(200).json({ ok: true, net, margin, filename: fname })
 }
