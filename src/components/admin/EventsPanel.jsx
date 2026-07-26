@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, promoteBench, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
 import { SENDER_NUMBERS, senderLabel } from '../../lib/senderNumbers.js'
+import ProfitPanel from './ProfitPanel.jsx'
 
 const STATUS_OPTIONS = ['all', 'pending', 'approved', 'awaiting_payment', 'staffing', 'confirmed', 'completed', 'cancelled']
 
@@ -144,6 +145,7 @@ export default function EventsPanel() {
   }
   const [showBilling, setShowBilling] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
+  const [profitEvent, setProfitEvent] = useState(null)
   const [showBench, setShowBench] = useState(false)
 
   // Event edit/delete
@@ -842,6 +844,10 @@ export default function EventsPanel() {
         />
       )}
 
+      {profitEvent && (
+        <ProfitPanel event={{ id: profitEvent.id, title: profitEvent.title }} onClose={() => setProfitEvent(null)} />
+      )}
+
       {/* Templates Panel (Feature 11) */}
       {showTemplates && (
         <div className="bg-p-surface border border-p-border rounded-lg p-3 mb-4">
@@ -1192,6 +1198,14 @@ export default function EventsPanel() {
                       </div>
                     )}
                   </div>}
+                  </div>
+
+                  {/* Profit / P&L */}
+                  <div className="mb-3">
+                    <button onClick={() => setProfitEvent(ev)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-p-border text-white text-xs font-semibold hover:border-p-muted transition-colors">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                      Profit / Net
+                    </button>
                   </div>
 
                   {/* Quote & Deposit Section */}

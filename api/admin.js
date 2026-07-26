@@ -1076,6 +1076,69 @@ async function handleTsFinalize(req, res, supabase) {
   catch (e) { return res.status(400).json({ error: e.message }) }
 }
 
+// ─── EXPENSES + PROFIT (coordinator P&L) ────────────────────────────────────────
+async function handleExpenses(req, res, supabase) {
+  if (req.method === 'GET') {
+    const { event_id } = req.query
+    if (!event_id) return res.status(400).json({ error: 'event_id required' })
+    const { data, error } = await supabase.from('event_expenses').select('*').eq('event_id', event_id).order('created_at', { ascending: true })
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'POST') {
+    const { event_id, description, amount } = req.body || {}
+    if (!event_id) return res.status(400).json({ error: 'event_id required' })
+    const { data, error } = await supabase.from('event_expenses')
+      .insert({ event_id, description: description || '', amount: parseFloat(amount) || 0 })
+      .select().single()
+    if (error) throw error
+    return res.status(200).json(data)
+  }
+  if (req.method === 'DELETE') {
+    const { id } = req.body || {}
+    if (!id) return res.status(400).json({ error: 'id required' })
+    const { error } = await supabase.from('event_expenses').delete().eq('id', id)
+    if (error) throw error
+    return res.status(200).json({ ok: true })
+  }
+  return res.status(405).json({ error: 'Method not allowed' })
+}
+
+// Returns the inputs for a per-event P&L: actual hours worked (from timesheets),
+// the reviewed quote total (if any), and logged expenses. Rates are entered fresh
+// on the client so nothing relies on a stored bill rate.
+async function handleEventProfit(req, res, supabase) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const { event_id } = req.query
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  const { data: tsDays } = await supabase.from('timesheet_days').select('rows, status').eq('event_id', event_id)
+  let actualHours = 0, workerCount = 0
+  const names = new Set()
+  for (const d of (tsDays || [])) {
+    for (const r of (d.rows || [])) {
+      actualHours += parseFloat(r.total_hours) || 0
+      if (r.name) names.add(String(r.name).trim().toLowerCase())
+    }
+  }
+  workerCount = names.size
+  actualHours = Math.round(actualHours * 10) / 10
+
+  const { data: quote } = await supabase.from('quotes').select('total, status').eq('event_id', event_id).maybeSingle()
+  const { data: expenses } = await supabase.from('event_expenses').select('*').eq('event_id', event_id).order('created_at', { ascending: true })
+  const expenseTotal = Math.round((expenses || []).reduce((a, e) => a + (parseFloat(e.amount) || 0), 0) * 100) / 100
+
+  return res.status(200).json({
+    actual_hours: actualHours,
+    worker_count: workerCount,
+    timesheet_days: (tsDays || []).length,
+    quote_total: quote ? parseFloat(quote.total) : null,
+    quote_status: quote ? quote.status : null,
+    expenses: expenses || [],
+    expense_total: expenseTotal,
+  })
+}
+
 // ─── SUPERVISORS (coordinator-managed) ──────────────────────────────────────────
 async function handleSupervisors(req, res, supabase) {
   if (req.method === 'GET') {
@@ -1963,6 +2026,8 @@ export default async function handler(req, res) {
       case 'test-sms': return await handleTestSms(req, res)
       case 'rc-subscribe': return await handleRcSubscribe(req, res)
       case 'supervisors': return await handleSupervisors(req, res, supabase)
+      case 'expenses': return await handleExpenses(req, res, supabase)
+      case 'event-profit': return await handleEventProfit(req, res, supabase)
       case 'timesheet-parse': return await handleTimesheetParse(req, res)
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'timesheet-days': return await handleTsDays(req, res, supabase)
