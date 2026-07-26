@@ -296,7 +296,6 @@ export default function EventsPanel() {
   const startEditBilling = (ev) => {
     setEditingBilling(ev.id)
     setBillingForm({
-      bill_rate: ev.bill_rate || '',
       total_bill_amount: ev.total_bill_amount || '',
       invoice_status: ev.invoice_status || 'not_sent',
       payment_status: ev.payment_status || 'unpaid',
@@ -359,7 +358,6 @@ export default function EventsPanel() {
     setUpdating(id)
     try {
       const updates = {
-        bill_rate: billingForm.bill_rate ? parseFloat(billingForm.bill_rate) : null,
         total_bill_amount: billingForm.total_bill_amount ? parseFloat(billingForm.total_bill_amount) : null,
         invoice_status: billingForm.invoice_status,
         payment_status: billingForm.payment_status,
@@ -1095,12 +1093,7 @@ export default function EventsPanel() {
                     {editingBilling === ev.id ? (
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-p-muted text-[10px]">Bill Rate ($/hr)</label>
-                          <input type="number" step="0.01" value={billingForm.bill_rate} onChange={e => setBillingForm(f => ({ ...f, bill_rate: e.target.value }))}
-                            className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
-                        </div>
-                        <div>
-                          <label className="text-p-muted text-[10px]">Total Bill ($)</label>
+                          <label className="text-p-muted text-[10px]">Total Bill ($) — from reviewed quote</label>
                           <input type="number" step="0.01" value={billingForm.total_bill_amount} onChange={e => setBillingForm(f => ({ ...f, total_bill_amount: e.target.value }))}
                             className="w-full bg-p-bg border border-p-border rounded px-2 py-1 text-xs text-white mt-0.5" />
                         </div>
@@ -1127,10 +1120,6 @@ export default function EventsPanel() {
                     ) : (
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <div>
-                            <span className="text-p-muted">Bill Rate: </span>
-                            <span className="text-white">{fmtMoney(ev.bill_rate)}/hr</span>
-                          </div>
                           <div>
                             <span className="text-p-muted">Total: </span>
                             <span className="text-white">{fmtMoney(ev.total_bill_amount)}</span>
@@ -1201,7 +1190,7 @@ export default function EventsPanel() {
                     <div className="flex items-center justify-between mb-2">
                       <span /> {/* spacer */}
                       {!quote && !showQuoteForm && (
-                        <button onClick={() => { setShowQuoteForm(true); setQuoteForm({ worker_count: ev.workers_needed || '', hours_estimated: '', bill_rate_per_hour: ev.bill_rate || '', supervisor_fee: '', bench_fee: '', platform_fee: '', roster_hold_fee: '' }) }}
+                        <button onClick={() => { setShowQuoteForm(true); setQuoteForm({ worker_count: ev.workers_needed || '', hours_estimated: '', bill_rate_per_hour: '', supervisor_fee: '', bench_fee: '', platform_fee: '', roster_hold_fee: '' }) }}
                           className="text-p-green text-[10px] font-medium hover:opacity-80">
                           Generate Quote
                         </button>
