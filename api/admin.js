@@ -1440,6 +1440,8 @@ async function handleQuotes(req, res, supabase) {
       ? new Date(new Date(event.event_date + 'T00:00:00').getTime() + 15 * 86400000).toISOString().slice(0, 10)
       : null
 
+    // Save as an internal DRAFT — never auto-sent. Sending to the client is a
+    // separate, deliberate step (below) so a rate can't go out unreviewed.
     const { data, error } = await supabase.from('quotes').upsert({
       event_id,
       ...quote,
@@ -1447,7 +1449,7 @@ async function handleQuotes(req, res, supabase) {
     }, { onConflict: 'event_id' }).select().single()
     if (error) throw error
 
-    // Update event with deposit/balance amounts
+    // Update event with deposit/balance amounts (internal figures, not sent).
     await supabase.from('events').update({
       deposit_amount: quote.deposit_amount,
       balance_amount: quote.balance_amount,
@@ -1456,53 +1458,53 @@ async function handleQuotes(req, res, supabase) {
       updated_at: new Date().toISOString(),
     }).eq('id', event_id)
 
-    // Auto-send simplified quote email to organizer with payment link + full agreement
-    const { data: eventForEmail } = await supabase.from('events').select('id, title, contact_email, contact_name, event_date, start_time, end_time, location, city, workers_needed, organizer_token').eq('id', event_id).single()
-    if (eventForEmail?.contact_email) {
-      const payUrl = eventForEmail.organizer_token
-        ? `https://vandahire.com/pay/${eventForEmail.organizer_token}`
-        : `https://vandahire.com/organizer?event=${eventForEmail.id}&action=pay`
-      const agreementHtml = getAgreementHtml({ deposit: quote.deposit_amount, balance: quote.balance_amount, total: quote.total })
-      try {
-        await sendEmail({
-          to: eventForEmail.contact_email,
-          subject: `Your Staffing Quote — ${eventForEmail.title}`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-            <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Your Staffing Quote</h2>
-            <p>Hi ${eventForEmail.contact_name || 'there'},</p>
-            <p>Your quote for <strong>${eventForEmail.title}</strong> is ready.</p>
-            <table style="width:100%;border-collapse:collapse;margin:15px 0">
-              <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Event</td><td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">${eventForEmail.title}</td></tr>
-              <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Date</td><td style="padding:10px;border-bottom:1px solid #eee">${formatDate(eventForEmail.event_date)}</td></tr>
-              <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Location</td><td style="padding:10px;border-bottom:1px solid #eee">${eventForEmail.location}, ${eventForEmail.city}</td></tr>
-              <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Staff</td><td style="padding:10px;border-bottom:1px solid #eee">${quote.worker_count} crew members</td></tr>
-            </table>
-            <div style="background:#1a1a2e;color:#fff;padding:20px;border-radius:12px;margin:20px 0;text-align:center">
-              <p style="margin:0;font-size:14px;color:#aaa">Staffing Fee</p>
-              <p style="margin:8px 0;font-size:32px;font-weight:bold">$${quote.total.toFixed(2)}</p>
-              <div style="display:flex;justify-content:center;gap:24px;margin-top:12px">
-                <div><span style="color:#aaa;font-size:12px">Deposit Due Now</span><br><strong style="font-size:18px">$${quote.deposit_amount.toFixed(2)}</strong></div>
-                <div><span style="color:#aaa;font-size:12px">Balance (Net 15)</span><br><strong style="font-size:18px">$${quote.balance_amount.toFixed(2)}</strong></div>
-              </div>
-            </div>
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${payUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Review &amp; Pay Deposit</a></td></tr></table>
-            <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px">Please review the Service Agreement below. You will formally accept it when you pay your deposit.</p>
-            ${agreementHtml}
-            <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
-          </div>`,
-        })
-        // Auto-mark quote as sent
-        await supabase.from('quotes').update({ status: 'sent', updated_at: new Date().toISOString() }).eq('id', data.id)
-      } catch (e) { console.error('[admin/quotes] Quote email failed:', e.message) }
-    }
-
     return res.status(200).json(data)
   }
 
   if (req.method === 'PATCH') {
-    const { id, status } = req.body
+    const { id, status, send } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
-    const validStatuses = ['draft', 'sent', 'accepted', 'expired']
+
+    // Explicit "Send to client" — the review gate. Only this emails the quote.
+    if (send) {
+      const { data: q } = await supabase.from('quotes').select('*').eq('id', id).single()
+      if (!q) return res.status(404).json({ error: 'Quote not found' })
+      const { data: ev } = await supabase.from('events').select('id, title, contact_email, contact_name, event_date, location, city, organizer_token').eq('id', q.event_id).single()
+      if (!ev?.contact_email) return res.status(400).json({ error: 'No client email on this event to send to' })
+      const payUrl = ev.organizer_token ? `https://vandahire.com/pay/${ev.organizer_token}` : `https://vandahire.com/organizer?event=${ev.id}&action=pay`
+      const agreementHtml = getAgreementHtml({ deposit: q.deposit_amount, balance: q.balance_amount, total: q.total })
+      await sendEmail({
+        to: ev.contact_email,
+        subject: `Your Staffing Quote — ${ev.title}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+          <h2 style="color:#ffffff;border-bottom:3px solid #ffffff;padding-bottom:10px">Your Staffing Quote</h2>
+          <p>Hi ${ev.contact_name || 'there'},</p>
+          <p>Your quote for <strong>${ev.title}</strong> is ready.</p>
+          <table style="width:100%;border-collapse:collapse;margin:15px 0">
+            <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Event</td><td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold">${ev.title}</td></tr>
+            <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Date</td><td style="padding:10px;border-bottom:1px solid #eee">${formatDate(ev.event_date)}</td></tr>
+            <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Location</td><td style="padding:10px;border-bottom:1px solid #eee">${ev.location}, ${ev.city}</td></tr>
+            <tr><td style="padding:10px;border-bottom:1px solid #eee;color:#666">Staff</td><td style="padding:10px;border-bottom:1px solid #eee">${q.worker_count} crew members</td></tr>
+          </table>
+          <div style="background:#1a1a2e;color:#fff;padding:20px;border-radius:12px;margin:20px 0;text-align:center">
+            <p style="margin:0;font-size:14px;color:#aaa">Staffing Fee</p>
+            <p style="margin:8px 0;font-size:32px;font-weight:bold">$${Number(q.total).toFixed(2)}</p>
+            <div style="display:flex;justify-content:center;gap:24px;margin-top:12px">
+              <div><span style="color:#aaa;font-size:12px">Deposit Due Now</span><br><strong style="font-size:18px">$${Number(q.deposit_amount).toFixed(2)}</strong></div>
+              <div><span style="color:#aaa;font-size:12px">Balance (Net 15)</span><br><strong style="font-size:18px">$${Number(q.balance_amount).toFixed(2)}</strong></div>
+            </div>
+          </div>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:24px auto"><tr><td style="background:#ffffff;border-radius:8px"><a href="${payUrl}" target="_blank" style="background:#ffffff;color:#000000;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block">Review &amp; Pay Deposit</a></td></tr></table>
+          <p style="color:#888;font-size:13px;text-align:center;margin-bottom:8px">Please review the Service Agreement below. You will formally accept it when you pay your deposit.</p>
+          ${agreementHtml}
+          <p style="color:#888;font-size:12px;margin-top:30px;text-align:center">V&A Hire Staffing • vandahire.com</p>
+        </div>`,
+      })
+      const { data: sent } = await supabase.from('quotes').update({ status: 'sent', updated_at: new Date().toISOString() }).eq('id', id).select().single()
+      return res.status(200).json(sent)
+    }
+
+    const validStatuses = ['draft', 'approved', 'sent', 'accepted', 'expired']
     if (status && !validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
     const updates = { updated_at: new Date().toISOString() }
     if (status) {

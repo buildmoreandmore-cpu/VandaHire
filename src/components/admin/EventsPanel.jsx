@@ -586,6 +586,23 @@ export default function EventsPanel() {
     setCreatingQuote(false)
   }
 
+  const [quoteBusy, setQuoteBusy] = useState(false)
+  const handleApproveQuote = async () => {
+    if (!quote) return
+    setQuoteBusy(true)
+    try { const u = await updateQuote(quote.id, { status: 'approved' }); setQuote(u) }
+    catch (e) { alert('Approve failed: ' + e.message) }
+    setQuoteBusy(false)
+  }
+  const handleSendQuote = async () => {
+    if (!quote) return
+    if (!confirm('Send this quote to the client now? This emails them the price and payment link.')) return
+    setQuoteBusy(true)
+    try { const u = await updateQuote(quote.id, { send: true }); setQuote(u); alert('Quote sent to the client.') }
+    catch (e) { alert('Send failed: ' + e.message) }
+    setQuoteBusy(false)
+  }
+
   const handleCreateDepositLink = async (eventId) => {
     setCreatingDeposit(true)
     try {
@@ -1270,6 +1287,36 @@ export default function EventsPanel() {
                           <div><span className="text-p-muted">Balance (Net 15): </span><span className="text-yellow-400 font-semibold">{fmtMoney(quote.balance_amount)}</span></div>
                         </div>
                         <div className="text-[9px] text-p-muted">Deposit = bench fees + labor + roster hold. Balance due 15 days after event.</div>
+
+                        {/* Review gate — a quote must be approved before it can be sent to the client */}
+                        <div className="border-t border-p-border pt-2 mt-1 flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-p-muted">Quote status:</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                            quote.status === 'sent' || quote.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
+                            quote.status === 'approved' ? 'bg-blue-500/20 text-blue-400' :
+                            'bg-yellow-500/20 text-yellow-400'
+                          }`}>{quote.status === 'draft' ? 'draft — not sent' : quote.status}</span>
+
+                          {quote.status === 'draft' && (
+                            <button onClick={handleApproveQuote} disabled={quoteBusy}
+                              className="ml-auto px-2.5 py-1 rounded text-[10px] font-semibold text-black bg-p-green hover:opacity-90 disabled:opacity-50">
+                              {quoteBusy ? '…' : '✓ Review & Approve'}
+                            </button>
+                          )}
+                          {quote.status === 'approved' && (
+                            <button onClick={handleSendQuote} disabled={quoteBusy}
+                              className="ml-auto px-2.5 py-1 rounded text-[10px] font-semibold text-white bg-[#635bff] hover:bg-[#5349e0] disabled:opacity-50">
+                              {quoteBusy ? '…' : 'Send to Client →'}
+                            </button>
+                          )}
+                          {(quote.status === 'sent' || quote.status === 'accepted') && (
+                            <button onClick={handleSendQuote} disabled={quoteBusy}
+                              className="ml-auto px-2.5 py-1 rounded text-[10px] font-medium text-p-muted border border-p-border hover:text-white disabled:opacity-50">
+                              {quoteBusy ? '…' : 'Resend'}
+                            </button>
+                          )}
+                        </div>
+                        {quote.status === 'draft' && <div className="text-[9px] text-yellow-400/80">Not sent yet — review the rate, then Approve, then Send. Saving a quote no longer emails the client automatically.</div>}
 
                         {/* Deposit/Balance status */}
                         <div className="flex items-center gap-3 pt-1">
