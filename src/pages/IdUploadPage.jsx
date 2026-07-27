@@ -207,7 +207,6 @@ export default function IdUploadPage({ phone: phoneParam }) {
               ref={fileRef}
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleFileSelect}
               style={{ display: 'none' }}
             />

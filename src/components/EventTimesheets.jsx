@@ -113,14 +113,23 @@ function DayCapture({ event, api, onCancel, onSaved }) {
   const addPhoto = async (file) => {
     if (!file) return
     setParsing(true); setError('')
+    let base64
     try {
-      const compressed = await imageCompression(file, { maxSizeMB: 1.2, maxWidthOrHeight: 2200, useWebWorker: true, fileType: 'image/jpeg' })
-      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(compressed) })
+      // Compress hard so even a large phone/HEIC photo uploads reliably.
+      const compressed = await imageCompression(file, { maxSizeMB: 0.9, maxWidthOrHeight: 2000, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.8 })
+      base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('read')); r.readAsDataURL(compressed) })
+    } catch {
+      setError("Couldn't read that photo. Try a clearer picture, or pick it from your gallery."); setParsing(false); return
+    }
+    try {
       const d = await api.parseImage(base64)
       if (d.company && !company) setCompany(d.company)
       if (d.date && !workDate) setWorkDate(d.date)
       setRows(prev => [...prev, ...(d.rows || [])])
-    } catch (e) { setError(e.message) }
+    } catch (e) {
+      // Keep everything already entered — the user retries, they don't restart.
+      setError('That scan didn\'t go through — tap the box to try the photo again. Your entries are saved.')
+    }
     setParsing(false)
   }
   const setRow = (i, patch) => setRows(prev => prev.map((r, ri) => ri === i ? { ...r, ...patch } : r))
@@ -157,8 +166,8 @@ function DayCapture({ event, api, onCancel, onSaved }) {
         </div>
       </div>
       <label style={{ display: 'block', border: '2px dashed #333', borderRadius: 10, padding: 16, textAlign: 'center', color: parsing ? '#666' : '#9ecbff', cursor: parsing ? 'default' : 'pointer', fontSize: 13, marginBottom: 12 }}>
-        <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} disabled={parsing} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f) }} />
-        {parsing ? 'Reading timesheet…' : rows.length ? '+ Add another photo to this day' : "Take or upload this day's timesheet photo"}
+        <input type="file" accept="image/*" style={{ display: 'none' }} disabled={parsing} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f) }} />
+        {parsing ? 'Reading timesheet… (may take up to 30s)' : rows.length ? '+ Add another photo to this day' : "Take a photo or choose from gallery"}
       </label>
       {rows.length > 0 && (
         <div style={{ overflowX: 'auto', marginBottom: 10 }}>

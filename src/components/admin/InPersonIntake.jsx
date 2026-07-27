@@ -32,8 +32,8 @@ export default function InPersonIntake({ onClose, onCreated, api = coordinatorAp
     if (!file) return
     setScanning(true); setError('')
     try {
-      const c = await imageCompression(file, { maxSizeMB: 1.2, maxWidthOrHeight: 2200, useWebWorker: true, fileType: 'image/jpeg' })
-      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(c) })
+      const c = await imageCompression(file, { maxSizeMB: 0.9, maxWidthOrHeight: 2000, useWebWorker: true, fileType: 'image/jpeg', initialQuality: 0.8 })
+      const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('read')); r.readAsDataURL(c) })
       const d = await api.parse(base64)
       setF(p => ({
         ...p,
@@ -93,8 +93,8 @@ export default function InPersonIntake({ onClose, onCreated, api = coordinatorAp
           <div className="p-4 space-y-3">
             {/* Scan a paper application */}
             <label className={`block border-2 border-dashed border-p-border rounded-lg py-3 text-center text-xs cursor-pointer ${scanning ? 'text-p-muted' : 'text-p-link'}`}>
-              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={scanning} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; scan(file) }} />
-              {scanning ? 'Reading application…' : 'Scan a paper application (optional) — auto-fills below'}
+              <input type="file" accept="image/*" className="hidden" disabled={scanning} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; scan(file) }} />
+              {scanning ? 'Reading application… (may take up to 30s)' : 'Scan a paper application — photo or gallery (auto-fills below)'}
             </label>
 
             <div className="grid grid-cols-2 gap-2">

@@ -13,6 +13,10 @@ import { createIntakeApplicant } from '../_lib/intake.js'
 import { buildTimesheetXlsxBase64, timesheetTotals, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays, saveDay, deleteDay, finalizeEvent } from '../_lib/timesheetStore.js'
 
+// Claude Vision (timesheet/application scans) can take 15–30s on a dense sheet.
+// Give the function room so scans never time out and force a restart.
+export const maxDuration = 60
+
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }

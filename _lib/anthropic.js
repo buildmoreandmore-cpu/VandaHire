@@ -2,6 +2,34 @@
 
 const MODEL = 'claude-sonnet-5'
 
+// Call the Anthropic API with one automatic retry on transient failures
+// (429/500/502/503/529 or network error) so a hiccup never forces a restart.
+async function anthropicCall(body) {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
+  let lastErr
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) return res.json()
+      const status = res.status
+      const text = (await res.text().catch(() => '')).slice(0, 300)
+      // Retry only transient statuses; fail fast on 4xx like bad key / bad image.
+      if (attempt === 0 && [429, 500, 502, 503, 529].includes(status)) { lastErr = new Error(`Claude API ${status}: ${text}`); await new Promise(r => setTimeout(r, 1200)); continue }
+      throw new Error(`Claude API ${status}: ${text}`)
+    } catch (e) {
+      lastErr = e
+      if (attempt === 0) { await new Promise(r => setTimeout(r, 1200)); continue }
+      throw e
+    }
+  }
+  throw lastErr
+}
+
 const SYSTEM = `You transcribe handwritten event-staffing timesheets into structured data.
 The sheet has a header (Company, Event, Date) and a table with columns:
 #, Name, Start Time, End Time, Total Hours. There may be a company/associate signature
@@ -42,34 +70,23 @@ const TOOL = {
 
 export async function parseTimesheetImage(base64, mediaType = 'image/jpeg') {
   const key = process.env.ANTHROPIC_API_KEY
-  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
   const data = base64.replace(/^data:image\/\w+;base64,/, '')
   const mt = /^data:(image\/\w+);/.exec(base64)?.[1] || mediaType
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 2000,
-      system: SYSTEM,
-      tools: [TOOL],
-      tool_choice: { type: 'tool', name: 'record_timesheet' },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mt, data } },
-          { type: 'text', text: 'Transcribe this timesheet.' },
-        ],
-      }],
-    }),
+  const json = await anthropicCall({
+    model: MODEL,
+    max_tokens: 2000,
+    system: SYSTEM,
+    tools: [TOOL],
+    tool_choice: { type: 'tool', name: 'record_timesheet' },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mt, data } },
+        { type: 'text', text: 'Transcribe this timesheet.' },
+      ],
+    }],
   })
-  if (!res.ok) throw new Error(`Claude API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`)
-  const json = await res.json()
   const toolUse = (json.content || []).find(c => c.type === 'tool_use')
   if (!toolUse) throw new Error('No structured output from Claude')
   const out = toolUse.input || {}
@@ -115,24 +132,16 @@ const APP_TOOL = {
 }
 
 export async function parseApplicationImage(base64, mediaType = 'image/jpeg') {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) throw new Error('ANTHROPIC_API_KEY not configured')
   const data = base64.replace(/^data:image\/\w+;base64,/, '')
   const mt = /^data:(image\/\w+);/.exec(base64)?.[1] || mediaType
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 1500, system: APP_SYSTEM,
-      tools: [APP_TOOL], tool_choice: { type: 'tool', name: 'record_application' },
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: mt, data } },
-        { type: 'text', text: 'Transcribe this job application.' },
-      ] }],
-    }),
+  const json = await anthropicCall({
+    model: MODEL, max_tokens: 1500, system: APP_SYSTEM,
+    tools: [APP_TOOL], tool_choice: { type: 'tool', name: 'record_application' },
+    messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: mt, data } },
+      { type: 'text', text: 'Transcribe this job application.' },
+    ] }],
   })
-  if (!res.ok) throw new Error(`Claude API ${res.status}: ${(await res.text().catch(() => '')).slice(0, 300)}`)
-  const json = await res.json()
   const toolUse = (json.content || []).find(c => c.type === 'tool_use')
   if (!toolUse) throw new Error('No structured output from Claude')
   return toolUse.input || {}

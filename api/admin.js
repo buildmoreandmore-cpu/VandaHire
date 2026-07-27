@@ -14,6 +14,9 @@ import { createIntakeApplicant } from '../_lib/intake.js'
 import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64, buildPayrollXlsxBase64, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
+// Vision scans (timesheet/application) can take 15–30s — give room so they never time out.
+export const maxDuration = 60
+
 function supabaseClient() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
