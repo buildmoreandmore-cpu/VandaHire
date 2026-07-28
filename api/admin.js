@@ -625,6 +625,12 @@ async function handleAssignments(req, res, supabase) {
     const { data, error } = await supabase.from('assignments').upsert(rows, { onConflict: 'event_id,worker_id', ignoreDuplicates: true }).select()
     if (error) throw error
 
+    // Staffing someone approves them: any assigned pending applicant becomes approved.
+    try {
+      await supabase.from('applicants').update({ status: 'approved', updated_at: new Date().toISOString() })
+        .in('id', worker_ids).eq('status', 'pending')
+    } catch (e) { console.error('[assignments] auto-approve pending failed:', e.message) }
+
     // Auto-confirm event when fully staffed
     await autoConfirmIfFullyStaffed(supabase, event_id)
 

@@ -195,6 +195,7 @@ export default function EventsPanel() {
   const [dragWorker, setDragWorker] = useState(null)
   const [dragAssignmentId, setDragAssignmentId] = useState(null)
   const [assignCityFilter, setAssignCityFilter] = useState('all')
+  const [includePending, setIncludePending] = useState(false)
 
   // Batch operations (Features 3, 8)
   const [batchingShifts, setBatchingShifts] = useState(false)
@@ -397,25 +398,37 @@ export default function EventsPanel() {
     setCreatingPaymentLink(null)
   }
 
+  const loadAssignWorkers = async (withPending) => {
+    const assignedIds = new Set(assignments.map(a => a.worker_id))
+    let workers
+    try {
+      // Use smart suggestions sorted by match score (approved pool)
+      workers = await fetchSuggestedWorkers(expanded)
+    } catch (suggestErr) {
+      console.warn('Suggest-workers failed, falling back to approved list:', suggestErr.message)
+      const all = await fetchApplicants('approved')
+      workers = all.filter(w => !assignedIds.has(w.id))
+    }
+    // Hiring push: also let brand-new (pending) applicants be staffed directly.
+    if (withPending) {
+      try {
+        const pending = await fetchApplicants('pending')
+        const have = new Set(workers.map(w => w.id))
+        const extra = pending
+          .filter(w => !assignedIds.has(w.id) && !have.has(w.id))
+          .map(w => ({ ...w, _pending: true }))
+        workers = [...extra, ...workers]
+      } catch (e) { console.warn('Load pending failed:', e.message) }
+    }
+    setAvailableWorkers(workers)
+  }
+
   const openAssignModal = async () => {
     setShowAssignModal(true)
     setSelectedWorkers([])
     setAssignCityFilter('all')
-    try {
-      let workers
-      try {
-        // Use smart suggestions sorted by match score
-        workers = await fetchSuggestedWorkers(expanded)
-      } catch (suggestErr) {
-        console.warn('Suggest-workers failed, falling back to approved list:', suggestErr.message)
-        const all = await fetchApplicants('approved')
-        const assignedIds = new Set(assignments.map(a => a.worker_id))
-        workers = all.filter(w => !assignedIds.has(w.id))
-      }
-      setAvailableWorkers(workers)
-    } catch (err) {
-      console.error('Failed to load workers:', err)
-    }
+    setIncludePending(false)
+    try { await loadAssignWorkers(false) } catch (err) { console.error('Failed to load workers:', err) }
   }
 
   const handleAssign = async () => {
@@ -1867,8 +1880,17 @@ export default function EventsPanel() {
                             onDrop={() => { if (dragAssignmentId) { unassignWorker(dragAssignmentId); setDragAssignmentId(null) } }}
                             className="bg-p-bg/40 border border-p-border rounded-lg flex flex-col min-h-0"
                           >
-                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between gap-2">
+                            <div className="px-3 py-2 border-b border-p-border flex items-center justify-between gap-2 flex-wrap">
                               <span className="text-white text-xs font-semibold uppercase tracking-wider whitespace-nowrap">Available pool</span>
+                              <label className="flex items-center gap-1 text-[10px] text-p-muted cursor-pointer" title="Also show people who just applied (not yet approved). Assigning one approves them.">
+                                <input
+                                  type="checkbox"
+                                  checked={includePending}
+                                  onChange={async e => { const v = e.target.checked; setIncludePending(v); await loadAssignWorkers(v) }}
+                                  className="accent-green-500 w-3.5 h-3.5"
+                                />
+                                Include new applicants
+                              </label>
                               <select
                                 value={assignCityFilter}
                                 onChange={e => setAssignCityFilter(e.target.value)}
@@ -1904,6 +1926,9 @@ export default function EventsPanel() {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className="text-white text-xs font-medium truncate">{w.first_name} {w.last_name}</span>
+                                          {w._pending && (
+                                            <span className="px-1 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-400" title="Just applied — assigning approves them">NEW</span>
+                                          )}
                                           {score != null && (
                                             <span className={`px-1 py-0.5 rounded text-[9px] font-semibold ${scoreBadgeColor}`}>{score}</span>
                                           )}
