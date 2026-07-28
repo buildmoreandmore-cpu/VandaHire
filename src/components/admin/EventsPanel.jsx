@@ -127,7 +127,6 @@ export default function EventsPanel() {
 
   // Collapsible section state (geofence, billing, quote, bench default closed; assignments default open)
   const [showGeofence, setShowGeofence] = useState(false)
-  const [showMoney, setShowMoney] = useState(false)
   const [geoStatus, setGeoStatus] = useState(null)
   const [geoStatusLoading, setGeoStatusLoading] = useState(false)
   const loadGeoStatus = async (eventId) => {
@@ -969,14 +968,6 @@ export default function EventsPanel() {
                     </div>
                   </div>
 
-                  {/* Money, billing & on-site — grouped + collapsed so the crew stays front-and-center */}
-                  <div className="border border-p-border/60 rounded-lg mb-4 overflow-hidden">
-                    <button onClick={() => setShowMoney(!showMoney)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors">
-                      <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Money, billing &amp; on-site</h4>
-                      <span className="text-p-muted text-[11px]">{showMoney ? '▾ hide' : '▸ quote · billing · profit · payroll · geofence'}</span>
-                    </button>
-                    {showMoney && <div className="px-2 pb-2">
-
                   {/* Geofence Section */}
                   <div className="bg-black/20 rounded-lg mb-4 overflow-hidden">
                     <button onClick={() => setShowGeofence(!showGeofence)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors">
@@ -1553,8 +1544,6 @@ export default function EventsPanel() {
                       )}
                     </div>
                   )}
-                    </div>}
-                  </div>
 
                   {/* Edit Event Form */}
                   {editingEvent === ev.id && (
