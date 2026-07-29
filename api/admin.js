@@ -1067,7 +1067,8 @@ async function handleTimesheetSubmit(req, res) {
 // ─── TIMESHEET DAYS (coordinator: draft per day, finalize when event ends) ──────
 async function handleTsDays(req, res, supabase) {
   const eventId = req.query.event_id; if (!eventId) return res.status(400).json({ error: 'event_id required' })
-  return res.status(200).json({ days: await tsListDays(supabase, eventId) })
+  const status = req.query.status === 'submitted' ? 'submitted' : 'draft'
+  return res.status(200).json({ days: await tsListDays(supabase, eventId, status) })
 }
 async function handleTsSave(req, res, supabase) {
   const { id, event_id, event_label, company, work_date, rows } = req.body || {}

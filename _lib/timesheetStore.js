@@ -4,11 +4,13 @@ import { sendEmail } from './email.js'
 // Draft timesheet days accumulate per event, then get finalized (Excel + email)
 // once the event is over.
 
-export async function listDays(supabase, eventId) {
-  const { data } = await supabase.from('timesheet_days')
+export async function listDays(supabase, eventId, status = 'draft') {
+  let q = supabase.from('timesheet_days')
     .select('id, event_id, event_label, company, work_date, rows, submitter, status, created_at')
-    .eq('event_id', eventId).eq('status', 'draft')
+    .eq('event_id', eventId)
     .order('created_at', { ascending: true })
+  if (status) q = q.eq('status', status)
+  const { data } = await q
   return data || []
 }
 

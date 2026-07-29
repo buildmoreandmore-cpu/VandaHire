@@ -19,6 +19,7 @@ function makeSupTsApi(authFetch, adhoc = false) {
   const j = async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Request failed'); return d }
   return {
     listDays: (eventId) => authFetch(`sup-timesheet-days&event_id=${eventId}${adhoc ? '&adhoc=1' : ''}`).then(j),
+    listSubmitted: (eventId) => authFetch(`sup-timesheet-days&event_id=${eventId}${adhoc ? '&adhoc=1' : ''}&status=submitted`).then(j),
     parseImage: (base64) => authFetch('sup-timesheet-parse', { method: 'POST', body: JSON.stringify({ image_base64: base64 }) }).then(j),
     saveDay: (day) => authFetch('sup-timesheet-save', { method: 'POST', body: JSON.stringify({ ...day, adhoc }) }).then(j),
     deleteDay: (id) => authFetch('sup-timesheet-delete', { method: 'POST', body: JSON.stringify({ id, adhoc }) }).then(j),

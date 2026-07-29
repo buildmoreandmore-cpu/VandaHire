@@ -556,12 +556,32 @@ async function authSupervisor(req, supabase) {
 
 // Events belonging to a supervisor = events whose text-from line is theirs.
 async function supervisorEvents(supabase, number) {
-  const digits = String(number || '').replace(/\D/g, '')
-  const { data: events } = await supabase.from('events')
-    .select('id, title, event_date, start_time, end_time, location, city, status, workers_needed, sms_from_number, meeting_point, dress_code')
-    .not('sms_from_number', 'is', null)
-    .order('event_date', { ascending: false })
-  return (events || []).filter(e => String(e.sms_from_number || '').replace(/\D/g, '') === digits)
+  const digits = String(number || '').replace(/\D/g, '').slice(-10)
+  const eventCols = 'id, title, event_date, start_time, end_time, location, city, status, workers_needed, sms_from_number, meeting_point, dress_code'
+
+  // (a) Events whose "Text from" line is this supervisor's number.
+  const { data: byLine } = await supabase.from('events').select(eventCols)
+    .not('sms_from_number', 'is', null).order('event_date', { ascending: false })
+  const lineMatches = (byLine || []).filter(e => String(e.sms_from_number || '').replace(/\D/g, '').slice(-10) === digits)
+
+  // (b) Events this supervisor is assigned to — matched by their phone → applicant → assignment.
+  // This is what makes "assign them to a job" show up on their dashboard.
+  const ids = new Set(lineMatches.map(e => e.id))
+  const result = [...lineMatches]
+  if (digits.length === 10) {
+    const { data: apps } = await supabase.from('applicants').select('id, phone')
+    const appIds = (apps || []).filter(a => String(a.phone || '').replace(/\D/g, '').slice(-10) === digits).map(a => a.id)
+    if (appIds.length) {
+      const { data: assigns } = await supabase.from('assignments').select('event_id').in('worker_id', appIds)
+      const assignedEventIds = [...new Set((assigns || []).map(a => a.event_id))].filter(id => !ids.has(id))
+      if (assignedEventIds.length) {
+        const { data: extra } = await supabase.from('events').select(eventCols).in('id', assignedEventIds).order('event_date', { ascending: false })
+        for (const e of (extra || [])) { if (!ids.has(e.id)) { ids.add(e.id); result.push(e) } }
+      }
+    }
+  }
+  result.sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''))
+  return result
 }
 
 async function handleSupLogin(req, res, supabase) {
@@ -742,7 +762,9 @@ async function handleSupTsDays(req, res, supabase) {
   const eventId = req.query.event_id; if (!eventId) return res.status(400).json({ error: 'event_id required' })
   const adhoc = req.query.adhoc === '1' || req.query.adhoc === 'true'
   if (!(await tsAllowed(sup, supabase, eventId, adhoc))) return res.status(403).json({ error: 'Not allowed' })
-  return res.status(200).json({ days: await listDays(supabase, eventId) })
+  // status=submitted → review what was already turned in; default draft = in-progress.
+  const status = req.query.status === 'submitted' ? 'submitted' : 'draft'
+  return res.status(200).json({ days: await listDays(supabase, eventId, status) })
 }
 async function handleSupTsSave(req, res, supabase) {
   const sup = await authSupervisor(req, supabase); if (!sup) return res.status(401).json({ error: 'Unauthorized' })

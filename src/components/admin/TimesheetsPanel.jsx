@@ -4,6 +4,7 @@ import { fetchEvents, parseTimesheet, timesheetDays, saveTimesheetDay, deleteTim
 
 const adminTsApi = {
   listDays: (eventId) => timesheetDays(eventId),
+  listSubmitted: (eventId) => timesheetDays(eventId, 'submitted'),
   parseImage: (base64) => parseTimesheet(base64),
   saveDay: (day) => saveTimesheetDay(day),
   deleteDay: (id) => deleteTimesheetDay(id),

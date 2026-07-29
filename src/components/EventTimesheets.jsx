@@ -10,14 +10,18 @@ import imageCompression from 'browser-image-compression'
 //   onClose()
 export default function EventTimesheets({ event, api, onClose }) {
   const [days, setDays] = useState([])
+  const [submitted, setSubmitted] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState('list') // list | capture | submit
+  const [mode, setMode] = useState('list') // list | capture | submit | review
   const [result, setResult] = useState(null)
 
   const load = async () => {
     setLoading(true); setError('')
-    try { const r = await api.listDays(event.id); setDays(r.days || r || []) } catch (e) { setError(e.message) }
+    try {
+      const r = await api.listDays(event.id); setDays(r.days || r || [])
+      if (api.listSubmitted) { try { const s = await api.listSubmitted(event.id); setSubmitted(s.days || s || []) } catch { /* older api */ } }
+    } catch (e) { setError(e.message) }
     setLoading(false)
   }
   useEffect(() => { load() /* eslint-disable-next-line */ }, [])
@@ -59,6 +63,42 @@ export default function EventTimesheets({ event, api, onClose }) {
     return shell(<SubmitView event={event} api={api} grand={grand} dayCount={days.length} inp={inp} onBack={() => setMode('list')} onDone={(r) => setResult(r)} />)
   }
 
+  if (mode === 'review') {
+    const subGrand = Math.round(submitted.reduce((a, d) => a + total(d.rows), 0) * 10) / 10
+    return shell(
+      <div style={{ padding: 18 }}>
+        <button onClick={() => setMode('list')} style={{ background: 'transparent', border: '1px solid #333', color: '#9ecbff', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer', marginBottom: 12 }}>← Back</button>
+        {submitted.length === 0 ? (
+          <p style={{ color: '#888', textAlign: 'center', padding: 20 }}>Nothing submitted for this event yet.</p>
+        ) : (
+          <>
+            <div style={{ color: '#888', fontSize: 12, marginBottom: 10 }}>{submitted.length} submitted day{submitted.length !== 1 ? 's' : ''} · {subGrand} hrs total</div>
+            {submitted.map(d => (
+              <div key={d.id} style={{ border: '1px solid #222', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{d.work_date || 'Undated day'}</span>
+                  <span style={{ color: '#4ade80', fontSize: 12 }}>{total(d.rows)} hrs · {(d.rows || []).length} workers</span>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead><tr style={{ color: '#777', textAlign: 'left' }}><th style={{ padding: 3 }}>Name</th><th style={{ padding: 3 }}>Start</th><th style={{ padding: 3 }}>End</th><th style={{ padding: 3, textAlign: 'right' }}>Hrs</th></tr></thead>
+                    <tbody>
+                      {(d.rows || []).map((r, i) => (
+                        <tr key={i} style={{ color: '#ddd', borderTop: '1px solid #1a1a1a' }}>
+                          <td style={{ padding: 3 }}>{r.name}</td><td style={{ padding: 3 }}>{r.start_time}</td><td style={{ padding: 3 }}>{r.end_time}</td><td style={{ padding: 3, textAlign: 'right' }}>{r.total_hours}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    )
+  }
+
   // list
   return shell(
     <div style={{ padding: 18 }}>
@@ -66,6 +106,11 @@ export default function EventTimesheets({ event, api, onClose }) {
         <p style={{ color: '#888', textAlign: 'center', padding: 24 }}>Loading…</p>
       ) : (
         <>
+          {submitted.length > 0 && (
+            <button onClick={() => setMode('review')} style={{ width: '100%', background: '#12261a', border: '1px solid #1f4a30', color: '#7fe0a3', borderRadius: 8, padding: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 12 }}>
+              Review submitted timesheets ({submitted.length} day{submitted.length !== 1 ? 's' : ''}) →
+            </button>
+          )}
           {days.length === 0 ? (
             <div style={{ color: '#888', fontSize: 13, textAlign: 'center', padding: '18px 0' }}>No days saved yet. Scan the timesheet for each day as the event runs — they build up here until you submit.</div>
           ) : (
