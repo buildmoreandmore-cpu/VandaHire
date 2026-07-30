@@ -1070,6 +1070,50 @@ async function handleTsDays(req, res, supabase) {
   const status = req.query.status === 'submitted' ? 'submitted' : 'draft'
   return res.status(200).json({ days: await tsListDays(supabase, eventId, status) })
 }
+
+// Every timesheet batch uploaded anywhere — event-linked OR standalone/ad-hoc —
+// so the coordinator can find timesheets a supervisor scanned that aren't tied
+// to a specific event record. Grouped by batch (event_id).
+async function handleTsBatches(req, res, supabase) {
+  const { data: rows } = await supabase.from('timesheet_days')
+    .select('event_id, event_label, company, work_date, rows, status, adhoc, submitter, created_at')
+    .order('created_at', { ascending: false })
+  // Titles for event-linked batches.
+  const eventIds = [...new Set((rows || []).map(r => r.event_id))]
+  let titleById = {}
+  if (eventIds.length) {
+    const { data: evs } = await supabase.from('events').select('id, title, event_date, city').in('id', eventIds)
+    for (const e of (evs || [])) titleById[e.id] = e
+  }
+  const map = {}
+  for (const r of (rows || [])) {
+    const b = map[r.event_id] || (map[r.event_id] = {
+      batch_id: r.event_id,
+      title: titleById[r.event_id]?.title || r.event_label || 'Untitled timesheet',
+      event_date: titleById[r.event_id]?.event_date || null,
+      city: titleById[r.event_id]?.city || null,
+      adhoc: !!r.adhoc,
+      linked_event: !!titleById[r.event_id],
+      company: r.company || '',
+      submitters: new Set(),
+      names: new Set(),
+      days: 0, hours: 0,
+      draft: 0, submitted: 0,
+      last: r.created_at,
+    })
+    b.days++
+    if (r.submitter) b.submitters.add(r.submitter)
+    if (r.status === 'submitted') b.submitted++; else b.draft++
+    for (const x of (r.rows || [])) { if (x.name) b.names.add(String(x.name).trim().toLowerCase()); b.hours += parseFloat(x.total_hours) || 0 }
+  }
+  const batches = Object.values(map).map(b => ({
+    batch_id: b.batch_id, title: b.title, event_date: b.event_date, city: b.city,
+    adhoc: b.adhoc, linked_event: b.linked_event, company: b.company,
+    submitters: [...b.submitters], workers: b.names.size, days: b.days,
+    hours: Math.round(b.hours * 10) / 10, draft: b.draft, submitted: b.submitted, last: b.last,
+  })).sort((a, b) => (b.last || '').localeCompare(a.last || ''))
+  return res.status(200).json({ batches })
+}
 async function handleTsSave(req, res, supabase) {
   const { id, event_id, event_label, company, work_date, rows } = req.body || {}
   if (!event_id) return res.status(400).json({ error: 'event_id required' })
@@ -2217,6 +2261,7 @@ export default async function handler(req, res) {
       case 'timesheet-parse': return await handleTimesheetParse(req, res)
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'timesheet-days': return await handleTsDays(req, res, supabase)
+      case 'timesheet-batches': return await handleTsBatches(req, res, supabase)
       case 'timesheet-save': return await handleTsSave(req, res, supabase)
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)

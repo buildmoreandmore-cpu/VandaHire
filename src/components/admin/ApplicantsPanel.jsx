@@ -346,16 +346,24 @@ export default function ApplicantsPanel() {
     })
   }, [applicants, cityFilter, stateFilter, roleFilter, availFilter, search])
 
-  // Group by city
+  // Group by STATE first (derived from zip), city shown as a subtitle on each worker.
   const grouped = useMemo(() => {
     const groups = {}
     for (const a of filtered) {
-      const key = a.city || 'Unknown'
-      if (!groups[key]) groups[key] = []
-      groups[key].push(a)
+      const st = zipToState(a.zip) || 'Unknown state'
+      if (!groups[st]) groups[st] = []
+      groups[st].push(a)
     }
-    // Sort cities alphabetically
-    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
+    // Within each state, sort workers by city then name for readability.
+    for (const k of Object.keys(groups)) {
+      groups[k].sort((x, y) => (x.city || '').localeCompare(y.city || '') || `${x.first_name} ${x.last_name}`.localeCompare(`${y.first_name} ${y.last_name}`))
+    }
+    // Unknown last, otherwise alphabetical by state.
+    return Object.entries(groups).sort((a, b) => {
+      if (a[0] === 'Unknown state') return 1
+      if (b[0] === 'Unknown state') return -1
+      return a[0].localeCompare(b[0])
+    })
   }, [filtered])
 
   const handleStatusChange = async (id, newStatus) => {
@@ -808,9 +816,9 @@ export default function ApplicantsPanel() {
         <div className="text-p-muted text-sm py-8 text-center">No applicants found</div>
       ) : (
         <div className="space-y-6">
-          {grouped.map(([city, workers]) => (
-            <div key={city}>
-              {/* City Header */}
+          {grouped.map(([stateName, workers]) => (
+            <div key={stateName}>
+              {/* State Header */}
               <div className="flex items-center gap-3 mb-2">
                 <input
                   type="checkbox"
@@ -818,7 +826,7 @@ export default function ApplicantsPanel() {
                   onChange={() => toggleSelectCity(workers)}
                   className="accent-green-500 w-4 h-4 cursor-pointer"
                 />
-                <h3 className="text-white text-sm font-semibold">{city}</h3>
+                <h3 className="text-white text-sm font-semibold">{stateName}</h3>
                 <span className="text-p-muted text-xs">{workers.length} worker{workers.length !== 1 ? 's' : ''}</span>
               </div>
 
@@ -851,7 +859,10 @@ export default function ApplicantsPanel() {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-white text-sm font-medium truncate">{a.first_name} {a.last_name}</div>
+                          <div className="text-white text-sm font-medium truncate">
+                            {a.first_name} {a.last_name}
+                            {a.city && <span className="text-p-muted font-normal"> · {a.city}</span>}
+                          </div>
                           <div className="text-p-muted text-xs truncate">
                             {(a.roles || []).join(', ') || 'No roles'} · {(a.availability || []).join(', ') || ''}
                           </div>
