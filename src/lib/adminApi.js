@@ -181,6 +181,7 @@ export const submitTimesheetAdmin = (payload) =>
   adminFetch('/api/admin/timesheet-submit', { method: 'POST', body: JSON.stringify(payload) })
 export const timesheetDays = (eventId, status) => adminFetch(`/api/admin/timesheet-days?event_id=${eventId}${status ? `&status=${status}` : ''}`)
 export const timesheetBatches = () => adminFetch('/api/admin/timesheet-batches')
+export const renameTimesheetBatch = (batch_id, title) => adminFetch('/api/admin/timesheet-rename', { method: 'POST', body: JSON.stringify({ batch_id, title }) })
 export const saveTimesheetDay = (day) => adminFetch('/api/admin/timesheet-save', { method: 'POST', body: JSON.stringify(day) })
 export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) })
 export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })

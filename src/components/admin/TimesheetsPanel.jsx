@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import EventTimesheets from '../EventTimesheets.jsx'
-import { fetchEvents, parseTimesheet, timesheetDays, timesheetBatches, saveTimesheetDay, deleteTimesheetDay, finalizeTimesheet } from '../../lib/adminApi.js'
+import { fetchEvents, parseTimesheet, timesheetDays, timesheetBatches, renameTimesheetBatch, saveTimesheetDay, deleteTimesheetDay, finalizeTimesheet } from '../../lib/adminApi.js'
 
 const adminTsApi = {
   listDays: (eventId) => timesheetDays(eventId),
@@ -26,6 +26,16 @@ export default function TimesheetsPanel() {
     ]).then(([evs, bs]) => { setEvents(evs); setBatches(bs) }).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
+
+  const rename = async (b, e) => {
+    e.stopPropagation()
+    const name = window.prompt('Rename this timesheet:', b.title === 'Timesheet' || b.title === 'Untitled timesheet' ? '' : b.title)
+    if (name == null || !name.trim()) return
+    try {
+      await renameTimesheetBatch(b.batch_id, name.trim())
+      setBatches(prev => prev.map(x => x.batch_id === b.batch_id ? { ...x, title: name.trim() } : x))
+    } catch (err) { alert('Rename failed: ' + err.message) }
+  }
 
   const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'
   const q = search.trim().toLowerCase()
@@ -79,6 +89,7 @@ export default function TimesheetsPanel() {
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {b.draft > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400">{b.draft} in progress</span>}
                       {b.submitted > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-green-500/15 text-green-400">{b.submitted} submitted</span>}
+                      <span onClick={(e) => rename(b, e)} className="text-p-muted text-xs hover:text-white ml-1" title="Rename this timesheet">Rename</span>
                       <span className="text-p-link text-xs ml-1">Review →</span>
                     </div>
                   </button>

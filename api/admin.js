@@ -1074,6 +1074,19 @@ async function handleTsDays(req, res, supabase) {
   return res.status(200).json({ days: await tsListDays(supabase, eventId, status) })
 }
 
+// Rename a timesheet batch — sets the label on every day in the batch. Handy when
+// a supervisor's standalone timesheet came in generically named ("Timesheet").
+async function handleTsRename(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  const { batch_id, title } = req.body || {}
+  if (!batch_id || !title || !String(title).trim()) return res.status(400).json({ error: 'batch_id and title required' })
+  const { error } = await supabase.from('timesheet_days')
+    .update({ event_label: String(title).trim(), updated_at: new Date().toISOString() })
+    .eq('event_id', batch_id)
+  if (error) throw error
+  return res.status(200).json({ ok: true, title: String(title).trim() })
+}
+
 // Every timesheet batch uploaded anywhere — event-linked OR standalone/ad-hoc —
 // so the coordinator can find timesheets a supervisor scanned that aren't tied
 // to a specific event record. Grouped by batch (event_id).
@@ -2265,6 +2278,7 @@ export default async function handler(req, res) {
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'timesheet-days': return await handleTsDays(req, res, supabase)
       case 'timesheet-batches': return await handleTsBatches(req, res, supabase)
+      case 'timesheet-rename': return await handleTsRename(req, res, supabase)
       case 'timesheet-save': return await handleTsSave(req, res, supabase)
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)
