@@ -10,6 +10,7 @@ import { sendEmail, readUnsubToken, isEmailSuppressed } from '../_lib/email.js'
 import { createRingCentralContact } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
+import { uploadImage } from '../_lib/storage.js'
 import { buildTimesheetXlsxBase64, timesheetTotals, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays, saveDay, deleteDay, finalizeEvent } from '../_lib/timesheetStore.js'
 
@@ -687,8 +688,11 @@ async function handleTimesheetParse(req, res, supabase) {
   const { image_base64 } = req.body || {}
   if (!image_base64) return res.status(400).json({ error: 'image_base64 required' })
   try {
+    // Keep the original scan alongside the transcription.
+    let image_url = null
+    try { image_url = await uploadImage(supabase, image_base64, 'timesheets') } catch (e) { console.error('[timesheet-parse] image store:', e.message) }
     const parsed = await parseTimesheetImage(image_base64)
-    return res.status(200).json({ ok: true, ...parsed })
+    return res.status(200).json({ ok: true, image_url, ...parsed })
   } catch (err) {
     console.error('[timesheet-parse]', err.message)
     return res.status(500).json({ error: err.message })

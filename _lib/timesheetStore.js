@@ -6,7 +6,7 @@ import { sendEmail } from './email.js'
 
 export async function listDays(supabase, eventId, status = 'draft') {
   let q = supabase.from('timesheet_days')
-    .select('id, event_id, event_label, company, work_date, rows, submitter, status, created_at')
+    .select('id, event_id, event_label, company, work_date, rows, submitter, status, image_urls, created_at')
     .eq('event_id', eventId)
     .order('created_at', { ascending: true })
   if (status) q = q.eq('status', status)
@@ -27,6 +27,7 @@ export async function saveDay(supabase, d) {
   }
   if (d.adhoc !== undefined) row.adhoc = !!d.adhoc
   if (d.supervisor_id !== undefined) row.supervisor_id = d.supervisor_id
+  if (Array.isArray(d.image_urls)) row.image_urls = d.image_urls
   if (d.id) {
     const { data, error } = await supabase.from('timesheet_days').update(row).eq('id', d.id).select().single()
     if (error) throw error

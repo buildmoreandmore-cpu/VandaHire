@@ -11,6 +11,7 @@ import { calculateDistance } from '../_lib/geo.js'
 import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
+import { uploadImage } from '../_lib/storage.js'
 import { buildTimesheetXlsxBase64, timesheetTotals, buildProfitXlsxBase64, buildPayrollXlsxBase64, OFFICE_EMAILS } from '../_lib/timesheet.js'
 import { listDays as tsListDays, saveDay as tsSaveDay, deleteDay as tsDeleteDay, finalizeEvent as tsFinalizeEvent } from '../_lib/timesheetStore.js'
 
@@ -1026,13 +1027,15 @@ async function handleRcSubscribe(req, res) {
 }
 
 // ─── TIMESHEET OCR (coordinator side) ───────────────────────────────────────────
-async function handleTimesheetParse(req, res) {
+async function handleTimesheetParse(req, res, supabase) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const { image_base64 } = req.body || {}
   if (!image_base64) return res.status(400).json({ error: 'image_base64 required' })
   try {
+    let image_url = null
+    try { image_url = await uploadImage(supabase, image_base64, 'timesheets') } catch (e) { console.error('[admin/timesheet-parse] image store:', e.message) }
     const parsed = await parseTimesheetImage(image_base64)
-    return res.status(200).json({ ok: true, ...parsed })
+    return res.status(200).json({ ok: true, image_url, ...parsed })
   } catch (err) {
     console.error('[admin/timesheet-parse]', err.message)
     return res.status(500).json({ error: err.message })
@@ -2258,7 +2261,7 @@ export default async function handler(req, res) {
       case 'expenses': return await handleExpenses(req, res, supabase)
       case 'event-profit': return await handleEventProfit(req, res, supabase)
       case 'profit-email': return await handleProfitEmail(req, res, supabase)
-      case 'timesheet-parse': return await handleTimesheetParse(req, res)
+      case 'timesheet-parse': return await handleTimesheetParse(req, res, supabase)
       case 'timesheet-submit': return await handleTimesheetSubmit(req, res)
       case 'timesheet-days': return await handleTsDays(req, res, supabase)
       case 'timesheet-batches': return await handleTsBatches(req, res, supabase)

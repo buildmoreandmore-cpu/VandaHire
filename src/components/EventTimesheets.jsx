@@ -79,6 +79,7 @@ export default function EventTimesheets({ event, api, onClose }) {
                   <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{d.work_date || 'Undated day'}</span>
                   <span style={{ color: '#4ade80', fontSize: 12 }}>{total(d.rows)} hrs · {(d.rows || []).length} workers</span>
                 </div>
+                <DayPhotos urls={d.image_urls} />
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead><tr style={{ color: '#777', textAlign: 'left' }}><th style={{ padding: 3 }}>Name</th><th style={{ padding: 3 }}>Start</th><th style={{ padding: 3 }}>End</th><th style={{ padding: 3, textAlign: 'right' }}>Hrs</th></tr></thead>
@@ -116,12 +117,15 @@ export default function EventTimesheets({ event, api, onClose }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               {days.map(d => (
-                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#111', border: '1px solid #222', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{d.work_date || 'Undated day'}</div>
-                    <div style={{ color: '#888', fontSize: 11 }}>{(d.rows || []).length} worker{(d.rows || []).length !== 1 ? 's' : ''} · {total(d.rows)} hrs</div>
+                <div key={d.id} style={{ background: '#111', border: '1px solid #222', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{d.work_date || 'Undated day'}</div>
+                      <div style={{ color: '#888', fontSize: 11 }}>{(d.rows || []).length} worker{(d.rows || []).length !== 1 ? 's' : ''} · {total(d.rows)} hrs</div>
+                    </div>
+                    <button onClick={async () => { if (confirm('Delete this day?')) { try { await api.deleteDay(d.id); load() } catch (e) { alert(e.message) } } }} style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>Delete</button>
                   </div>
-                  <button onClick={async () => { if (confirm('Delete this day?')) { try { await api.deleteDay(d.id); load() } catch (e) { alert(e.message) } } }} style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>Delete</button>
+                  <DayPhotos urls={d.image_urls} />
                 </div>
               ))}
               <div style={{ color: '#4ade80', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>Grand total: {grand} hrs</div>
@@ -145,11 +149,27 @@ export default function EventTimesheets({ event, api, onClose }) {
   )
 }
 
+// Original scan photos for a day — thumbnails that open full-size in a new tab.
+function DayPhotos({ urls }) {
+  const list = Array.isArray(urls) ? urls.filter(Boolean) : []
+  if (!list.length) return null
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0' }}>
+      {list.map((u, i) => (
+        <a key={i} href={u} target="_blank" rel="noopener noreferrer" title="Open original timesheet photo">
+          <img src={u} alt="Original timesheet" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #333' }} />
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function DayCapture({ event, api, onCancel, onSaved }) {
   const [company, setCompany] = useState('')
   const [workDate, setWorkDate] = useState('')
   const [shift, setShift] = useState('') // '', 'Day', 'Night' — for events with different day/night crews
   const [rows, setRows] = useState([])
+  const [imageUrls, setImageUrls] = useState([]) // original scan photos, kept with the day
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -171,6 +191,7 @@ function DayCapture({ event, api, onCancel, onSaved }) {
       if (d.company && !company) setCompany(d.company)
       if (d.date && !workDate) setWorkDate(d.date)
       setRows(prev => [...prev, ...(d.rows || [])])
+      if (d.image_url) setImageUrls(prev => [...prev, d.image_url])
     } catch (e) {
       // Keep everything already entered — the user retries, they don't restart.
       setError('That scan didn\'t go through — tap the box to try the photo again. Your entries are saved.')
@@ -187,7 +208,7 @@ function DayCapture({ event, api, onCancel, onSaved }) {
       // Day/Night: tag the entry so a date with different day vs night crews
       // becomes its own column on the master payroll (staff can change per shift).
       const label = shift ? `${workDate || 'Date'} — ${shift}` : workDate
-      await api.saveDay({ event_id: event.id, event_label: event.title, company, work_date: label, rows })
+      await api.saveDay({ event_id: event.id, event_label: event.title, company, work_date: label, rows, image_urls: imageUrls })
       onSaved()
     } catch (e) { setError(e.message) }
     setSaving(false)
@@ -214,6 +235,7 @@ function DayCapture({ event, api, onCancel, onSaved }) {
         <input type="file" accept="image/*" style={{ display: 'none' }} disabled={parsing} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; addPhoto(f) }} />
         {parsing ? 'Reading timesheet… (may take up to 30s)' : rows.length ? '+ Add another photo to this day' : "Take a photo or choose from gallery"}
       </label>
+      <DayPhotos urls={imageUrls} />
       {rows.length > 0 && (
         <div style={{ overflowX: 'auto', marginBottom: 10 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
