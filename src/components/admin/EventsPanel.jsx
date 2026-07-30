@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, promoteBench, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence } from '../../lib/adminApi.js'
+import { fetchEvents, updateEvent, deleteEvent, fetchApplicants, fetchAssignments, createAssignments, updateAssignment, deleteAssignment, createCheckoutSession, fetchSuggestedWorkers, fetchBenchPool, addToBench, updateBenchAssignment, removeBenchAssignment, triggerBenchDispatch, promoteBench, fetchQuote, createQuote, updateQuote, fetchPayments, createDepositLink, createBalanceLink, fetchExitRecords, cancelEvent, fetchEventReviews, batchSendShifts, batchSendSurveys, cloneEvent, sendShiftDetails, sendSurvey, fetchTemplates, createTemplate, deleteTemplate, createEvent, bulkMessage, fetchGeofenceStatus, toggleGeofence, pushCrewToRingCentral } from '../../lib/adminApi.js'
 import MessageTemplates from './MessageTemplates.jsx'
 import { SENDER_NUMBERS, senderLabel } from '../../lib/senderNumbers.js'
 import ProfitPanel from './ProfitPanel.jsx'
@@ -148,6 +148,25 @@ export default function EventsPanel() {
   const [showQuote, setShowQuote] = useState(false)
   const [profitEvent, setProfitEvent] = useState(null)
   const [payrollEvent, setPayrollEvent] = useState(null)
+  const [pushingRc, setPushingRc] = useState(null)
+
+  const handlePushCrewRc = async (eventId) => {
+    setPushingRc(eventId)
+    try {
+      const r = await pushCrewToRingCentral(eventId)
+      const parts = []
+      if (r.pushed) parts.push(`${r.pushed} added`)
+      if (r.already) parts.push(`${r.already} already in RingCentral`)
+      if (r.failed) parts.push(`${r.failed} failed`)
+      alert(r.pushed || r.already ? `Crew pushed to RingCentral — ${parts.join(', ')}.` : (r.message || 'No crew to push.'))
+    } catch (e) {
+      const m = String(e.message || '')
+      alert(m.includes('Contacts') || m.includes('permission')
+        ? 'RingCentral needs the "Contacts" permission first. In the RingCentral developer console → your app → Settings → Application Scopes, add "Contacts" and Save (no approval needed), then try again.'
+        : 'Push failed: ' + m)
+    }
+    setPushingRc(null)
+  }
   const [showBench, setShowBench] = useState(false)
 
   // Event edit/delete
@@ -1663,6 +1682,16 @@ export default function EventsPanel() {
                             className="text-xs text-p-link font-medium hover:opacity-80 transition-opacity"
                           >
                             Message crew
+                          </button>
+                        )}
+                        {assignments.length > 0 && (
+                          <button
+                            onClick={() => handlePushCrewRc(ev.id)}
+                            disabled={pushingRc === ev.id}
+                            className="text-xs text-p-muted font-medium hover:text-white transition-colors disabled:opacity-50"
+                            title="Add this hired crew to RingCentral as named contacts"
+                          >
+                            {pushingRc === ev.id ? 'Pushing…' : 'Push to RingCentral'}
                           </button>
                         )}
                         <button

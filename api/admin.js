@@ -8,7 +8,7 @@ import { calculatePay, calculateRefund, calculateQuote } from '../_lib/pay.js'
 import { getAgreementHtml } from '../_lib/agreement.js'
 import { sendPushToWorker } from '../_lib/push.js'
 import { calculateDistance } from '../_lib/geo.js'
-import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured } from '../_lib/ringcentral.js'
+import { ensureSmsSubscription, listSubscriptions, ringCentralConfigured, createRingCentralContact } from '../_lib/ringcentral.js'
 import { parseTimesheetImage, parseApplicationImage } from '../_lib/anthropic.js'
 import { createIntakeApplicant } from '../_lib/intake.js'
 import { uploadImage } from '../_lib/storage.js'
@@ -1147,6 +1147,53 @@ async function handleTsFinalize(req, res, supabase) {
   catch (e) { return res.status(400).json({ error: e.message }) }
 }
 
+// Push an event's HIRED crew (assigned workers) into RingCentral as named contacts.
+// You may blast 80 people but only hire 20 — this moves just the working crew over,
+// so their names show on texts and RingCentral stays clean. Deduped via rc_contact_id.
+async function handlePushCrewToRc(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!ringCentralConfigured()) return res.status(400).json({ error: 'RingCentral not configured' })
+  const { event_id, statuses } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+
+  // Which assignments count as "hired". Default = still on the crew.
+  const keep = Array.isArray(statuses) && statuses.length ? statuses : ['invited', 'confirmed', 'checked_in', 'completed']
+  const { data: assigns } = await supabase.from('assignments')
+    .select('worker_id, applicants ( id, first_name, last_name, phone, rc_contact_id )')
+    .eq('event_id', event_id).in('status', keep)
+
+  const seen = new Set()
+  const crew = []
+  for (const a of (assigns || [])) {
+    const w = a.applicants
+    if (!w || seen.has(w.id)) continue
+    seen.add(w.id)
+    crew.push(w)
+  }
+  if (!crew.length) return res.status(200).json({ ok: true, pushed: 0, already: 0, failed: 0, total: 0, message: 'No hired crew to push yet.' })
+
+  let pushed = 0, already = 0, failed = 0
+  const errors = []
+  for (const w of crew) {
+    if (w.rc_contact_id) { already++; continue }
+    const phone = String(w.phone || '').replace(/\D/g, '')
+    if (phone.length < 10) { failed++; continue }
+    try {
+      const contact = await createRingCentralContact({
+        firstName: w.first_name || 'Worker',
+        lastName: w.last_name || '',
+        phone: phone.startsWith('1') ? `+${phone}` : `+1${phone}`,
+      })
+      await supabase.from('applicants').update({ rc_contact_id: String(contact.id) }).eq('id', w.id)
+      pushed++
+    } catch (e) {
+      failed++
+      if (errors.length < 3) errors.push(`${w.first_name}: ${e.message}`)
+    }
+  }
+  return res.status(200).json({ ok: true, pushed, already, failed, total: crew.length, errors })
+}
+
 // ─── IN-PERSON HIRING INTAKE ────────────────────────────────────────────────────
 // Parse a photographed paper application via Claude Vision (prefill the form).
 async function handleApplicationParse(req, res) {
@@ -2279,6 +2326,7 @@ export default async function handler(req, res) {
       case 'timesheet-days': return await handleTsDays(req, res, supabase)
       case 'timesheet-batches': return await handleTsBatches(req, res, supabase)
       case 'timesheet-rename': return await handleTsRename(req, res, supabase)
+      case 'push-crew-rc': return await handlePushCrewToRc(req, res, supabase)
       case 'timesheet-save': return await handleTsSave(req, res, supabase)
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)
