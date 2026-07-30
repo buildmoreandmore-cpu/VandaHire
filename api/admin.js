@@ -1147,34 +1147,18 @@ async function handleTsFinalize(req, res, supabase) {
   catch (e) { return res.status(400).json({ error: e.message }) }
 }
 
-// Push an event's HIRED crew (assigned workers) into RingCentral as named contacts.
-// You may blast 80 people but only hire 20 — this moves just the working crew over,
-// so their names show on texts and RingCentral stays clean. Deduped via rc_contact_id.
-async function handlePushCrewToRc(req, res, supabase) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  if (!ringCentralConfigured()) return res.status(400).json({ error: 'RingCentral not configured' })
-  const { event_id, statuses } = req.body || {}
-  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+// Confirmed + hired = they replied yes AND are on the crew (not just invited).
+const HIRED_STATUSES = ['confirmed', 'checked_in', 'completed']
 
-  // Which assignments count as "hired". Default = still on the crew.
-  const keep = Array.isArray(statuses) && statuses.length ? statuses : ['invited', 'confirmed', 'checked_in', 'completed']
-  const { data: assigns } = await supabase.from('assignments')
-    .select('worker_id, applicants ( id, first_name, last_name, phone, rc_contact_id )')
-    .eq('event_id', event_id).in('status', keep)
-
-  const seen = new Set()
-  const crew = []
-  for (const a of (assigns || [])) {
-    const w = a.applicants
-    if (!w || seen.has(w.id)) continue
-    seen.add(w.id)
-    crew.push(w)
-  }
-  if (!crew.length) return res.status(200).json({ ok: true, pushed: 0, already: 0, failed: 0, total: 0, message: 'No hired crew to push yet.' })
-
+// Create RingCentral contacts for a list of workers. Deduped via rc_contact_id.
+// `label` tags each contact (event/group name) so the crew is findable as a group.
+async function pushWorkersToRc(supabase, workers, label) {
   let pushed = 0, already = 0, failed = 0
   const errors = []
-  for (const w of crew) {
+  const seen = new Set()
+  for (const w of workers) {
+    if (!w || seen.has(w.id)) continue
+    seen.add(w.id)
     if (w.rc_contact_id) { already++; continue }
     const phone = String(w.phone || '').replace(/\D/g, '')
     if (phone.length < 10) { failed++; continue }
@@ -1183,15 +1167,53 @@ async function handlePushCrewToRc(req, res, supabase) {
         firstName: w.first_name || 'Worker',
         lastName: w.last_name || '',
         phone: phone.startsWith('1') ? `+${phone}` : `+1${phone}`,
+        company: label ? `V&A · ${label}` : 'V&A Hire crew',
       })
       await supabase.from('applicants').update({ rc_contact_id: String(contact.id) }).eq('id', w.id)
       pushed++
-    } catch (e) {
-      failed++
-      if (errors.length < 3) errors.push(`${w.first_name}: ${e.message}`)
-    }
+    } catch (e) { failed++; if (errors.length < 3) errors.push(`${w.first_name}: ${e.message}`) }
   }
-  return res.status(200).json({ ok: true, pushed, already, failed, total: crew.length, errors })
+  return { pushed, already, failed, total: seen.size, errors }
+}
+
+// Push an event's HIRED crew (confirmed + assigned) into RingCentral as named contacts.
+// You may blast 80 people but only hire 20 — this moves just the working crew over.
+async function handlePushCrewToRc(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!ringCentralConfigured()) return res.status(400).json({ error: 'RingCentral not configured' })
+  const { event_id } = req.body || {}
+  if (!event_id) return res.status(400).json({ error: 'event_id required' })
+  const { data: ev } = await supabase.from('events').select('title').eq('id', event_id).single()
+  const { data: assigns } = await supabase.from('assignments')
+    .select('worker_id, applicants ( id, first_name, last_name, phone, rc_contact_id )')
+    .eq('event_id', event_id).in('status', HIRED_STATUSES)
+  const crew = (assigns || []).map(a => a.applicants).filter(Boolean)
+  if (!crew.length) return res.status(200).json({ ok: true, pushed: 0, already: 0, failed: 0, total: 0, message: 'No confirmed, hired crew to push yet.' })
+  return res.status(200).json({ ok: true, ...(await pushWorkersToRc(supabase, crew, ev?.title)) })
+}
+
+// Push a worker group's members — but ONLY those who are confirmed + hired on an
+// event (they replied yes and made the crew), not everyone who was blasted.
+async function handlePushGroupToRc(req, res, supabase) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (!ringCentralConfigured()) return res.status(400).json({ error: 'RingCentral not configured' })
+  const { group_id } = req.body || {}
+  if (!group_id) return res.status(400).json({ error: 'group_id required' })
+
+  const { data: members } = await supabase.from('worker_group_members').select('worker_id').eq('group_id', group_id)
+  const memberIds = [...new Set((members || []).map(m => m.worker_id).filter(Boolean))]
+  if (!memberIds.length) return res.status(200).json({ ok: true, pushed: 0, already: 0, failed: 0, total: 0, message: 'Group has no members.' })
+
+  // Keep only members who are confirmed + hired somewhere.
+  const { data: hiredAssigns } = await supabase.from('assignments')
+    .select('worker_id').in('worker_id', memberIds).in('status', HIRED_STATUSES)
+  const hiredIds = [...new Set((hiredAssigns || []).map(a => a.worker_id))]
+  if (!hiredIds.length) return res.status(200).json({ ok: true, pushed: 0, already: 0, failed: 0, total: 0, message: 'No one in this group is confirmed & hired yet — nobody pushed.' })
+
+  const { data: grp } = await supabase.from('worker_groups').select('name').eq('id', group_id).single()
+  const { data: workers } = await supabase.from('applicants')
+    .select('id, first_name, last_name, phone, rc_contact_id').in('id', hiredIds)
+  return res.status(200).json({ ok: true, ...(await pushWorkersToRc(supabase, workers || [], grp?.name)) })
 }
 
 // ─── IN-PERSON HIRING INTAKE ────────────────────────────────────────────────────
@@ -2327,6 +2349,7 @@ export default async function handler(req, res) {
       case 'timesheet-batches': return await handleTsBatches(req, res, supabase)
       case 'timesheet-rename': return await handleTsRename(req, res, supabase)
       case 'push-crew-rc': return await handlePushCrewToRc(req, res, supabase)
+      case 'push-group-rc': return await handlePushGroupToRc(req, res, supabase)
       case 'timesheet-save': return await handleTsSave(req, res, supabase)
       case 'timesheet-delete': return await handleTsDelete(req, res, supabase)
       case 'timesheet-finalize': return await handleTsFinalize(req, res, supabase)

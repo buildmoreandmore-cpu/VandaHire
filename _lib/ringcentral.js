@@ -35,10 +35,14 @@ async function rcFetch(path, opts = {}) {
 }
 
 // Create a personal address-book contact so inbound texts show the worker's name.
-export async function createRingCentralContact({ firstName, lastName, phone }) {
+// `company` tags the contact (e.g. the event name) so a whole crew is findable
+// together in RingCentral by searching/sorting on that company label.
+export async function createRingCentralContact({ firstName, lastName, phone, company }) {
+  const body = { firstName: firstName || 'Worker', lastName: lastName || '', mobilePhone: phone }
+  if (company) body.company = String(company).slice(0, 64)
   const res = await rcFetch('/restapi/v1.0/account/~/extension/~/address-book/contact', {
     method: 'POST',
-    body: JSON.stringify({ firstName: firstName || 'Worker', lastName: lastName || '', mobilePhone: phone }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`RC contact create (${res.status}): ${(await res.text().catch(() => '')).slice(0, 200)}`)
   return res.json()

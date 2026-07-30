@@ -183,6 +183,7 @@ export const timesheetDays = (eventId, status) => adminFetch(`/api/admin/timeshe
 export const timesheetBatches = () => adminFetch('/api/admin/timesheet-batches')
 export const renameTimesheetBatch = (batch_id, title) => adminFetch('/api/admin/timesheet-rename', { method: 'POST', body: JSON.stringify({ batch_id, title }) })
 export const pushCrewToRingCentral = (event_id) => adminFetch('/api/admin/push-crew-rc', { method: 'POST', body: JSON.stringify({ event_id }) })
+export const pushGroupToRingCentral = (group_id) => adminFetch('/api/admin/push-group-rc', { method: 'POST', body: JSON.stringify({ group_id }) })
 export const saveTimesheetDay = (day) => adminFetch('/api/admin/timesheet-save', { method: 'POST', body: JSON.stringify(day) })
 export const deleteTimesheetDay = (id) => adminFetch('/api/admin/timesheet-delete', { method: 'POST', body: JSON.stringify({ id }) })
 export const finalizeTimesheet = (event_id, signature) => adminFetch('/api/admin/timesheet-finalize', { method: 'POST', body: JSON.stringify({ event_id, signature }) })

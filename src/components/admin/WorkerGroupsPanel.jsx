@@ -4,7 +4,7 @@ import MessageTemplates from './MessageTemplates.jsx'
 import {
   fetchGroups, createGroup, updateGroup, deleteGroup,
   fetchGroupMembers, updateGroupMembers,
-  fetchApplicants, createAssignments, fetchEvents, bulkMessage,
+  fetchApplicants, createAssignments, fetchEvents, bulkMessage, pushGroupToRingCentral,
 } from '../../lib/adminApi.js'
 
 const SITE_URL = 'https://vandahire.com'
@@ -18,6 +18,25 @@ export default function WorkerGroupsPanel() {
   const [editingMembers, setEditingMembers] = useState(null) // group object
   const [members, setMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
+  const [pushingGroup, setPushingGroup] = useState(null)
+
+  const handlePushGroupRc = async (g) => {
+    setPushingGroup(g.id)
+    try {
+      const r = await pushGroupToRingCentral(g.id)
+      const parts = []
+      if (r.pushed) parts.push(`${r.pushed} added`)
+      if (r.already) parts.push(`${r.already} already in RingCentral`)
+      if (r.failed) parts.push(`${r.failed} failed`)
+      alert(r.pushed || r.already ? `Pushed to RingCentral — ${parts.join(', ')}.` : (r.message || 'Nobody to push.'))
+    } catch (e) {
+      const m = String(e.message || '')
+      alert(m.includes('Contacts') || m.includes('permission')
+        ? 'RingCentral needs the "Contacts" permission first: developer console → your app → Settings → Application Scopes → add "Contacts" → Save (no approval needed), then try again.'
+        : 'Push failed: ' + m)
+    }
+    setPushingGroup(null)
+  }
   const [allWorkers, setAllWorkers] = useState([])
   const [workerSearch, setWorkerSearch] = useState('')
   const [qrVisible, setQrVisible] = useState({}) // { [groupId]: bool }
@@ -283,6 +302,9 @@ export default function WorkerGroupsPanel() {
                   <div className="flex gap-1">
                     <button onClick={() => openEditMembers(g)} className="text-xs text-p-muted hover:text-white px-2 py-1 border border-p-border rounded">
                       Edit Members
+                    </button>
+                    <button onClick={() => handlePushGroupRc(g)} disabled={pushingGroup === g.id} className="text-xs text-p-muted hover:text-white px-2 py-1 border border-p-border rounded disabled:opacity-50" title="Add confirmed & hired members to RingCentral as contacts">
+                      {pushingGroup === g.id ? 'Pushing…' : 'Push to RingCentral'}
                     </button>
                     <button onClick={() => handleArchive(g)} className="text-xs text-p-muted hover:text-yellow-400 px-2 py-1 border border-p-border rounded">
                       Archive
