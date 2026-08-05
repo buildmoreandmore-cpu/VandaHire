@@ -120,7 +120,7 @@ async function handleStats(req, res, supabase) {
 
 async function handleApplicants(req, res, supabase) {
   if (req.method === 'GET') {
-    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, strikes, bg_check_signed_at, bg_check_cleared, bg_check_result_url, id_photo_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
+    let query = supabase.from('applicants').select('id, created_at, first_name, last_name, email, phone, city, zip, roles, availability, experience_types, availability_windows, has_transportation, short_notice, notes, photo_url, video_url, video_submitted_at, video_verified, score_breakdown, status, strikes, pay_rate, bg_check_signed_at, bg_check_cleared, bg_check_result_url, id_photo_url, w9_signed_at, w9_legal_name, w9_business_name, w9_tax_class, w9_address, w9_city, w9_state, w9_zip, w9_tin_last4').order('created_at', { ascending: false })
     const { status } = req.query
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
@@ -278,7 +278,7 @@ async function handleApplicants(req, res, supabase) {
     return res.status(200).json(enriched)
   }
   if (req.method === 'PATCH') {
-    const { id, status, video_verified, first_name, last_name, email, phone, city, zip, roles, availability, bg_check_cleared, bg_check_result_base64 } = req.body
+    const { id, status, video_verified, first_name, last_name, email, phone, city, zip, roles, availability, bg_check_cleared, bg_check_result_base64, pay_rate } = req.body
     if (!id) return res.status(400).json({ error: 'id required' })
     const updates = { updated_at: new Date().toISOString() }
     if (status) {
@@ -297,6 +297,7 @@ async function handleApplicants(req, res, supabase) {
     if (roles !== undefined) updates.roles = roles
     if (availability !== undefined) updates.availability = availability
     if (bg_check_cleared !== undefined) updates.bg_check_cleared = bg_check_cleared
+    if (pay_rate !== undefined) updates.pay_rate = pay_rate === '' || pay_rate == null ? null : parseFloat(pay_rate)
 
     // Handle bg check result PDF/image upload
     if (bg_check_result_base64) {
@@ -1035,6 +1036,16 @@ async function handleTimesheetParse(req, res, supabase) {
     let image_url = null
     try { image_url = await uploadImage(supabase, image_base64, 'timesheets') } catch (e) { console.error('[admin/timesheet-parse] image store:', e.message) }
     const parsed = await parseTimesheetImage(image_base64)
+    // Pre-fill each row's hourly rate from the matched worker's saved default.
+    try {
+      const { data: apps } = await supabase.from('applicants').select('first_name, last_name, pay_rate').not('pay_rate', 'is', null)
+      const rateByName = {}
+      for (const a of (apps || [])) rateByName[`${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase().replace(/\s+/g, ' ')] = a.pay_rate
+      for (const r of (parsed.rows || [])) {
+        const key = String(r.name || '').trim().toLowerCase().replace(/\s+/g, ' ')
+        if (rateByName[key] != null && (r.pay_rate == null || r.pay_rate === '')) r.pay_rate = rateByName[key]
+      }
+    } catch { /* rate prefill is best-effort */ }
     return res.status(200).json({ ok: true, image_url, ...parsed })
   } catch (err) {
     console.error('[admin/timesheet-parse]', err.message)

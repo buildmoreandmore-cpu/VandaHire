@@ -940,6 +940,12 @@ export default function ApplicantsPanel() {
                           </div>
                         </div>
 
+                        {/* Hourly rate — the worker's default $/hr, used across timesheets & payroll */}
+                        <PayRateEditor
+                          worker={a}
+                          onSaved={(rate) => setApplicants(prev => prev.map(x => x.id === a.id ? { ...x, pay_rate: rate } : x))}
+                        />
+
                         {/* Reliability — show/no-show record */}
                         {(a.reliability?.pct != null || (a.reliability?.strikes || 0) > 0) && (
                           <div className="mt-3 bg-black/30 border border-p-border rounded-lg p-3">
@@ -1525,6 +1531,54 @@ function JobHistory({ history }) {
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+function PayRateEditor({ worker, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(worker.pay_rate ?? '')
+  const [saving, setSaving] = useState(false)
+  const rate = worker.pay_rate
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const clean = val === '' ? null : parseFloat(val)
+      await editApplicant(worker.id, { pay_rate: clean })
+      onSaved(clean)
+      setEditing(false)
+    } catch (e) { alert('Failed to save rate: ' + e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div className="mt-3 bg-black/30 border border-p-border rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+      <span className="text-p-muted text-xs">Hourly rate</span>
+      {editing ? (
+        <>
+          <span className="text-p-muted text-sm">$</span>
+          <input
+            type="number" step="0.01" min="0" autoFocus
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') save() }}
+            className="w-24 bg-p-bg border border-p-border rounded px-2 py-1 text-sm text-white"
+            placeholder="e.g. 15"
+          />
+          <span className="text-p-muted text-xs">/hr</span>
+          <button onClick={save} disabled={saving} className="ml-1 px-2.5 py-1 rounded bg-p-green text-black text-xs font-semibold disabled:opacity-50">{saving ? '…' : 'Save'}</button>
+          <button onClick={() => { setEditing(false); setVal(worker.pay_rate ?? '') }} className="text-p-muted text-xs hover:text-white">Cancel</button>
+        </>
+      ) : (
+        <>
+          <span className={`text-sm font-medium ${rate != null ? 'text-white' : 'text-p-muted'}`}>
+            {rate != null ? `$${rate}/hr` : 'Not set'}
+          </span>
+          <button onClick={() => { setEditing(true); setVal(worker.pay_rate ?? '') }} className="text-p-link text-xs hover:text-white ml-1">{rate != null ? 'Edit' : 'Set rate'}</button>
+          <span className="text-p-muted text-[10px] ml-auto">Applies on timesheets &amp; payroll unless overridden</span>
+        </>
       )}
     </div>
   )
