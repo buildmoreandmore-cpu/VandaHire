@@ -14,6 +14,7 @@ export default function EventTimesheets({ event, api, onClose }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [mode, setMode] = useState('list') // list | capture | submit | review
+  const [editingDay, setEditingDay] = useState(null)
   const [result, setResult] = useState(null)
 
   const load = async () => {
@@ -43,7 +44,7 @@ export default function EventTimesheets({ event, api, onClose }) {
   )
 
   if (mode === 'capture') {
-    return shell(<DayCapture event={event} api={api} onCancel={() => setMode('list')} onSaved={async () => { setMode('list'); await load() }} />)
+    return shell(<DayCapture event={event} api={api} editDay={editingDay} onCancel={() => { setEditingDay(null); setMode('list') }} onSaved={async () => { setEditingDay(null); setMode('list'); await load() }} />)
   }
 
   if (result) {
@@ -82,20 +83,34 @@ export default function EventTimesheets({ event, api, onClose }) {
                     {d.work_date || 'Undated day'}
                     {d._draft && <span style={{ marginLeft: 8, fontSize: 9, padding: '1px 6px', borderRadius: 5, background: 'rgba(250,204,21,.15)', color: '#facc15', verticalAlign: 'middle' }}>IN PROGRESS</span>}
                   </span>
-                  <span style={{ color: '#4ade80', fontSize: 12, whiteSpace: 'nowrap' }}>{total(d.rows)} hrs · {(d.rows || []).length} workers</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
+                    {api.canSetRate && <button onClick={() => { setEditingDay(d); setMode('capture') }} style={{ background: 'transparent', border: '1px solid #333', color: '#9ecbff', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>Edit</button>}
+                    <span style={{ color: '#4ade80', fontSize: 12 }}>{total(d.rows)} hrs · {(d.rows || []).length} workers</span>
+                  </span>
                 </div>
                 <DayPhotos urls={d.image_urls} />
                 <div style={{ overflowX: 'auto' }}>
+                  {(() => { const hasRate = (d.rows || []).some(r => parseFloat(r.pay_rate) > 0); return (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                    <thead><tr style={{ color: '#777', textAlign: 'left' }}><th style={{ padding: 3 }}>Name</th><th style={{ padding: 3 }}>Start</th><th style={{ padding: 3 }}>End</th><th style={{ padding: 3, textAlign: 'right' }}>Hrs</th></tr></thead>
+                    <thead><tr style={{ color: '#777', textAlign: 'left' }}>
+                      <th style={{ padding: 3 }}>Name</th><th style={{ padding: 3 }}>Start</th><th style={{ padding: 3 }}>End</th>
+                      <th style={{ padding: 3, textAlign: 'right' }}>Break</th><th style={{ padding: 3, textAlign: 'right' }}>Hrs</th>
+                      {hasRate && <th style={{ padding: 3, textAlign: 'right' }}>Rate</th>}
+                      {hasRate && <th style={{ padding: 3, textAlign: 'right' }}>Pay</th>}
+                    </tr></thead>
                     <tbody>
-                      {(d.rows || []).map((r, i) => (
+                      {(d.rows || []).map((r, i) => { const pay = (parseFloat(r.total_hours) || 0) * (parseFloat(r.pay_rate) || 0); return (
                         <tr key={i} style={{ color: '#ddd', borderTop: '1px solid #1a1a1a' }}>
-                          <td style={{ padding: 3 }}>{r.name}</td><td style={{ padding: 3 }}>{r.start_time}</td><td style={{ padding: 3 }}>{r.end_time}</td><td style={{ padding: 3, textAlign: 'right' }}>{r.total_hours}</td>
+                          <td style={{ padding: 3 }}>{r.name}</td><td style={{ padding: 3 }}>{r.start_time}</td><td style={{ padding: 3 }}>{r.end_time}</td>
+                          <td style={{ padding: 3, textAlign: 'right' }}>{r.break_minutes ? `${r.break_minutes}m` : ''}</td>
+                          <td style={{ padding: 3, textAlign: 'right' }}>{r.total_hours}</td>
+                          {hasRate && <td style={{ padding: 3, textAlign: 'right' }}>{r.pay_rate ? `$${r.pay_rate}` : ''}</td>}
+                          {hasRate && <td style={{ padding: 3, textAlign: 'right', color: pay ? '#4ade80' : '#555' }}>{pay ? `$${Math.round(pay * 100) / 100}` : ''}</td>}
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
+                  )})()}
                 </div>
               </div>
             ))}
@@ -128,6 +143,7 @@ export default function EventTimesheets({ event, api, onClose }) {
                       <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{d.work_date || 'Undated day'}</div>
                       <div style={{ color: '#888', fontSize: 11 }}>{(d.rows || []).length} worker{(d.rows || []).length !== 1 ? 's' : ''} · {total(d.rows)} hrs</div>
                     </div>
+                    <button onClick={() => { setEditingDay(d); setMode('capture') }} style={{ background: 'transparent', border: '1px solid #333', color: '#9ecbff', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Edit</button>
                     <button onClick={async () => { if (confirm('Delete this day?')) { try { await api.deleteDay(d.id); load() } catch (e) { alert(e.message) } } }} style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: 12, cursor: 'pointer' }}>Delete</button>
                   </div>
                   <DayPhotos urls={d.image_urls} />
@@ -169,12 +185,32 @@ function DayPhotos({ urls }) {
   )
 }
 
-function DayCapture({ event, api, onCancel, onSaved }) {
-  const [company, setCompany] = useState('')
-  const [workDate, setWorkDate] = useState('')
+// Compute worked hours from times minus break minutes. Returns null if unparseable.
+function computeNetHours(start, end, breakMin) {
+  const p = (t) => {
+    const m = /(\d{1,2}):?(\d{2})?\s*([ap]\.?m\.?)?/i.exec(String(t || ''))
+    if (!m) return null
+    let h = parseInt(m[1], 10); const min = m[2] ? parseInt(m[2], 10) : 0
+    const ap = (m[3] || '').toLowerCase()
+    if (ap.startsWith('p') && h < 12) h += 12
+    if (ap.startsWith('a') && h === 12) h = 0
+    return h + min / 60
+  }
+  const s = p(start), e = p(end)
+  if (s == null || e == null) return null
+  let d = e - s; if (d < 0) d += 24
+  d -= (parseFloat(breakMin) || 0) / 60
+  if (d < 0) d = 0
+  return Math.round(d * 10) / 10
+}
+
+function DayCapture({ event, api, onCancel, onSaved, editDay }) {
+  const canSetRate = !!api.canSetRate // coordinator only
+  const [company, setCompany] = useState(editDay?.company || '')
+  const [workDate, setWorkDate] = useState(editDay?.work_date || '')
   const [shift, setShift] = useState('') // '', 'Day', 'Night' — for events with different day/night crews
-  const [rows, setRows] = useState([])
-  const [imageUrls, setImageUrls] = useState([]) // original scan photos, kept with the day
+  const [rows, setRows] = useState(editDay?.rows ? editDay.rows.map(r => ({ ...r })) : [])
+  const [imageUrls, setImageUrls] = useState(editDay?.image_urls || []) // original scan photos, kept with the day
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -203,7 +239,16 @@ function DayCapture({ event, api, onCancel, onSaved }) {
     }
     setParsing(false)
   }
-  const setRow = (i, patch) => setRows(prev => prev.map((r, ri) => ri === i ? { ...r, ...patch } : r))
+  const setRow = (i, patch) => setRows(prev => prev.map((r, ri) => {
+    if (ri !== i) return r
+    const next = { ...r, ...patch }
+    // Recompute worked hours when a time or the break changes (keeps hours honest).
+    if ('start_time' in patch || 'end_time' in patch || 'break_minutes' in patch) {
+      const net = computeNetHours(next.start_time, next.end_time, next.break_minutes)
+      if (net != null) next.total_hours = net
+    }
+    return next
+  }))
   const total = Math.round(rows.reduce((a, r) => a + (parseFloat(r.total_hours) || 0), 0) * 10) / 10
 
   const save = async () => {
@@ -212,8 +257,10 @@ function DayCapture({ event, api, onCancel, onSaved }) {
     try {
       // Day/Night: tag the entry so a date with different day vs night crews
       // becomes its own column on the master payroll (staff can change per shift).
-      const label = shift ? `${workDate || 'Date'} — ${shift}` : workDate
-      await api.saveDay({ event_id: event.id, event_label: event.title, company, work_date: label, rows, image_urls: imageUrls })
+      const label = editDay ? workDate : (shift ? `${workDate || 'Date'} — ${shift}` : workDate)
+      const payload = { event_id: event.id, event_label: event.title, company, work_date: label, rows, image_urls: imageUrls }
+      if (editDay?.id) payload.id = editDay.id
+      await api.saveDay(payload)
       onSaved()
     } catch (e) { setError(e.message) }
     setSaving(false)
@@ -244,25 +291,44 @@ function DayCapture({ event, api, onCancel, onSaved }) {
       {rows.length > 0 && (
         <div style={{ overflowX: 'auto', marginBottom: 10 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: '#888', textAlign: 'left' }}><th style={{ padding: 4 }}>Name</th><th style={{ padding: 4, width: 88 }}>Start</th><th style={{ padding: 4, width: 88 }}>End</th><th style={{ padding: 4, width: 54 }}>Hrs</th><th></th></tr></thead>
+            <thead><tr style={{ color: '#888', textAlign: 'left' }}>
+              <th style={{ padding: 4 }}>Name</th>
+              <th style={{ padding: 4, width: 78 }}>Start</th>
+              <th style={{ padding: 4, width: 78 }}>End</th>
+              <th style={{ padding: 4, width: 56 }}>Break<span style={{ color: '#555' }}> min</span></th>
+              <th style={{ padding: 4, width: 48 }}>Hrs</th>
+              {canSetRate && <th style={{ padding: 4, width: 52 }}>Rate</th>}
+              {canSetRate && <th style={{ padding: 4, width: 62, textAlign: 'right' }}>Pay</th>}
+              <th></th>
+            </tr></thead>
             <tbody>
-              {rows.map((r, i) => (
+              {rows.map((r, i) => {
+                const pay = (parseFloat(r.total_hours) || 0) * (parseFloat(r.pay_rate) || 0)
+                return (
                 <tr key={i} style={{ background: r.unclear ? 'rgba(250,204,21,.08)' : 'transparent' }}>
                   <td style={{ padding: 2 }}><input style={inp} value={r.name} onChange={e => setRow(i, { name: e.target.value })} /></td>
                   <td style={{ padding: 2 }}><input style={inp} value={r.start_time} onChange={e => setRow(i, { start_time: e.target.value })} /></td>
                   <td style={{ padding: 2 }}><input style={inp} value={r.end_time} onChange={e => setRow(i, { end_time: e.target.value })} /></td>
+                  <td style={{ padding: 2 }}><input style={inp} value={r.break_minutes ?? ''} onChange={e => setRow(i, { break_minutes: e.target.value })} placeholder="0" /></td>
                   <td style={{ padding: 2 }}><input style={inp} value={r.total_hours} onChange={e => setRow(i, { total_hours: e.target.value })} /></td>
+                  {canSetRate && <td style={{ padding: 2 }}><input style={inp} value={r.pay_rate ?? ''} onChange={e => setRow(i, { pay_rate: e.target.value })} placeholder="—" /></td>}
+                  {canSetRate && <td style={{ padding: 2, textAlign: 'right', color: pay ? '#4ade80' : '#555' }}>{pay ? '$' + (Math.round(pay * 100) / 100) : '—'}</td>}
                   <td style={{ padding: 2 }}><button onClick={() => setRows(prev => prev.filter((_, ri) => ri !== i))} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer' }}>×</button></td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
-          <div style={{ color: '#4ade80', fontSize: 12, fontWeight: 700, textAlign: 'right', marginTop: 4 }}>{total} hrs</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <button type="button" onClick={() => setRows(prev => [...prev, { name: '', start_time: '', end_time: '', break_minutes: '', total_hours: '' }])} style={{ background: 'transparent', border: '1px dashed #333', color: '#888', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>+ Add worker</button>
+            <div style={{ color: '#4ade80', fontSize: 12, fontWeight: 700 }}>
+              {total} hrs{canSetRate && (() => { const p = rows.reduce((a, r) => a + (parseFloat(r.total_hours) || 0) * (parseFloat(r.pay_rate) || 0), 0); return p ? ` · $${Math.round(p * 100) / 100} pay` : '' })()}
+            </div>
+          </div>
         </div>
       )}
       {error && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 10 }}>{error}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={save} disabled={saving || !rows.length} style={{ flex: 1, background: '#fff', color: '#000', border: 'none', borderRadius: 8, padding: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (saving || !rows.length) ? 0.5 : 1 }}>{saving ? 'Saving…' : 'Save this day'}</button>
+        <button onClick={save} disabled={saving || !rows.length} style={{ flex: 1, background: '#fff', color: '#000', border: 'none', borderRadius: 8, padding: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (saving || !rows.length) ? 0.5 : 1 }}>{saving ? 'Saving…' : editDay ? 'Save changes' : 'Save this day'}</button>
         <button onClick={onCancel} style={{ background: 'transparent', border: '1px solid #333', color: '#888', borderRadius: 8, padding: '12px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
       </div>
     </div>

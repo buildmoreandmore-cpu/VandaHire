@@ -15,6 +15,7 @@ export function buildTimesheetXlsxBase64(payload) {
   const perWorker = {} // name -> total hours across days
   let usedNames = new Set()
 
+  const anyRate = payload.days.some(d => (d.rows || []).some(r => num(r.pay_rate) > 0))
   payload.days.forEach((day, di) => {
     const rows = day.rows || []
     const aoa = []
@@ -23,20 +24,22 @@ export function buildTimesheetXlsxBase64(payload) {
     aoa.push(['Event:', event])
     aoa.push(['Date:', day.date || ''])
     aoa.push([])
-    aoa.push(['#', 'Name', 'Start Time', 'End Time', 'Total Hours'])
-    let dayTotal = 0
+    aoa.push(['#', 'Name', 'Start Time', 'End Time', 'Break (min)', 'Total Hours', ...(anyRate ? ['Rate', 'Pay'] : [])])
+    let dayTotal = 0, dayPay = 0
     rows.forEach((r, i) => {
       const h = num(r.total_hours)
-      dayTotal += h
+      const rate = num(r.pay_rate)
+      const pay = Math.round(h * rate * 100) / 100
+      dayTotal += h; dayPay += pay
       if (r.name) { perWorker[r.name] = (perWorker[r.name] || 0) + h; usedNames.add(r.name) }
-      aoa.push([i + 1, r.name || '', r.start_time || '', r.end_time || '', h || ''])
+      aoa.push([i + 1, r.name || '', r.start_time || '', r.end_time || '', num(r.break_minutes) || '', h || '', ...(anyRate ? [rate || '', pay || ''] : [])])
     })
-    aoa.push(['', '', '', 'Total Hours', round(dayTotal)])
+    aoa.push(['', '', '', '', 'Total Hours', round(dayTotal), ...(anyRate ? ['', round(dayPay)] : [])])
     aoa.push([])
     aoa.push(['Company signature:', ''])
     aoa.push(['Varist & Associates signature:', sig])
     const ws = XLSX.utils.aoa_to_sheet(aoa)
-    ws['!cols'] = [{ wch: 6 }, { wch: 26 }, { wch: 12 }, { wch: 12 }, { wch: 12 }]
+    ws['!cols'] = [{ wch: 6 }, { wch: 26 }, { wch: 12 }, { wch: 12 }, { wch: 11 }, { wch: 12 }, ...(anyRate ? [{ wch: 8 }, { wch: 10 }] : [])]
     const name = (day.date || `Day ${di + 1}`).replace(/[\\/?*[\]:]/g, '-').slice(0, 28)
     XLSX.utils.book_append_sheet(wb, ws, name || `Day ${di + 1}`)
   })

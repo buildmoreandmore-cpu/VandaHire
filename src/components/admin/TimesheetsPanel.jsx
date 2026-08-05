@@ -3,6 +3,7 @@ import EventTimesheets from '../EventTimesheets.jsx'
 import { fetchEvents, parseTimesheet, timesheetDays, timesheetBatches, renameTimesheetBatch, saveTimesheetDay, deleteTimesheetDay, finalizeTimesheet } from '../../lib/adminApi.js'
 
 const adminTsApi = {
+  canSetRate: true, // coordinator can enter hourly rates on the timesheet
   listDays: (eventId) => timesheetDays(eventId),
   listSubmitted: (eventId) => timesheetDays(eventId, 'submitted'),
   parseImage: (base64) => parseTimesheet(base64),
